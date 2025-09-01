@@ -164,8 +164,8 @@ export function useThreeJS(
       let effectiveRadius = insideRadius;
       
       if (segmentPosition <= parameters.bottomLength) {
-        // Bottom over-ease: straight rail going down stairs at 35.08° angle
-        // Start at spiral position and transition to straight vertical rail
+        // Bottom over-ease: straight rail going down stairs at -35.08° angle
+        // Start at spiral position and transition to straight rail going down
         const easeT = segmentPosition / parameters.bottomLength;
         
         // Calculate the spiral start position (where over-ease begins)
@@ -173,10 +173,14 @@ export function useThreeJS(
         const spiralStartX = insideRadius * Math.cos(spiralStartAngle);
         const spiralStartZ = insideRadius * Math.sin(spiralStartAngle);
         
-        // Calculate the straight rail end position (straight down at 35.08°)
-        // The straight rail goes directly down from the spiral start
-        const straightEndX = spiralStartX; // Same X position
-        const straightEndZ = spiralStartZ; // Same Z position (no lateral movement)
+        // Calculate the straight rail end position (going down at -35.08°)
+        // The straight rail goes down at the staircase slope angle
+        const straightRailLength = 3; // Length of straight rail section
+        const angleRadians = -35.08 * Math.PI / 180; // Convert to radians
+        
+        // Calculate end position based on angle and length
+        const straightEndX = spiralStartX + (straightRailLength * Math.cos(angleRadians));
+        const straightEndZ = spiralStartZ + (straightRailLength * Math.sin(angleRadians));
         
         // Linear interpolation from spiral to straight rail
         x = spiralStartX + (straightEndX - spiralStartX) * easeT;
@@ -184,7 +188,7 @@ export function useThreeJS(
         
       } else if (segmentPosition >= parameters.totalSegments - parameters.topLength) {
         // Top up-ease: straight rail going up stairs at 35.08° angle
-        // Start at spiral position and transition to straight vertical rail
+        // Start at spiral position and transition to straight rail going up
         const easeT = (segmentPosition - (parameters.totalSegments - parameters.topLength)) / parameters.topLength;
         
         // Calculate the spiral end position (where up-ease begins)
@@ -192,10 +196,14 @@ export function useThreeJS(
         const spiralEndX = insideRadius * Math.cos(spiralEndAngle);
         const spiralEndZ = insideRadius * Math.sin(spiralEndAngle);
         
-        // Calculate the straight rail end position (straight up at 35.08°)
-        // The straight rail goes directly up from the spiral end
-        const straightEndX = spiralEndX; // Same X position
-        const straightEndZ = spiralEndZ; // Same Z position (no lateral movement)
+        // Calculate the straight rail end position (going up at 35.08°)
+        // The straight rail goes up at the staircase slope angle
+        const straightRailLength = 3; // Length of straight rail section
+        const angleRadians = 35.08 * Math.PI / 180; // Convert to radians
+        
+        // Calculate end position based on angle and length
+        const straightEndX = spiralEndX + (straightRailLength * Math.cos(angleRadians));
+        const straightEndZ = spiralEndZ + (straightRailLength * Math.sin(angleRadians));
         
         // Linear interpolation from spiral to straight rail
         x = spiralEndX + (straightEndX - spiralEndX) * easeT;
