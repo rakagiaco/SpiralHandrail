@@ -634,72 +634,72 @@ export function useThreeJS(
        // Calculate continuous angle based on arc distance
        const angle = (arcDistance / parameters.totalArcDistance) * parameters.totalDegrees * Math.PI / 180;
        
-                                // FIXED: Apply easement angle to the ENTIRE calculation system
-         // The angle affects how steeply the entire handrail rises/falls
-         const customEasementAngle = parameters.customEasementAngle || -35.08;
-         const easementAngleRad = customEasementAngle * Math.PI / 180;
+                                          // FIXED: Apply easement angle to the ENTIRE calculation system
+          // The angle affects how steeply the entire handrail rises/falls
+          const customEasementAngle = parameters.customEasementAngle || -35.08;
+          const easementAngleRad = customEasementAngle * Math.PI / 180;
+          
+          // Calculate base rise with manual data interpolation
+          let baseRise: number;
+          let rise: number;
+          
+          if (Object.keys(safeManualRiseData).length > 0) {
+            // Find the two closest manual rise points for interpolation
+            const manualDistances = Object.keys(safeManualRiseData).map(Number).sort((a, b) => a - b);
+            const currentArcDistance = t * parameters.totalArcDistance;
+            
+            // Find the two points to interpolate between
+            let lowerPoint = manualDistances[0];
+            let upperPoint = manualDistances[manualDistances.length - 1];
+            
+            for (let j = 0; j < manualDistances.length - 1; j++) {
+              if (currentArcDistance >= manualDistances[j] && currentArcDistance <= manualDistances[j + 1]) {
+                lowerPoint = manualDistances[j];
+                upperPoint = manualDistances[j + 1];
+                break;
+              }
+            }
+            
+            // Interpolate between the two manual points
+            const lowerRise = safeManualRiseData[lowerPoint];
+            const upperRise = safeManualRiseData[upperPoint];
+            
+            if (lowerPoint === upperPoint) {
+              // Exact match - use the manual point directly
+              baseRise = safeManualRiseData[lowerPoint];
+            } else {
+              // Interpolate between the two points
+              const interpolationFactor = (currentArcDistance - lowerPoint) / (upperPoint - lowerPoint);
+              baseRise = lowerRise + (upperRise - lowerRise) * interpolationFactor;
+              
+              if (i % 500 === 0) {
+                console.log(`📍 Interpolating between manual points: ${lowerPoint}" → ${upperPoint}", factor: ${interpolationFactor.toFixed(3)}, base rise: ${baseRise.toFixed(3)}"`);
+              }
+            }
+          } else {
+            // Fallback: use simple linear rise if no manual data
+            baseRise = safePitchBlock + (t * safeTotalRise);
+          }
+          
+          // FIXED: Apply easement angle as a GLOBAL slope adjustment to the entire handrail
+          // This affects the overall steepness without disconnecting the lines
+          const globalAngleAdjustment = Math.tan(easementAngleRad) * (arcDistance * 0.1);
+          const adjustedBaseRise = baseRise + globalAngleAdjustment;
+          
+          // Scale the adjusted rise proportionally with project parameters
+          const scaledRise = adjustedBaseRise - safePitchBlock;
+          const scaleFactor = safeTotalRise / 7.375;
+          rise = safePitchBlock + (scaledRise * scaleFactor);
          
-         // Calculate base rise with manual data interpolation
-         let baseRise: number;
-         let rise: number;
-         
-         if (Object.keys(safeManualRiseData).length > 0) {
-           // Find the two closest manual rise points for interpolation
-           const manualDistances = Object.keys(safeManualRiseData).map(Number).sort((a, b) => a - b);
-           const currentArcDistance = t * parameters.totalArcDistance;
-           
-           // Find the two points to interpolate between
-           let lowerPoint = manualDistances[0];
-           let upperPoint = manualDistances[manualDistances.length - 1];
-           
-           for (let j = 0; j < manualDistances.length - 1; j++) {
-             if (currentArcDistance >= manualDistances[j] && currentArcDistance <= manualDistances[j + 1]) {
-               lowerPoint = manualDistances[j];
-               upperPoint = manualDistances[j + 1];
-               break;
-             }
-           }
-           
-           // Interpolate between the two manual points
-           const lowerRise = safeManualRiseData[lowerPoint];
-           const upperRise = safeManualRiseData[upperPoint];
-           
-           if (lowerPoint === upperPoint) {
-             // Exact match - use the manual point directly
-             baseRise = safeManualRiseData[lowerPoint];
-           } else {
-             // Interpolate between the two points
-             const interpolationFactor = (currentArcDistance - lowerPoint) / (upperPoint - lowerPoint);
-             baseRise = lowerRise + (upperRise - lowerRise) * interpolationFactor;
-             
-             if (i % 500 === 0) {
-               console.log(`📍 Interpolating between manual points: ${lowerPoint}" → ${upperPoint}", factor: ${interpolationFactor.toFixed(3)}, base rise: ${baseRise.toFixed(3)}"`);
-             }
-           }
-         } else {
-           // Fallback: use simple linear rise if no manual data
-           baseRise = safePitchBlock + (t * safeTotalRise);
-         }
-         
-                   // FIXED: Apply easement angle to the ENTIRE rise calculation
-          // This affects how steeply the entire handrail rises/falls
-          const angleAdjustment = Math.tan(easementAngleRad) * (arcDistance * 0.02); // Very small multiplier to prevent disconnection
-         const adjustedBaseRise = baseRise + angleAdjustment;
-         
-         // Scale the adjusted rise proportionally with project parameters
-         const scaledRise = adjustedBaseRise - safePitchBlock;
-         const scaleFactor = safeTotalRise / 7.375;
-         rise = safePitchBlock + (scaledRise * scaleFactor);
-         
-         // Debug logging for angle effect
-         if (i % 1000 === 0) {
-           console.log(`🔧 Easement angle ${customEasementAngle}° affecting entire calculation:`);
-           console.log(`📍 Arc distance: ${arcDistance.toFixed(3)}"`);
-           console.log(`📍 Base rise: ${baseRise.toFixed(3)}"`);
-           console.log(`📍 Angle adjustment: ${angleAdjustment.toFixed(3)}"`);
-           console.log(`📍 Adjusted base rise: ${adjustedBaseRise.toFixed(3)}"`);
-           console.log(`📍 Final scaled rise: ${rise.toFixed(3)}"`);
-         }
+                   // Debug logging for angle effect
+          if (i % 1000 === 0) {
+            console.log(`🔧 Easement angle ${customEasementAngle}° affecting entire calculation:`);
+            console.log(`📍 Arc distance: ${arcDistance.toFixed(3)}"`);
+            console.log(`📍 Base rise: ${baseRise.toFixed(3)}"`);
+            console.log(`📍 Global angle adjustment: ${globalAngleAdjustment.toFixed(3)}"`);
+            console.log(`📍 Adjusted base rise: ${adjustedBaseRise.toFixed(3)}"`);
+            console.log(`📍 Final scaled rise: ${rise.toFixed(3)}"`);
+          }
         
         // Validate rise value
         if (isNaN(rise) || !isFinite(rise)) {
@@ -1003,24 +1003,28 @@ export function useThreeJS(
                         // Use smooth interpolation to prevent 90-degree angles
               const smoothEaseT = easeT * easeT * (3 - 2 * easeT); // Smoothstep function
               
-                                            // FIXED: Inside line bottom easement should start at inner line start height and end at spiral rise
-               const easementStartRise = insidePitchBlockOffset; // Start at inner line start height
-               const easementTargetRise = rise; // End at the calculated spiral rise
-               
-                               // FIXED: Apply easement angle as a proportional adjustment that pivots around connection points
-                const customEasementAngle = parameters.customEasementAngle || -35.08;
-                const easementAngleRad = customEasementAngle * Math.PI / 180;
-                const angleAdjustment = Math.tan(easementAngleRad) * (arcDistance * 0.05);
-                const adjustedTargetRise = easementTargetRise + angleAdjustment;
-               
-               // Smoothly interpolate from start to target position to prevent sharp angles
-               const targetX = innerRadius * Math.cos(angle);
-               const targetZ = innerRadius * Math.sin(angle);
-               
-               // Interpolate all coordinates smoothly
-               x = startX + (targetX - startX) * smoothEaseT;
-               z = startZ + (targetZ - startZ) * smoothEaseT;
-               y = easementStartRise + (adjustedTargetRise - easementStartRise) * smoothEaseT;
+                                                                                         // FIXED: Inside line bottom easement should start at inner line start height and end at spiral rise
+                const easementStartRise = insidePitchBlockOffset; // Start at inner line start height
+                const easementTargetRise = rise; // End at the calculated spiral rise
+                
+                                // FIXED: Apply easement angle as a proportional adjustment that pivots around connection points
+                 const customEasementAngle = parameters.customEasementAngle || -35.08;
+                 const easementAngleRad = customEasementAngle * Math.PI / 180;
+                 const angleAdjustment = Math.tan(easementAngleRad) * (arcDistance * 0.05);
+                 const adjustedTargetRise = easementTargetRise + angleAdjustment;
+                
+                // FIXED: Use the same smooth easing logic as the outer line for consistency
+                // This prevents the steep drop and creates a smooth transition
+                const smoothTargetRise = easementStartRise + (adjustedTargetRise - easementStartRise) * smoothEaseT;
+                
+                // Smoothly interpolate from start to target position to prevent sharp angles
+                const targetX = innerRadius * Math.cos(angle);
+                const targetZ = innerRadius * Math.sin(angle);
+                
+                // Interpolate all coordinates smoothly
+                x = startX + (targetX - startX) * smoothEaseT;
+                z = startZ + (targetZ - startZ) * smoothEaseT;
+                y = smoothTargetRise;
            }
         }
         
