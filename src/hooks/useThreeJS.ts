@@ -61,33 +61,104 @@ export function useThreeJS(
     return sprite;
   };
 
-  // Function to create debugging information overlay
-  const createDebugInfoOverlay = (params: HandrailParameters, manualData: Record<number, number>, calculatedData: Record<number, number>) => {
-    const group = new THREE.Group();
-    
-    const paramsText = [
-      `Total Arc: ${params.totalArcDistance}"`,
-      `Total Rise: ${params.totalHelicalRise}"`,
-      `Pitch Block: ${params.pitchBlock}"`,
-      `Bottom Offset: ${params.bottomOffset}"`,
-      `Top Offset: ${params.topOffset}"`,
-      `Manual Points: ${Object.keys(manualData).length}`,
-      `Calculated Points: ${Object.keys(calculatedData).length}`
-    ];
-    
-    paramsText.forEach((text, index) => {
-      // Use smaller text and position relative to the group (which is positioned in top-right)
-      const sprite = createTextSprite(text, new THREE.Vector3(0, 0 - index * 1.5, 0), 0x00ff00, 'small');
-      group.add(sprite);
-    });
-    
-    return group;
-  };
+
 
   const updateVisualization = useCallback(() => {
     if (!sceneRef.current) return;
 
     const { scene, handrailMesh, insideLineMesh, centerDots, debugElements } = sceneRef.current;
+    
+    // Function to create debugging information overlay
+    const createDebugInfoOverlay = (params: HandrailParameters, manualData: Record<number, number>, calculatedData: Record<number, number>) => {
+      const group = new THREE.Group();
+      
+      const paramsText = [
+        `Total Arc: ${params.totalArcDistance}"`,
+        `Total Rise: ${params.totalHelicalRise}"`,
+        `Pitch Block: ${params.pitchBlock}"`,
+        `Bottom Offset: ${params.bottomOffset}"`,
+        `Top Offset: ${params.topOffset}"`,
+        `Manual Points: ${Object.keys(manualData).length}`,
+        `Calculated Points: ${Object.keys(calculatedData).length}`
+      ];
+      
+      paramsText.forEach((text, index) => {
+        const sprite = createTextSprite(text, new THREE.Vector3(0, 0 - index * 1.5, 0), 0x00ff00, 'small');
+        group.add(sprite);
+      });
+      
+      return group;
+    };
+
+    // Function to add staircase framework for reference
+    const addStaircaseFramework = (scene: THREE.Scene, parameters: HandrailParameters, debugElements: THREE.Object3D[], totalRise: number) => {
+      // Protect against zero or negative values
+      if (totalRise <= 0) return;
+      
+      const customAngle = parameters.customEasementAngle || 35.08;
+      const angleRad = customAngle * Math.PI / 180;
+      
+      // Protect against invalid angles
+      if (Math.abs(Math.tan(angleRad)) < 0.001) return;
+      
+      const stepRise = totalRise / 7;
+      const stepRun = stepRise / Math.tan(angleRad);
+      const slopeAngle = customAngle;
+      
+      const staircasePoints: THREE.Vector3[] = [];
+      
+      for (let i = 1; i <= 7; i++) {
+        const y = (7 - i) * stepRun;
+        const z = -(7 - i) * stepRise;
+        const x = 0;
+        
+        staircasePoints.push(new THREE.Vector3(x, y, z));
+        
+        const stepGeometry = new THREE.BoxGeometry(0.5, 0.1, 0.5);
+        const stepMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.7 });
+        const step = new THREE.Mesh(stepGeometry, stepMaterial);
+        step.position.set(x, y - 0.05, z);
+        scene.add(step);
+        debugElements.push(step);
+        
+        const stepLabel = createTextSprite(`F1-${i}`, new THREE.Vector3(x + 0.8, y, z), 0x00ff00);
+        scene.add(stepLabel);
+        debugElements.push(stepLabel);
+      }
+      
+      for (let i = 1; i <= 7; i++) {
+        const y = -i * stepRun;
+        const z = -i * stepRise;
+        const x = 0;
+        
+        staircasePoints.push(new THREE.Vector3(x, y, z));
+        
+        const stepGeometry = new THREE.BoxGeometry(0.5, 0.1, 0.5);
+        const stepMaterial = new THREE.MeshBasicMaterial({ color: 0x0088ff, transparent: true, opacity: 0.7 });
+        const step = new THREE.Mesh(stepGeometry, stepMaterial);
+        step.position.set(x, y - 0.05, z);
+        scene.add(step);
+        debugElements.push(step);
+        
+        const stepLabel = createTextSprite(`F2-${i}`, new THREE.Vector3(x - 0.8, y, z), 0x0088ff);
+        scene.add(stepLabel);
+        debugElements.push(stepLabel);
+      }
+      
+      const staircaseGeometry = new THREE.BufferGeometry().setFromPoints(staircasePoints);
+      const staircaseMaterial = new THREE.LineBasicMaterial({ color: 0xffff00, linewidth: 4 });
+      const staircaseLine = new THREE.Line(staircaseGeometry, staircaseMaterial);
+      scene.add(staircaseLine);
+      debugElements.push(staircaseLine);
+      
+      const slopeLabel = createTextSprite(
+        `Slope: ${slopeAngle.toFixed(1)}°`, 
+        new THREE.Vector3(0, 8, 0), 
+        0xffff00
+      );
+      scene.add(slopeLabel);
+      debugElements.push(slopeLabel);
+    };
     
     // Remove existing meshes and debug elements
     if (handrailMesh) scene.remove(handrailMesh);
@@ -97,13 +168,50 @@ export function useThreeJS(
     sceneRef.current.centerDots = [];
     sceneRef.current.debugElements = [];
     
-    // Handle edge cases for zero values
-    const safePitchBlock = Math.max(0, parameters.pitchBlock || 0);
-    const safeTotalRise = Math.max(0.1, parameters.totalHelicalRise || 0.1);
+    // CRASH PROTECTION: Validate all critical parameters before proceeding
+    if (!parameters || typeof parameters !== 'object') {
+      console.warn('Invalid parameters object, skipping visualization update');
+      return;
+    }
     
-    // Calculate radii
-    const outerRadius = 4.625 + (parameters.bottomOffset || 0);
-    const innerRadius = 4.625 - (parameters.topOffset || 0);
+    // CRASH PROTECTION: Check for impossible or invalid values
+    if (parameters.totalArcDistance <= 0 || parameters.totalHelicalRise <= 0) {
+      console.warn('Invalid arc distance or helical rise, skipping visualization update');
+      return;
+    }
+    
+    if (parameters.totalSegments <= 0 || parameters.bottomLength <= 0 || parameters.topLength <= 0) {
+      console.warn('Invalid segment parameters, skipping visualization update');
+      return;
+    }
+    
+    // CRASH PROTECTION: Ensure pitch block is reasonable (not negative or extremely large)
+    if (parameters.pitchBlock < 0 || parameters.pitchBlock > 100) {
+      console.warn('Pitch block value out of reasonable range, using default');
+    }
+    
+    // CRASH PROTECTION: Ensure total rise is reasonable
+    if (parameters.totalHelicalRise <= 0 || parameters.totalHelicalRise > 1000) {
+      console.warn('Total helical rise value out of reasonable range, using default');
+    }
+    
+    // Safe values with fallbacks
+    const safePitchBlock = Math.max(0.1, Math.min(100, parameters.pitchBlock || 0.1));
+    const safeTotalRise = Math.max(0.1, Math.min(1000, parameters.totalHelicalRise || 0.1));
+    
+    // CRASH PROTECTION: Validate offset values
+    const safeBottomOffset = Math.max(-10, Math.min(10, parameters.bottomOffset || 0));
+    const safeTopOffset = Math.max(-10, Math.min(10, parameters.topOffset || 0));
+    
+    // Calculate radii with protection
+    const outerRadius = Math.max(0.1, 4.625 + safeBottomOffset);
+    let innerRadius = Math.max(0.1, 4.625 - safeTopOffset);
+    
+    // CRASH PROTECTION: Ensure inner radius is smaller than outer radius
+    if (innerRadius >= outerRadius) {
+      console.warn('Inner radius must be smaller than outer radius, adjusting');
+      innerRadius = outerRadius * 0.8;
+    }
     
     // Add center dots with enhanced debugging (only when debug mode is on)
     if (debugMode) {
@@ -160,54 +268,88 @@ export function useThreeJS(
     const outerPoints: THREE.Vector3[] = [];
     const steps = 200;
     
+    // CRASH PROTECTION: Validate calculation inputs
+    const safeManualRiseData = (!manualRiseData || typeof manualRiseData !== 'object') ? {} : manualRiseData;
+    const safeCalculatedRiseData = (!calculatedRiseData || typeof calculatedRiseData !== 'object') ? {} : calculatedRiseData;
+    
+    if (!manualRiseData || !calculatedRiseData || typeof manualRiseData !== 'object' || typeof calculatedRiseData !== 'object') {
+      console.warn('Invalid rise data, using fallback calculations');
+    }
+    
     for (let i = 0; i <= steps; i++) {
       const t = i / steps;
       const arcDistance = t * parameters.totalArcDistance;
       
       const segmentPosition = (arcDistance / parameters.totalArcDistance) * parameters.totalSegments;
       const angle = (arcDistance / parameters.totalArcDistance) * parameters.totalDegrees * Math.PI / 180;
-      const rise = getCurrentRiseAtDistance(
-        arcDistance, 
-        manualRiseData, 
-        calculatedRiseData, 
-        parameters.totalArcDistance,
-        parameters.totalHelicalRise,
-        parameters.pitchBlock
-      );
+      
+              // CRASH PROTECTION: Safe rise calculation with fallback
+        let rise: number;
+        try {
+          rise = getCurrentRiseAtDistance(
+            arcDistance, 
+            safeManualRiseData, 
+            safeCalculatedRiseData
+          );
+        
+        // Validate rise value
+        if (isNaN(rise) || !isFinite(rise)) {
+          console.warn(`Invalid rise value at step ${i}, using fallback`);
+          rise = safePitchBlock + (t * safeTotalRise);
+        }
+      } catch (error) {
+        console.warn(`Error calculating rise at step ${i}, using fallback:`, error);
+        rise = safePitchBlock + (t * safeTotalRise);
+      }
       
       let x: number, z: number, y: number = rise;
       
       if (segmentPosition <= parameters.bottomLength) {
-        // Bottom over-ease: smooth flow into 35-degree angle without fixed end point
-        const easeT = segmentPosition / parameters.bottomLength;
-        
-        // Start at 0° with pitch block height rise
-        const startAngle = 0;
-        const startX = outerRadius * Math.cos(startAngle);
-        const startZ = outerRadius * Math.sin(startAngle);
-        const startRise = safePitchBlock;
-        
-        // Use custom easement angle if provided, otherwise default to -35.08°
-        const easementAngle = parameters.customEasementAngle || -35.08;
-        const angleRad = easementAngle * Math.PI / 180;
-        
-        // FIXED: Create smooth curve that flows into the angle without reaching a fixed end point
-        // This eliminates the "nub" by not trying to interpolate to a specific target
-        const smoothEaseT = easeT * easeT * (3 - 2 * easeT); // Smoothstep function
-        
-        // Calculate the rise based on the angle and distance, but smoothly
-        // The rail should flow into the 35-degree angle naturally
-        const angleProgress = smoothEaseT;
-        const riseChange = angleProgress * Math.sin(Math.abs(angleRad)) * 2.0; // 2.0" is the easement length
-        
-        // Position stays at the same radius (no X/Z change)
-        x = startX;
-        z = startZ;
-        // Rise smoothly decreases following the angle
-        y = startRise - riseChange;
+        // CRASH PROTECTION: Validate bottom length
+        if (parameters.bottomLength <= 0) {
+          console.warn('Invalid bottom length, skipping bottom easement');
+          x = outerRadius * Math.cos(angle);
+          z = outerRadius * Math.sin(angle);
+          y = rise;
+        } else {
+          // Bottom over-ease: smooth flow into 35-degree angle without fixed end point
+          const easeT = segmentPosition / parameters.bottomLength;
+          
+          // Start at 0° with pitch block height rise
+          const startAngle = 0;
+          const startX = outerRadius * Math.cos(startAngle);
+          const startZ = outerRadius * Math.sin(startAngle);
+          const startRise = safePitchBlock;
+          
+          // Use custom easement angle if provided, otherwise default to -35.08°
+          const easementAngle = parameters.customEasementAngle || -35.08;
+          const angleRad = easementAngle * Math.PI / 180;
+          
+          // CRASH PROTECTION: Validate angle calculations
+          if (isNaN(angleRad) || !isFinite(angleRad)) {
+            console.warn('Invalid easement angle, using fallback');
+            x = startX;
+            z = startZ;
+            y = startRise;
+          } else {
+            // FIXED: Create completely smooth bottom easement without angle-based calculations
+            // This eliminates the nub by using pure smoothstep interpolation
+            const smoothEaseT = easeT * easeT * (3 - 2 * easeT); // Smoothstep function
+            
+            // Use a very gentle curve that smoothly transitions from pitch block height
+            // to the spiral start without any sharp angle changes
+            const gentleCurve = smoothEaseT * 0.3; // Very gentle effect
+            
+            // Position stays at the same radius (no X/Z change)
+            x = startX;
+            z = startZ;
+            // Rise smoothly decreases with minimal change - no nub
+            y = startRise - (gentleCurve * 0.5); // Minimal rise change
+          }
+        }
         
         // Add interactive target point marker for bottom easement (invisible to avoid 90° angle bug)
-        if (i === 0 && debugMode) {
+        if (i === 0 && debugMode && parameters.bottomLength > 0) {
           const targetMarkerGeometry = new THREE.SphereGeometry(0.3, 16, 16);
           const targetMarkerMaterial = new THREE.MeshBasicMaterial({ 
             color: 0xff0000, 
@@ -215,7 +357,9 @@ export function useThreeJS(
             opacity: 0.0 // Make invisible
           });
           const targetMarker = new THREE.Mesh(targetMarkerGeometry, targetMarkerMaterial);
-          targetMarker.position.set(startX, startRise, startZ);
+          const markerX = outerRadius * Math.cos(0);
+          const markerZ = outerRadius * Math.sin(0);
+          targetMarker.position.set(markerX, safePitchBlock, markerZ);
           targetMarker.userData = { type: 'bottomTarget' };
           scene.add(targetMarker);
           sceneRef.current.debugElements.push(targetMarker);
@@ -223,52 +367,63 @@ export function useThreeJS(
         }
         
       } else if (segmentPosition >= parameters.totalSegments - parameters.topLength) {
-        // Top up-ease: direct interpolation from spiral end to final position
-        const easeT = (segmentPosition - (parameters.totalSegments - parameters.topLength)) / parameters.topLength;
-        
-        // Start at 200° (where spiral ends and easement begins)
-        const startAngle = 200 * Math.PI / 180;
-        const startX = outerRadius * Math.cos(startAngle);
-        const startZ = outerRadius * Math.sin(startAngle);
-        
-        // Calculate the correct starting rise at 200° (end of spiral) - SCALES WITH TOTAL RISE
-        const spiralEndRise = safePitchBlock + (200 / 220) * safeTotalRise;
-        const startRise = spiralEndRise;
-        
-        // End at 220° with total rise - SCALES WITH TOTAL RISE
-        const endAngle = 220 * Math.PI / 180;
-        const endX = outerRadius * Math.cos(endAngle);
-        const endZ = outerRadius * Math.sin(endAngle);
-        const endRise = safePitchBlock + safeTotalRise;
-        
-        // Use custom easement angle if provided, otherwise default to +35.08°
-
-        
-                 // IMPROVED: Create ultra-smooth transition from spiral end to easement end
-         // Use the EXACT same smoothing as the inside line for perfect consistency
-         
-         // Primary smoothstep function
-         const smoothEaseT = easeT * easeT * (3 - 2 * easeT);
-         
-         // Apply additional smoothing layers for ultra-smooth transition
-         const smoothLayer1 = Math.sin(easeT * Math.PI) * 0.1; // Gentle sine wave
-         const smoothLayer2 = Math.sin(easeT * Math.PI * 2) * 0.05; // Higher frequency wave
-         const smoothLayer3 = Math.sin(easeT * Math.PI * 4) * 0.025; // Even higher frequency
-         
-         // Combine all smoothing layers - IDENTICAL to inside line
-         const finalEaseT = smoothEaseT + smoothLayer1 + smoothLayer2 + smoothLayer3;
-         
-         // Apply smoothing to all coordinates for consistent smoothness
-         x = startX + (endX - startX) * finalEaseT;
-         z = startZ + (endZ - startZ) * finalEaseT;
-         y = startRise + (endRise - startRise) * finalEaseT;
+        // CRASH PROTECTION: Validate top length
+        if (parameters.topLength <= 0) {
+          console.warn('Invalid top length, skipping top easement');
+          x = outerRadius * Math.cos(angle);
+          z = outerRadius * Math.sin(angle);
+          y = rise;
+        } else {
+          // Top up-ease: direct interpolation from spiral end to final position
+          const easeT = (segmentPosition - (parameters.totalSegments - parameters.topLength)) / parameters.topLength;
+          
+          // Start at 200° (where spiral ends and easement begins)
+          const startAngle = 200 * Math.PI / 180;
+          const startX = outerRadius * Math.cos(startAngle);
+          const startZ = outerRadius * Math.sin(startAngle);
+          
+          // FIXED: Calculate a higher starting rise at 200° (end of spiral) for smoother up-ease
+          // The spiral should end slightly higher to create a gradual, smooth transition
+          const spiralEndRise = safePitchBlock + (200 / 220) * safeTotalRise + (safeTotalRise * 0.15); // Add 15% extra rise
+          const startRise = spiralEndRise;
+          
+          // End at 220° with total rise - SCALES WITH TOTAL RISE
+          const endAngle = 220 * Math.PI / 180;
+          const endX = outerRadius * Math.cos(endAngle);
+          const endZ = outerRadius * Math.sin(endAngle);
+          const endRise = safePitchBlock + safeTotalRise;
+          
+          // CRASH PROTECTION: Validate all calculated values
+          if (isNaN(easeT) || !isFinite(easeT) || isNaN(spiralEndRise) || !isFinite(spiralEndRise)) {
+            console.warn('Invalid top easement calculations, using fallback');
+            x = startX;
+            z = startZ;
+            y = startRise;
+          } else {
+            // IMPROVED: Create ultra-smooth transition from spiral end to easement end
+            const smoothEaseT = easeT * easeT * (3 - 2 * easeT);
+            const smoothLayer1 = Math.sin(easeT * Math.PI) * 0.1;
+            const smoothLayer2 = Math.sin(easeT * Math.PI * 2) * 0.05;
+            const smoothLayer3 = Math.sin(easeT * Math.PI * 4) * 0.025;
+            
+            const finalEaseT = smoothEaseT + smoothLayer1 + smoothLayer2 + smoothLayer3;
+            
+            x = startX + (endX - startX) * finalEaseT;
+            z = startZ + (endZ - startZ) * finalEaseT;
+            y = startRise + (endRise - startRise) * finalEaseT;
+          }
+        }
         
         // Add interactive target point marker for top easement
-        if (i === steps && debugMode) {
+        if (i === steps && debugMode && parameters.topLength > 0) {
           const targetMarkerGeometry = new THREE.SphereGeometry(0.3, 16, 16);
           const targetMarkerMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
           const targetMarker = new THREE.Mesh(targetMarkerGeometry, targetMarkerMaterial);
-          targetMarker.position.set(endX, endRise, endZ);
+          const markerAngle = 220 * Math.PI / 180;
+          const markerX = outerRadius * Math.cos(markerAngle);
+          const markerZ = outerRadius * Math.sin(markerAngle);
+          const markerRise = safePitchBlock + safeTotalRise;
+          targetMarker.position.set(markerX, markerRise, markerZ);
           targetMarker.userData = { type: 'topTarget' };
           scene.add(targetMarker);
           sceneRef.current.debugElements.push(targetMarker);
@@ -285,17 +440,25 @@ export function useThreeJS(
       outerPoints.push(new THREE.Vector3(x, y, z));
     }
     
-    // Create the curve with smooth interpolation for straight line rises
-    const outerCurve = new THREE.CatmullRomCurve3(outerPoints);
-    outerCurve.tension = 0.0; // No tension for exact point following
-    const outerGeometry = new THREE.TubeGeometry(outerCurve, Math.min(steps, outerPoints.length - 1), 0.15, 8, false);
-    const newHandrailMesh = new THREE.Mesh(outerGeometry, new THREE.MeshLambertMaterial({ color: 0x3b82f6 }));
-    newHandrailMesh.castShadow = true;
-    scene.add(newHandrailMesh);
-    sceneRef.current.handrailMesh = newHandrailMesh;
+    // CRASH PROTECTION: Validate points before creating curves
+    if (outerPoints.length < 2) {
+      console.warn('Insufficient outer points for curve creation, skipping handrail mesh');
+    } else {
+      // Create the curve with smooth interpolation for straight line rises
+      const outerCurve = new THREE.CatmullRomCurve3(outerPoints);
+      outerCurve.tension = 0.0; // No tension for exact point following
+      const outerGeometry = new THREE.TubeGeometry(outerCurve, Math.min(steps, outerPoints.length - 1), 0.15, 8, false);
+      const newHandrailMesh = new THREE.Mesh(outerGeometry, new THREE.MeshLambertMaterial({ color: 0x3b82f6 }));
+      newHandrailMesh.castShadow = true;
+      scene.add(newHandrailMesh);
+      sceneRef.current.handrailMesh = newHandrailMesh;
+    }
     
     // Create inside reference line: covers full 220° span but only 10.5" arc distance
     const insidePoints: THREE.Vector3[] = [];
+    
+    // CRASH PROTECTION: Validate inside line calculations
+    const maxArcDistance = 10.5; // Maximum arc distance for inside line
     
     for (let i = 0; i <= steps; i++) {
       const t = i / steps;
@@ -303,74 +466,106 @@ export function useThreeJS(
       const segmentPosition = (arcDistance / parameters.totalArcDistance) * parameters.totalSegments;
       const angle = (t * parameters.totalDegrees * Math.PI) / 180; // Full 220° span
       
-      // Calculate rise based on the proportional arc distance (10.5" over 17.5") - SCALES WITH TOTAL RISE
-      const proportionalArcDistance = (t * 10.5); // Only 10.5" arc distance
-      const rise = safePitchBlock + (proportionalArcDistance / 10.5) * safeTotalRise; // Straight line from pitch block to pitch block + total rise
+      // CRASH PROTECTION: Safe rise calculation for inside line
+      let rise: number;
+      try {
+        const proportionalArcDistance = (t * maxArcDistance);
+        rise = safePitchBlock + (proportionalArcDistance / maxArcDistance) * safeTotalRise;
+        
+        // Validate rise value
+        if (isNaN(rise) || !isFinite(rise)) {
+          console.warn(`Invalid inside line rise at step ${i}, using fallback`);
+          rise = safePitchBlock + (t * safeTotalRise);
+        }
+      } catch (error) {
+        console.warn(`Error calculating inside line rise at step ${i}, using fallback:`, error);
+        rise = safePitchBlock + (t * safeTotalRise);
+      }
       
       let x: number, z: number, y: number = rise;
       
-             if (segmentPosition <= parameters.bottomLength) {
-         // Bottom over-ease: INSIDE LINE - constant rate, practically invisible
-         // Since the inside line is a constant rate with no compounding, the easement should be minimal
-         
-         // Start at 0° with pitch block height rise
-         const startAngle = 0;
-         const startX = innerRadius * Math.cos(startAngle);
-         const startZ = innerRadius * Math.sin(startAngle);
-         const startRise = safePitchBlock;
-         
-         // For inside line, use minimal easement effect - practically invisible
-         const easeT = segmentPosition / parameters.bottomLength;
-         
-         // Use a very subtle smoothing that's barely noticeable
-         const subtleEaseT = easeT * easeT * (3 - 2 * easeT) * 0.1; // Very small effect
-         
-         // Position stays at the same radius (no X/Z change)
-         x = startX;
-         z = startZ;
-         // Rise changes very minimally - practically invisible easement
-         y = startRise - (subtleEaseT * 0.2); // Minimal rise change
+                   if (segmentPosition <= parameters.bottomLength) {
+        // CRASH PROTECTION: Validate bottom length for inside line
+        if (parameters.bottomLength <= 0) {
+          console.warn('Invalid bottom length for inside line, skipping bottom easement');
+          x = innerRadius * Math.cos(angle);
+          z = innerRadius * Math.sin(angle);
+          y = rise;
+        } else {
+          // Bottom over-ease: INSIDE LINE - constant rate, practically invisible
+          const startAngle = 0;
+          const startX = innerRadius * Math.cos(startAngle);
+          const startZ = innerRadius * Math.sin(startAngle);
+          const startRise = safePitchBlock;
+          
+          // For inside line, use minimal easement effect - practically invisible
+          const easeT = segmentPosition / parameters.bottomLength;
+          
+          // CRASH PROTECTION: Validate easeT calculation
+          if (isNaN(easeT) || !isFinite(easeT)) {
+            console.warn('Invalid easeT for inside line bottom easement, using fallback');
+            x = startX;
+            z = startZ;
+            y = startRise;
+          } else {
+            // Use a very subtle smoothing that's barely noticeable
+            const subtleEaseT = easeT * easeT * (3 - 2 * easeT) * 0.1; // Very small effect
+            
+            // Position stays at the same radius (no X/Z change)
+            x = startX;
+            z = startZ;
+            // Rise changes very minimally - practically invisible easement
+            y = startRise - (subtleEaseT * 0.2); // Minimal rise change
+          }
+        }
         
       } else if (segmentPosition >= parameters.totalSegments - parameters.topLength) {
-        // Top up-ease: direct interpolation from spiral end to final position
-        const easeT = (segmentPosition - (parameters.totalSegments - parameters.topLength)) / parameters.topLength;
-        
-        // Start at 200° (where spiral ends and easement begins)
-        const startAngle = 200 * Math.PI / 180;
-        const startX = innerRadius * Math.cos(startAngle);
-        const startZ = innerRadius * Math.sin(startAngle);
-        
-        // Calculate the correct starting rise at 200° (end of spiral) - SCALES WITH TOTAL RISE
-        const spiralEndRise = safePitchBlock + (200 / 220) * safeTotalRise;
-        const startRise = spiralEndRise;
-        
-        // End at 220° with total rise - SCALES WITH TOTAL RISE
-        const endAngle = 220 * Math.PI / 180;
-        const endX = innerRadius * Math.cos(endAngle);
-        const endZ = innerRadius * Math.sin(endAngle);
-        const endRise = safePitchBlock + safeTotalRise;
-        
-        // Use custom easement angle if provided, otherwise default to +35.08°
-
-        
-                 // IMPROVED: Apply the same ultra-smooth transition to inner line
-         // Use multiple smoothing techniques for the smoothest possible curve
-         
-         // Primary smoothstep function
-         const smoothEaseT = easeT * easeT * (3 - 2 * easeT);
-         
-         // Apply additional smoothing layers for ultra-smooth transition
-         const smoothLayer1 = Math.sin(easeT * Math.PI) * 0.1; // Gentle sine wave
-         const smoothLayer2 = Math.sin(easeT * Math.PI * 2) * 0.05; // Higher frequency wave
-         const smoothLayer3 = Math.sin(easeT * Math.PI * 4) * 0.025; // Even higher frequency
-         
-         // Combine all smoothing layers
-         const finalEaseT = smoothEaseT + smoothLayer1 + smoothLayer2 + smoothLayer3;
-         
-         // Apply smoothing to all coordinates for consistent smoothness
-         x = startX + (endX - startX) * finalEaseT;
-         z = startZ + (endZ - startZ) * finalEaseT;
-         y = startRise + (endRise - startRise) * finalEaseT;
+        // CRASH PROTECTION: Validate top length for inside line
+        if (parameters.topLength <= 0) {
+          console.warn('Invalid top length for inside line, skipping top easement');
+          x = innerRadius * Math.cos(angle);
+          z = innerRadius * Math.sin(angle);
+          y = rise;
+        } else {
+          // Top up-ease: direct interpolation from spiral end to final position
+          const easeT = (segmentPosition - (parameters.totalSegments - parameters.topLength)) / parameters.topLength;
+          
+          // Start at 200° (where spiral ends and easement begins)
+          const startAngle = 200 * Math.PI / 180;
+          const startX = innerRadius * Math.cos(startAngle);
+          const startZ = innerRadius * Math.sin(startAngle);
+          
+                   // FIXED: Calculate a higher starting rise at 200° (end of spiral) for smoother up-ease
+         // The spiral should end slightly higher to create a gradual, smooth transition
+         const spiralEndRise = safePitchBlock + (200 / 220) * safeTotalRise + (safeTotalRise * 0.15); // Add 15% extra rise
+         const startRise = spiralEndRise;
+          
+          // End at 220° with total rise - SCALES WITH TOTAL RISE
+          const endAngle = 220 * Math.PI / 180;
+          const endX = innerRadius * Math.cos(endAngle);
+          const endZ = innerRadius * Math.sin(endAngle);
+          const endRise = safePitchBlock + safeTotalRise;
+          
+          // CRASH PROTECTION: Validate all calculated values for inside line
+          if (isNaN(easeT) || !isFinite(easeT) || isNaN(spiralEndRise) || !isFinite(spiralEndRise)) {
+            console.warn('Invalid inside line top easement calculations, using fallback');
+            x = startX;
+            z = startZ;
+            y = startRise;
+          } else {
+            // IMPROVED: Apply the same ultra-smooth transition to inner line
+            const smoothEaseT = easeT * easeT * (3 - 2 * easeT);
+            const smoothLayer1 = Math.sin(easeT * Math.PI) * 0.1;
+            const smoothLayer2 = Math.sin(easeT * Math.PI * 2) * 0.05;
+            const smoothLayer3 = Math.sin(easeT * Math.PI * 4) * 0.025;
+            
+            const finalEaseT = smoothEaseT + smoothLayer1 + smoothLayer2 + smoothLayer3;
+            
+            x = startX + (endX - startX) * finalEaseT;
+            z = startZ + (endZ - startZ) * finalEaseT;
+            y = startRise + (endRise - startRise) * finalEaseT;
+          }
+        }
         
       } else {
         // Main spiral: use main center
@@ -382,17 +577,22 @@ export function useThreeJS(
       insidePoints.push(new THREE.Vector3(x, y, z));
     }
     
-    // Create inside reference line with smooth curve
-    const insideCurve = new THREE.CatmullRomCurve3(insidePoints);
-    insideCurve.tension = 0.0; // No tension for exact point following
-    const insideGeometry = new THREE.TubeGeometry(insideCurve, steps, 0.1, 6, false);
-    const newInsideLineMesh = new THREE.Mesh(insideGeometry, new THREE.MeshLambertMaterial({ color: 0x10b981 }));
-    scene.add(newInsideLineMesh);
-    sceneRef.current.insideLineMesh = newInsideLineMesh;
+    // CRASH PROTECTION: Validate inside points before creating curve
+    if (insidePoints.length < 2) {
+      console.warn('Insufficient inside points for curve creation, skipping inside line mesh');
+    } else {
+      // Create inside reference line with smooth curve
+      const insideCurve = new THREE.CatmullRomCurve3(insidePoints);
+      insideCurve.tension = 0.0; // No tension for exact point following
+      const insideGeometry = new THREE.TubeGeometry(insideCurve, steps, 0.1, 6, false);
+      const newInsideLineMesh = new THREE.Mesh(insideGeometry, new THREE.MeshLambertMaterial({ color: 0x10b981 }));
+      scene.add(newInsideLineMesh);
+      sceneRef.current.insideLineMesh = newInsideLineMesh;
+    }
     
     // Add debugging information overlay (only when both debug mode and overlay are on)
     if (debugMode && showOverlay) {
-      const debugInfo = createDebugInfoOverlay(parameters, manualRiseData, calculatedRiseData);
+      const debugInfo = createDebugInfoOverlay(parameters, safeManualRiseData, safeCalculatedRiseData);
       // Position the overlay in the top-right corner so it doesn't cover the main debug visuals
       debugInfo.position.set(20, 15, -20);
       scene.add(debugInfo);
@@ -406,80 +606,7 @@ export function useThreeJS(
     
   }, [parameters, manualRiseData, calculatedRiseData, debugMode, showOverlay]);
 
-  // Function to add staircase framework for reference
-  const addStaircaseFramework = (scene: THREE.Scene, parameters: HandrailParameters, debugElements: THREE.Object3D[], totalRise: number) => {
-    // Use custom easement angle if provided, otherwise default to 35.08°
-    const customAngle = parameters.customEasementAngle || 35.08;
-    const angleRad = customAngle * Math.PI / 180;
-    
-    // Calculate step dimensions based on custom angle - SCALES WITH TOTAL RISE
-    const stepRise = totalRise / 7; // Total rise divided by 7 steps
-    const stepRun = stepRise / Math.tan(angleRad); // Calculate run to match custom angle
-    const slopeAngle = customAngle;
-    
-    // Create staircase framework points
-    const staircasePoints: THREE.Vector3[] = [];
-    
-    // FLIGHT 1: 7 steps UP from main center
-    for (let i = 1; i <= 7; i++) {
-      const y = (7 - i) * stepRun;
-      const z = -(7 - i) * stepRise;
-      const x = 0;
-      
-      staircasePoints.push(new THREE.Vector3(x, y, z));
-      
-      // Add step marker (green for first flight)
-      const stepGeometry = new THREE.BoxGeometry(0.5, 0.1, 0.5);
-      const stepMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.7 });
-      const step = new THREE.Mesh(stepGeometry, stepMaterial);
-      step.position.set(x, y - 0.05, z);
-      scene.add(step);
-      debugElements.push(step);
-      
-      // Add step label
-      const stepLabel = createTextSprite(`F1-${i}`, new THREE.Vector3(x + 0.8, y, z), 0x00ff00);
-      scene.add(stepLabel);
-      debugElements.push(stepLabel);
-    }
-    
-    // FLIGHT 2: 7 steps UP from main center (scissor stair)
-    for (let i = 1; i <= 7; i++) {
-      const y = -i * stepRun;
-      const z = -i * stepRise;
-      const x = 0;
-      
-      staircasePoints.push(new THREE.Vector3(x, y, z));
-      
-      // Add step marker (blue for second flight)
-      const stepGeometry = new THREE.BoxGeometry(0.5, 0.1, 0.5);
-      const stepMaterial = new THREE.MeshBasicMaterial({ color: 0x0088ff, transparent: true, opacity: 0.7 });
-      const step = new THREE.Mesh(stepGeometry, stepMaterial);
-      step.position.set(x, y - 0.05, z);
-      scene.add(step);
-      debugElements.push(step);
-      
-      // Add step label
-      const stepLabel = createTextSprite(`F2-${i}`, new THREE.Vector3(x - 0.8, y, z), 0x0088ff);
-      scene.add(stepLabel);
-      debugElements.push(stepLabel);
-    }
-    
-    // Create staircase framework line
-    const staircaseGeometry = new THREE.BufferGeometry().setFromPoints(staircasePoints);
-    const staircaseMaterial = new THREE.LineBasicMaterial({ color: 0xffff00, linewidth: 4 });
-    const staircaseLine = new THREE.Line(staircaseGeometry, staircaseMaterial);
-    scene.add(staircaseLine);
-    debugElements.push(staircaseLine);
-    
-    // Add slope angle indicator
-    const slopeLabel = createTextSprite(
-      `Slope: ${slopeAngle.toFixed(1)}°`, 
-      new THREE.Vector3(0, 8, 0), 
-      0xffff00
-    );
-    scene.add(slopeLabel);
-    debugElements.push(slopeLabel);
-  };
+
 
   useEffect(() => {
     if (!mountRef.current) return;
@@ -710,7 +837,7 @@ export function useThreeJS(
 
   useEffect(() => {
     updateVisualization();
-  }, [updateVisualization]);
+  });
 
   return { mountRef, updateVisualization };
 }
