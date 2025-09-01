@@ -550,6 +550,7 @@ export function useThreeJS(
   // This shows the full staircase geometry to understand where easements connect
   // Uses inner line's constant rise/run: 7⅜" rise over 10.5" run = 35.08° slope
   // SCISSOR STAIR: Both flights go UP at 35.08°, rotated 180° around main center
+  // NOTE: This is just a handrail reference - no actual pitch block constraints
   const addStaircaseFramework = (scene: THREE.Scene, parameters: HandrailParameters, debugElements: THREE.Object3D[]) => {
     const stepRise = 7.375 / 7; // 7⅜" total rise divided by 7 steps
     const stepRun = 10.5 / 7;   // 10.5" total run divided by 7 steps
@@ -559,9 +560,10 @@ export function useThreeJS(
     const staircasePoints: THREE.Vector3[] = [];
     
     // FLIGHT 1: 7 steps UP from main center (going UP at 35.08°)
+    // Top of Flight 1 (step 7) should meet the main center
     for (let i = 1; i <= 7; i++) {
-      const y = i * stepRun; // Positive Y = up the first flight (VERTICAL, not horizontal)
-      const z = parameters.pitchBlock + (i * stepRise); // Rise from pitch block (Z axis for height)
+      const y = (7 - i) * stepRun; // Count DOWN from main center (step 7 = 0, step 1 = 6*stepRun)
+      const z = (7 - i) * stepRise; // Rise DOWN from main center (step 7 = 0, step 1 = 6*stepRise)
       const x = 0; // Centered on main center
       
       staircasePoints.push(new THREE.Vector3(x, y, z));
@@ -582,10 +584,10 @@ export function useThreeJS(
     
     // FLIGHT 2: 7 steps UP from main center (going UP at 35.08° but rotated 180°)
     // This is the scissor stair - same direction, opposite side
-    // Flight 2 should be at a higher Z level to create the < shape
+    // Bottom of Flight 2 (step 1) should meet the main center
     for (let i = 1; i <= 7; i++) {
-      const y = -i * stepRun; // Negative Y = up the second flight (opposite direction, VERTICAL)
-      const z = parameters.pitchBlock + (7 * stepRise) + (i * stepRise); // Start at Flight 1's end height + additional rise
+      const y = -i * stepRun; // Negative Y = down from main center (step 1 = -stepRun, step 7 = -7*stepRun)
+      const z = -i * stepRise; // Rise DOWN from main center (step 1 = -stepRise, step 7 = -7*stepRise)
       const x = 0; // Centered on main center (NOT offset centers)
       
       staircasePoints.push(new THREE.Vector3(x, y, z));
@@ -614,7 +616,7 @@ export function useThreeJS(
     // Add slope angle indicator
     const slopeLabel = createTextSprite(
       `Slope: ${slopeAngle.toFixed(1)}°`, 
-      new THREE.Vector3(0, parameters.pitchBlock + 8, 0), 
+      new THREE.Vector3(0, 8, 0), 
       0xffff00
     );
     scene.add(slopeLabel);
@@ -623,7 +625,7 @@ export function useThreeJS(
     // Add scissor stair explanation
     const explanationLabel = createTextSprite(
       `Scissor Stair: Both flights UP at 35°`, 
-      new THREE.Vector3(0, parameters.pitchBlock + 10, 0), 
+      new THREE.Vector3(0, 10, 0), 
       0xffff00
     );
     scene.add(explanationLabel);
@@ -633,11 +635,11 @@ export function useThreeJS(
     const addEasementConnectionPoints = () => {
       // Bottom easement connects to where Flight 2 meets the landing (step 7 of flight 2)
       const bottomConnectionY = -7 * stepRun; // Flight 2, step 7 (negative Y)
-      const bottomConnectionZ = parameters.pitchBlock + (7 * stepRise) + (7 * stepRise); // Flight 1's end height + Flight 2's full rise
+      const bottomConnectionZ = -7 * stepRise; // Flight 2, step 7 (negative Z - DOWN from main center)
       
       // Top easement connects to where Flight 1 meets the landing (step 7 of flight 1)  
-      const topConnectionY = 7 * stepRun; // Flight 1, step 7 (positive Y)
-      const topConnectionZ = parameters.pitchBlock + (7 * stepRise); // Flight 1's end height
+      const topConnectionY = 6 * stepRun; // Flight 1, step 1 (positive Y - DOWN from main center)
+      const topConnectionZ = 6 * stepRise; // Flight 1, step 1 (positive Z - DOWN from main center)
       
       // Create connection point markers
       const connectionGeometry = new THREE.SphereGeometry(0.3, 16, 16);
