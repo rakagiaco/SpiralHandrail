@@ -41,25 +41,15 @@ export function useThreeJS(
     scene.add(mainDot);
     sceneRef.current.centerDots.push(mainDot);
     
-    // Bottom center (orange) - at the start of the spiral where over-ease begins
-    const bottomStartAngle = (parameters.bottomLength / parameters.totalSegments) * parameters.totalDegrees * Math.PI / 180;
+    // Bottom center (orange) - at original offset position (1.5" from main center)
     const bottomDot = new THREE.Mesh(dotGeometry, new THREE.MeshLambertMaterial({ color: 0xf59e0b }));
-    bottomDot.position.set(
-      outerRadius * Math.cos(bottomStartAngle), 
-      2, 
-      outerRadius * Math.sin(bottomStartAngle) - parameters.bottomOffset
-    );
+    bottomDot.position.set(0, 2, -parameters.bottomOffset); // Fixed offset: 1.5" from main center
     scene.add(bottomDot);
     sceneRef.current.centerDots.push(bottomDot);
     
-    // Top center (red) - at the end of the spiral where up-ease begins
-    const topEndAngle = ((parameters.totalSegments - parameters.topLength) / parameters.totalSegments) * parameters.totalDegrees * Math.PI / 180;
+    // Top center (red) - at original offset position (1.875" from main center)
     const topDot = new THREE.Mesh(dotGeometry, new THREE.MeshLambertMaterial({ color: 0xef4444 }));
-    topDot.position.set(
-      outerRadius * Math.cos(topEndAngle), 
-      6, 
-      outerRadius * Math.sin(topEndAngle) + parameters.topOffset
-    );
+    topDot.position.set(0, 6, -parameters.topOffset); // Fixed offset: 1.875" from main center
     scene.add(topDot);
     sceneRef.current.centerDots.push(topDot);
     
@@ -91,8 +81,8 @@ export function useThreeJS(
       let effectiveRadius = 0; // Initialize effectiveRadius
       
       if (segmentPosition <= parameters.bottomLength) {
-        // Bottom over-ease: straight rail going down stairs
-        // Use offset center position but create straight rail, not circular wrapping
+        // Bottom over-ease: straight rail going down stairs at -35.08° angle
+        // Start from spiral boundary, go straight down at angle
         const easeT = segmentPosition / parameters.bottomLength;
         
         // Calculate the spiral start position (where over-ease begins)
@@ -100,17 +90,21 @@ export function useThreeJS(
         const spiralStartX = outerRadius * Math.cos(spiralStartAngle);
         const spiralStartZ = outerRadius * Math.sin(spiralStartAngle);
         
-        // Calculate the straight rail end position at the offset center
-        const straightEndX = 0; // Same X as main center
-        const straightEndZ = -parameters.bottomOffset; // Offset inward on Z
+        // Calculate straight rail direction: down at -35.08° angle
+        const angleRadians = -35.08 * Math.PI / 180; // Negative for down direction
+        const straightRailLength = 2.0; // Length of straight rail section
         
-        // Linear interpolation from spiral to straight rail
+        // Calculate end point of straight rail
+        const straightEndX = spiralStartX + straightRailLength * Math.cos(angleRadians);
+        const straightEndZ = spiralStartZ + straightRailLength * Math.sin(angleRadians);
+        
+        // Linear interpolation from spiral start to straight rail end
         x = spiralStartX + (straightEndX - spiralStartX) * easeT;
         z = spiralStartZ + (straightEndZ - spiralStartZ) * easeT;
         
       } else if (segmentPosition >= parameters.totalSegments - parameters.topLength) {
-        // Top up-ease: straight rail going up stairs
-        // Use offset center position but create straight rail, not circular wrapping
+        // Top up-ease: straight rail going up stairs at +35.08° angle
+        // Start from spiral boundary, go straight up at angle
         const easeT = (segmentPosition - (parameters.totalSegments - parameters.topLength)) / parameters.topLength;
         
         // Calculate the spiral end position (where up-ease begins)
@@ -118,11 +112,16 @@ export function useThreeJS(
         const spiralEndX = outerRadius * Math.cos(spiralEndAngle);
         const spiralEndZ = outerRadius * Math.sin(spiralEndAngle);
         
-        // Calculate the straight rail end position at the offset center
-        const straightEndZ = -parameters.topOffset; // Offset inward on Z
+        // Calculate straight rail direction: up at +35.08° angle
+        const angleRadians = 35.08 * Math.PI / 180; // Positive for up direction
+        const straightRailLength = 2.0; // Length of straight rail section
         
-        // Linear interpolation from spiral to straight rail
-        x = spiralEndX + (0 - spiralEndX) * easeT;
+        // Calculate end point of straight rail
+        const straightEndX = spiralEndX + straightRailLength * Math.cos(angleRadians);
+        const straightEndZ = spiralEndZ + straightRailLength * Math.sin(angleRadians);
+        
+        // Linear interpolation from spiral end to straight rail end
+        x = spiralEndX + (straightEndX - spiralEndX) * easeT;
         z = spiralEndZ + (straightEndZ - spiralEndZ) * easeT;
         
       } else {
@@ -161,8 +160,8 @@ export function useThreeJS(
       let effectiveRadius = insideRadius;
       
       if (segmentPosition <= parameters.bottomLength) {
-        // Bottom over-ease: straight rail going down stairs
-        // Use offset center position but create straight rail, not circular wrapping
+        // Bottom over-ease: straight rail going down stairs at -35.08° angle
+        // Start from spiral boundary, go straight down at angle
         const easeT = segmentPosition / parameters.bottomLength;
         
         // Calculate the spiral start position (where over-ease begins)
@@ -170,17 +169,21 @@ export function useThreeJS(
         const spiralStartX = insideRadius * Math.cos(spiralStartAngle);
         const spiralStartZ = insideRadius * Math.sin(spiralStartAngle);
         
-        // Calculate the straight rail end position at the offset center
-        const straightEndX = 0; // Same X as main center
-        const straightEndZ = -parameters.bottomOffset; // Offset inward on Z
+        // Calculate straight rail direction: down at -35.08° angle
+        const angleRadians = -35.08 * Math.PI / 180; // Negative for down direction
+        const straightRailLength = 2.0; // Length of straight rail section
         
-        // Linear interpolation from spiral to straight rail
+        // Calculate end point of straight rail
+        const straightEndX = spiralStartX + straightRailLength * Math.cos(angleRadians);
+        const straightEndZ = spiralStartZ + straightRailLength * Math.sin(angleRadians);
+        
+        // Linear interpolation from spiral start to straight rail end
         x = spiralStartX + (straightEndX - spiralStartX) * easeT;
         z = spiralStartZ + (straightEndZ - spiralStartZ) * easeT;
         
       } else if (segmentPosition >= parameters.totalSegments - parameters.topLength) {
-        // Top up-ease: straight rail going up stairs
-        // Use offset center position but create straight rail, not circular wrapping
+        // Top up-ease: straight rail going up stairs at +35.08° angle
+        // Start from spiral boundary, go straight up at angle
         const easeT = (segmentPosition - (parameters.totalSegments - parameters.topLength)) / parameters.topLength;
         
         // Calculate the spiral end position (where up-ease begins)
@@ -188,11 +191,15 @@ export function useThreeJS(
         const spiralEndX = insideRadius * Math.cos(spiralEndAngle);
         const spiralEndZ = insideRadius * Math.sin(spiralEndAngle);
         
-        // Calculate the straight rail end position at the offset center
-        const straightEndX = 0; // Same X as main center
-        const straightEndZ = -parameters.topOffset; // Offset inward on Z
+        // Calculate straight rail direction: up at +35.08° angle
+        const angleRadians = 35.08 * Math.PI / 180; // Positive for up direction
+        const straightRailLength = 2.0; // Length of straight rail section
         
-        // Linear interpolation from spiral to straight rail
+        // Calculate end point of straight rail
+        const straightEndX = spiralEndX + straightRailLength * Math.cos(angleRadians);
+        const straightEndZ = spiralEndZ + straightRailLength * Math.sin(angleRadians);
+        
+        // Linear interpolation from spiral end to straight rail end
         x = spiralEndX + (straightEndX - spiralEndX) * easeT;
         z = spiralEndZ + (straightEndZ - spiralEndZ) * easeT;
         
