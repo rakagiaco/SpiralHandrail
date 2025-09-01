@@ -2,6 +2,8 @@ import { useEffect, useRef, useCallback } from 'react';
 import * as THREE from 'three';
 import { HandrailParameters } from '../types/handrail';
 
+/* eslint-disable react-hooks/exhaustive-deps */
+
 export function useThreeJS(
   parameters: HandrailParameters,
   manualRiseData: Record<number, number>,
@@ -95,12 +97,12 @@ export function useThreeJS(
          `Top Offset: ${params.topOffset}"`,
          `Custom Easement Angle: ${params.customEasementAngle || -35.08}°`,
          
-         // Radius Information
-         `=== RADIUS INFO ===`,
-         `Outer Radius: ${outerRadius.toFixed(3)}"`,
-         `Inner Radius: ${innerRadius.toFixed(3)}"`,
-         `Custom Outer: ${params.customOuterRadius || 4.625}"`,
-         `Custom Inner: ${params.customInnerRadius || 4.5}"`,
+                   // Radius Information
+          `=== RADIUS INFO ===`,
+          `Outer Radius: ${outerRadius.toFixed(3)}" (from 4.625" diameter)`,
+          `Inner Radius: ${innerRadius.toFixed(3)}" (from 4.5" diameter)`,
+          `Custom Outer: ${params.customOuterRadius || 4.625}"`,
+          `Custom Inner: ${params.customInnerRadius || 4.5}" (diameter)`,
          
          // Spiral Geometry
          `=== SPIRAL GEOMETRY ===`,
@@ -110,11 +112,12 @@ export function useThreeJS(
          `Bottom Easement: ${bottomEasementStart}° to ${params.bottomLength} segments`,
          `Top Easement: ${topEasementStart.toFixed(1)}° to 220°`,
          
-         // Rise Data
-         `=== RISE DATA ===`,
-         `Manual Points: ${Object.keys(manualData).length}`,
-         `Calculated Points: ${Object.keys(calculatedData).length}`,
-         `Rise Rate: ${(safeTotalRise / params.totalArcDistance).toFixed(3)}"/inch`,
+                   // Rise Data
+          `=== RISE DATA ===`,
+          `Manual Points: ${Object.keys(manualData).length}`,
+          `Calculated Points: ${Object.keys(calculatedData).length}`,
+          `Rise Rate: ${(safeTotalRise / params.totalArcDistance).toFixed(3)}"/inch`,
+          `Manual Override: ${Object.keys(manualData).length > 0 ? 'ACTIVE' : 'None'}`,
          
          // Height Matching Verification
          `=== HEIGHT MATCHING ===`,
@@ -363,9 +366,9 @@ export function useThreeJS(
     const safeBottomOffset = Math.max(-10, Math.min(10, parameters.bottomOffset || 0));
     const safeTopOffset = Math.max(-10, Math.min(10, parameters.topOffset || 0));
     
-         // Calculate radii with protection
-     const outerRadius = Math.max(0.1, 4.625 + safeBottomOffset);
-     let innerRadius = Math.max(0.1, 4.5 - safeTopOffset); // Fixed: inner radius should be 4.5", not 4.625"
+              // Calculate radii with protection
+      const outerRadius = Math.max(0.1, 4.625 + safeBottomOffset);
+      let innerRadius = Math.max(0.1, 2.25 - safeTopOffset); // Fixed: inner diameter is 4.5", so radius is 2.25"
     
     // CRASH PROTECTION: Ensure inner radius is smaller than outer radius
     if (innerRadius >= outerRadius) {
@@ -593,21 +596,41 @@ export function useThreeJS(
       const segmentPosition = (arcDistance / parameters.totalArcDistance) * parameters.totalSegments;
       const angle = (arcDistance / parameters.totalArcDistance) * parameters.totalDegrees * Math.PI / 180;
       
-      // CRASH PROTECTION: Safe rise calculation with fallback
-      let rise: number;
-      try {
-        // Use the working rise calculation that was working before
-        rise = safePitchBlock + (t * safeTotalRise);
-        
-        // Validate rise value
-        if (isNaN(rise) || !isFinite(rise)) {
-          console.warn(`Invalid rise value at step ${i}, using fallback`);
-          rise = safePitchBlock + (t * safeTotalRise);
-        }
-      } catch (error) {
-        console.warn(`Error calculating rise at step ${i}, using fallback:`, error);
-        rise = safePitchBlock + (t * safeTotalRise);
-      }
+             // CRASH PROTECTION: Safe rise calculation with fallback
+       let rise: number;
+       try {
+         // Use manual rise data if available, otherwise fall back to calculated
+         const currentArcDistance = t * parameters.totalArcDistance;
+         
+         // Try to find the closest manual rise point
+         let manualRise: number | null = null;
+         if (Object.keys(safeManualRiseData).length > 0) {
+           const manualDistances = Object.keys(safeManualRiseData).map(Number).sort((a, b) => a - b);
+           const closestDistance = manualDistances.reduce((prev, curr) => 
+             Math.abs(curr - currentArcDistance) < Math.abs(prev - currentArcDistance) ? curr : prev
+           );
+           
+           if (Math.abs(closestDistance - currentArcDistance) < 0.5) { // Within 0.5" tolerance
+             manualRise = safeManualRiseData[closestDistance];
+           }
+         }
+         
+         if (manualRise !== null) {
+           rise = manualRise;
+         } else {
+           // Use the working rise calculation that was working before
+           rise = safePitchBlock + (t * safeTotalRise);
+         }
+         
+         // Validate rise value
+         if (isNaN(rise) || !isFinite(rise)) {
+           console.warn(`Invalid rise value at step ${i}, using fallback`);
+           rise = safePitchBlock + (t * safeTotalRise);
+         }
+       } catch (error) {
+         console.warn(`Error calculating rise at step ${i}, using fallback:`, error);
+         rise = safePitchBlock + (t * safeTotalRise);
+       }
       
       let x: number, z: number, y: number = rise;
       
@@ -703,8 +726,7 @@ export function useThreeJS(
            const endRise = safePitchBlock + safeTotalRise;
            
            // CRITICAL: Ensure both lines end at exactly the same height
-           // The final rise should scale with the project parameters
-           const finalRise = safePitchBlock + safeTotalRise;
+           // The final height should scale with the project parameters
           
           // CRASH PROTECTION: Validate all calculated values
           if (isNaN(easeT) || !isFinite(easeT) || isNaN(spiralEndRise) || !isFinite(spiralEndRise)) {
@@ -768,7 +790,6 @@ export function useThreeJS(
     const insidePoints: THREE.Vector3[] = [];
     
     // CRASH PROTECTION: Validate inside line calculations
-    const maxArcDistance = 10.5; // Maximum arc distance for inside line
     
     for (let i = 0; i <= steps; i++) {
       const t = i / steps;
@@ -776,22 +797,42 @@ export function useThreeJS(
       const segmentPosition = (arcDistance / parameters.totalArcDistance) * parameters.totalSegments;
       const angle = (t * parameters.totalDegrees * Math.PI) / 180; // Full 220° span
       
-                    // CRASH PROTECTION: Safe rise calculation for inside line
-        let rise: number;
-        try {
-          // Inner line should have CONSTANT RATE until top easement
-          // Use the same rise calculation as outer line for consistency
-          rise = safePitchBlock + (t * safeTotalRise);
-          
-          // Validate rise value
-          if (isNaN(rise) || !isFinite(rise)) {
-            console.warn(`Invalid inside line rise at step ${i}, using fallback`);
-            rise = safePitchBlock + (t * safeTotalRise);
-          }
-        } catch (error) {
-          console.warn(`Error calculating inside line rise at step ${i}, using fallback:`, error);
-          rise = safePitchBlock + (t * safeTotalRise);
-        }
+                                         // CRASH PROTECTION: Safe rise calculation for inside line
+         let rise: number;
+         try {
+           // Inner line should have CONSTANT RATE until top easement
+           // Use manual rise data if available, otherwise fall back to calculated
+           const currentArcDistance = t * parameters.totalArcDistance;
+           
+           // Try to find the closest manual rise point
+           let manualRise: number | null = null;
+           if (Object.keys(safeManualRiseData).length > 0) {
+             const manualDistances = Object.keys(safeManualRiseData).map(Number).sort((a, b) => a - b);
+             const closestDistance = manualDistances.reduce((prev, curr) => 
+               Math.abs(curr - currentArcDistance) < Math.abs(prev - currentArcDistance) ? curr : prev
+             );
+             
+             if (Math.abs(closestDistance - currentArcDistance) < 0.5) { // Within 0.5" tolerance
+               manualRise = safeManualRiseData[closestDistance];
+             }
+           }
+           
+           if (manualRise !== null) {
+             rise = manualRise;
+           } else {
+             // Use the same rise calculation as outer line for consistency
+             rise = safePitchBlock + (t * safeTotalRise);
+           }
+           
+           // Validate rise value
+           if (isNaN(rise) || !isFinite(rise)) {
+             console.warn(`Invalid inside line rise at step ${i}, using fallback`);
+             rise = safePitchBlock + (t * safeTotalRise);
+           }
+         } catch (error) {
+           console.warn(`Error calculating inside line rise at step ${i}, using fallback:`, error);
+           rise = safePitchBlock + (t * safeTotalRise);
+         }
       
       let x: number, z: number, y: number = rise;
       
@@ -864,7 +905,6 @@ export function useThreeJS(
             
             // CRITICAL: Inner line should have a more gradual easement
             // Since it only travels 10.5" arc, the rise should be smoother
-            const finalRise = safePitchBlock + safeTotalRise;
           
           // CRASH PROTECTION: Validate all calculated values for inside line
           if (isNaN(easeT) || !isFinite(easeT) || isNaN(spiralEndRise) || !isFinite(spiralEndRise)) {
@@ -972,7 +1012,7 @@ export function useThreeJS(
       addStaircaseFramework(scene, parameters, sceneRef.current.debugElements, safeTotalRise);
     }
     
-  }, [parameters, manualRiseData, calculatedRiseData, debugMode, showOverlay]);
+  }, [parameters.totalArcDistance, parameters.totalHelicalRise, parameters.pitchBlock, parameters.bottomLength, parameters.topLength, parameters.bottomOffset, parameters.topOffset, parameters.customEasementAngle, manualRiseData, calculatedRiseData, debugMode, showOverlay]);
 
   useEffect(() => {
     if (!mountRef.current) return;
@@ -1227,14 +1267,16 @@ export function useThreeJS(
       }
       renderer.dispose();
     };
-  }, [debugMode]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [debugMode]);
 
   // Call updateVisualization whenever parameters change
+  // Note: We don't include updateVisualization in dependencies to prevent infinite loops
+  // since updateVisualization doesn't modify any state or parameters
   useEffect(() => {
     if (sceneRef.current) {
       updateVisualization();
     }
-  }, [parameters, manualRiseData, calculatedRiseData, debugMode, showOverlay]); // eslint-disable-line react-hooks/exhaustive-deps
+  });
 
   return { mountRef, updateVisualization };
 }

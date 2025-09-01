@@ -6,6 +6,7 @@ interface RiseAdjustmentSectionProps {
   calculatedRiseData: Record<number, number>;
   onRiseChange: (arcDistance: number, value: number) => void;
   onReset: () => void;
+  onRecalculate: () => void;
 }
 
 export function RiseAdjustmentSection({ 
@@ -13,7 +14,8 @@ export function RiseAdjustmentSection({
   manualRiseData, 
   calculatedRiseData, 
   onRiseChange, 
-  onReset 
+  onReset,
+  onRecalculate
 }: RiseAdjustmentSectionProps) {
   const generateInputs = () => {
     const inputs = [];
@@ -147,17 +149,13 @@ export function RiseAdjustmentSection({
           Reset to Calculated Values
         </button>
         
-        <button
-          onClick={() => {
-            // Force recalculation by triggering a parameter change
-            const event = new CustomEvent('recalculateRise');
-            window.dispatchEvent(event);
-          }}
-          className="px-4 py-2 text-sm bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center"
-        >
-          <span className="mr-1">🧮</span>
-          Recalculate Rise Data
-        </button>
+                 <button
+           onClick={onRecalculate}
+           className="px-4 py-2 text-sm bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center"
+         >
+           <span className="mr-1">🧮</span>
+           Recalculate Rise Data
+         </button>
         
         <button
           onClick={() => {
@@ -227,6 +225,39 @@ export function RiseAdjustmentSection({
              );
            })}
                   </div>
+       </div>
+       
+       {/* Degree-Based Rise Chart */}
+       <div className="mt-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+         <h4 className="text-sm font-semibold text-yellow-700 mb-3 flex items-center">
+           <span className="mr-2">📐</span>
+           Degree-Based Rise Chart (0° to 220°)
+         </h4>
+         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+           {Array.from({ length: 23 }, (_, i) => {
+             const degree = i * 10; // 0°, 10°, 20°, ..., 220°
+             const arcDistance = (degree / 220) * totalArcDistance;
+             const calculatedRise = calculatedRiseData[Math.round(arcDistance * 2) / 2] || 0;
+             const manualRise = manualRiseData[Math.round(arcDistance * 2) / 2];
+             const isManual = manualRise !== undefined;
+             const displayRise = isManual ? manualRise : calculatedRise;
+             
+             return (
+               <div key={degree} className={`text-center p-3 rounded-lg border-2 ${
+                 isManual 
+                   ? 'bg-blue-100 border-blue-300 text-blue-800' 
+                   : 'bg-yellow-100 border-yellow-300 text-yellow-800'
+               }`}>
+                 <div className="text-sm font-semibold">{degree}°</div>
+                 <div className="text-lg font-bold">{displayRise.toFixed(3)}"</div>
+                 <div className="text-xs text-gray-600">{arcDistance.toFixed(1)}" arc</div>
+                 {isManual && (
+                   <div className="text-sm text-blue-600">Manual</div>
+                 )}
+               </div>
+             );
+           })}
+         </div>
        </div>
        
        {/* Mathematical Calculations */}

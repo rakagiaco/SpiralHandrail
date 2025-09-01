@@ -248,6 +248,7 @@ function App() {
             calculatedRiseData={calculatedRiseData}
             onRiseChange={handleRiseChange}
             onReset={handleResetRise}
+            onRecalculate={calculateRiseData}
           />
         </div>
       </main>

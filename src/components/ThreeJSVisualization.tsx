@@ -38,7 +38,7 @@ export function ThreeJSVisualization({
   // Update the 3D visualization whenever parameters or data changes
   useEffect(() => {
     updateVisualization();
-  }, [updateVisualization, parameters, manualRiseData, calculatedRiseData, debugMode, showOverlay]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [updateVisualization, parameters, manualRiseData, calculatedRiseData, debugMode, showOverlay]);
 
   return (
     <div className="bg-white rounded-2xl p-6 shadow-lg border-l-4 border-blue-500">
