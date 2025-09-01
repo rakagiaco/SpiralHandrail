@@ -66,7 +66,14 @@ function App() {
     for (let i = 0; i <= parameters.totalSegments; i++) {
       const angle = i * anglePerSeg;
       const arcDistance = (i / parameters.totalSegments) * parameters.totalArcDistance;
-      const rise = getCurrentRiseAtDistance(arcDistance, manualRiseData, calculatedRiseData, parameters.totalArcDistance);
+      const rise = getCurrentRiseAtDistance(
+        arcDistance, 
+        manualRiseData, 
+        calculatedRiseData, 
+        parameters.totalArcDistance,
+        parameters.totalHelicalRise,
+        parameters.pitchBlock
+      );
       
       let sectionName: string, sectionType: 'Bottom Over-Ease' | 'Main Spiral' | 'Top Up-Ease';
       if (i <= parameters.bottomLength) {
@@ -99,7 +106,14 @@ function App() {
     
     for (let arcDist = 0; arcDist <= parameters.totalArcDistance; arcDist += 1.0) {
       const angle = (arcDist / parameters.totalArcDistance) * parameters.totalDegrees;
-      const rise = getCurrentRiseAtDistance(arcDist, manualRiseData, calculatedRiseData, parameters.totalArcDistance);
+      const rise = getCurrentRiseAtDistance(
+        arcDist, 
+        manualRiseData, 
+        calculatedRiseData, 
+        parameters.totalArcDistance,
+        parameters.totalHelicalRise,
+        parameters.pitchBlock
+      );
       const segmentPosition = (arcDist / parameters.totalArcDistance) * parameters.totalSegments;
       
       let sectionType: 'Over-Ease' | 'Main Spiral' | 'Up-Ease';

@@ -66,7 +66,14 @@ export function useThreeJS(
       
       const segmentPosition = (arcDistance / parameters.totalArcDistance) * parameters.totalSegments;
       const angle = (arcDistance / parameters.totalArcDistance) * parameters.totalDegrees * Math.PI / 180;
-      const rise = getCurrentRiseAtDistance(arcDistance, manualRiseData, calculatedRiseData, parameters.totalArcDistance);
+      const rise = getCurrentRiseAtDistance(
+        arcDistance, 
+        manualRiseData, 
+        calculatedRiseData, 
+        parameters.totalArcDistance,
+        parameters.totalHelicalRise,
+        parameters.pitchBlock
+      );
       
       let x: number, z: number;
       let centerX = 0;
@@ -117,7 +124,7 @@ export function useThreeJS(
       insidePoints.push(new THREE.Vector3(x, y, z));
     }
     
-    // Create the curve with better interpolation for smoother following of your reference points
+    // Create the curve with smooth interpolation for straight line rises
     const outerCurve = new THREE.CatmullRomCurve3(outerPoints);
     outerCurve.tension = 0.0; // No tension for exact point following
     const outerGeometry = new THREE.TubeGeometry(outerCurve, Math.min(steps, outerPoints.length - 1), 0.15, 8, false);
@@ -126,8 +133,9 @@ export function useThreeJS(
     scene.add(newHandrailMesh);
     sceneRef.current.handrailMesh = newHandrailMesh;
     
-    // Create inside reference line
+    // Create inside reference line with smooth curve
     const insideCurve = new THREE.CatmullRomCurve3(insidePoints);
+    insideCurve.tension = 0.0; // No tension for exact point following
     const insideGeometry = new THREE.TubeGeometry(insideCurve, steps, 0.1, 6, false);
     const newInsideLineMesh = new THREE.Mesh(insideGeometry, new THREE.MeshLambertMaterial({ color: 0x10b981 }));
     scene.add(newInsideLineMesh);

@@ -72,10 +72,13 @@ export function getCurrentRiseAtDistance(
   arcDistance: number,
   manualRiseData: Record<number, number>,
   calculatedRiseData: Record<number, number>,
-  totalArcDistance: number
+  totalArcDistance: number,
+  totalHelicalRise: number = 7.375,
+  pitchBlock: number = 1.0
 ): number {
   if (Object.keys(manualRiseData).length === 0) {
-    return calculatedRiseData[Math.round(arcDistance)] || 0;
+    // If no manual data, calculate the rise directly using the current parameters
+    return calculateRiseAtDistance(arcDistance, totalHelicalRise, totalArcDistance, pitchBlock);
   }
   
   // Create interpolation points from manual data, sorted by arc distance
@@ -92,10 +95,8 @@ export function getCurrentRiseAtDistance(
   // Add calculated points for any gaps
   for (let i = 0; i <= Math.ceil(totalArcDistance); i++) {
     if (i <= totalArcDistance && !manualRiseData[i]) {
-      const calculatedRise = calculatedRiseData[i];
-      if (calculatedRise !== undefined) {
-        interpolationPoints.push({arc: i, rise: calculatedRise});
-      }
+      const calculatedRise = calculateRiseAtDistance(i, totalHelicalRise, totalArcDistance, pitchBlock);
+      interpolationPoints.push({arc: i, rise: calculatedRise});
     }
   }
   
@@ -107,5 +108,35 @@ export function getCurrentRiseAtDistance(
     return interpolateRise(arcDistance, interpolationPoints);
   }
   
-  return calculatedRiseData[Math.round(arcDistance)] || 0;
+  // Fallback to direct calculation
+  return calculateRiseAtDistance(arcDistance, totalHelicalRise, totalArcDistance, pitchBlock);
+}
+
+// Test function to verify calculations
+export function testCalculations() {
+  console.log('=== Testing Rise Calculations ===');
+  
+  // Test the standard case: 17.5" arc, 7.375" helical rise, 1.0" pitch block
+  const testArc = 17.5;
+  const testHelicalRise = 7.375;
+  const testArcDistance = 17.5;
+  const testPitchBlock = 1.0;
+  
+  const result = calculateRiseAtDistance(testArc, testHelicalRise, testArcDistance, testPitchBlock);
+  console.log(`Arc: ${testArc}", Helical Rise: ${testHelicalRise}", Arc Distance: ${testArcDistance}", Pitch Block: ${testPitchBlock}"`);
+  console.log(`Expected Rise: 8.375", Actual Rise: ${result}"`);
+  console.log(`Difference: ${Math.abs(8.375 - result)}"`);
+  
+  // Test a few other points to show the straight line
+  for (let arc = 0; arc <= 17.5; arc += 2) {
+    const rise = calculateRiseAtDistance(arc, testHelicalRise, testArcDistance, testPitchBlock);
+    console.log(`Arc: ${arc}", Rise: ${rise}"`);
+  }
+  
+  // Test the inner reference line: 10.5" arc, 7.375" rise
+  const innerArc = 10.5;
+  const innerResult = calculateRiseAtDistance(innerArc, testHelicalRise, testArcDistance, testPitchBlock);
+  console.log(`Inner Reference - Arc: ${innerArc}", Expected Rise: 5.425", Actual Rise: ${innerResult}"`);
+  
+  console.log('=== End Test ===');
 }
