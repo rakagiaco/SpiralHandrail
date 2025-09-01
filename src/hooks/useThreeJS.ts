@@ -81,8 +81,8 @@ export function useThreeJS(
       let effectiveRadius = 0; // Initialize effectiveRadius
       
       if (segmentPosition <= parameters.bottomLength) {
-        // Bottom over-ease: straight rail going down stairs at -35.08° angle
-        // Start from spiral boundary, go straight down at angle
+        // Bottom over-ease: straight rail going outward then down at -35.08° angle
+        // Start from spiral boundary, go straight outward away from main center
         const easeT = segmentPosition / parameters.bottomLength;
         
         // Calculate the spiral start position (where over-ease begins)
@@ -90,21 +90,30 @@ export function useThreeJS(
         const spiralStartX = outerRadius * Math.cos(spiralStartAngle);
         const spiralStartZ = outerRadius * Math.sin(spiralStartAngle);
         
-        // Calculate straight rail direction: down at -35.08° angle
-        const angleRadians = -35.08 * Math.PI / 180; // Negative for down direction
+        // Calculate the direction vector from main center to spiral start
+        const directionX = spiralStartX - 0; // From main center (0,0) to spiral start
+        const directionZ = spiralStartZ - 0;
+        const directionLength = Math.sqrt(directionX * directionX + directionZ * directionZ);
+        
+        // Normalize the direction vector
+        const unitDirectionX = directionX / directionLength;
+        const unitDirectionZ = directionZ / directionLength;
+        
+        // Go straight outward (away from main center) then angle down
         const straightRailLength = 2.0; // Length of straight rail section
+        const outwardDistance = 1.5; // Distance to go outward
         
-        // Calculate end point of straight rail
-        const straightEndX = spiralStartX + straightRailLength * Math.cos(angleRadians);
-        const straightEndZ = spiralStartZ + straightRailLength * Math.sin(angleRadians);
+        // Calculate end point: go outward then angle down
+        const outwardEndX = spiralStartX + (unitDirectionX * outwardDistance);
+        const outwardEndZ = spiralStartZ + (unitDirectionZ * outwardDistance);
         
-        // Linear interpolation from spiral start to straight rail end
-        x = spiralStartX + (straightEndX - spiralStartX) * easeT;
-        z = spiralStartZ + (straightEndZ - spiralStartZ) * easeT;
+        // Linear interpolation from spiral start to outward end
+        x = spiralStartX + (outwardEndX - spiralStartX) * easeT;
+        z = spiralStartZ + (outwardEndZ - spiralStartZ) * easeT;
         
       } else if (segmentPosition >= parameters.totalSegments - parameters.topLength) {
-        // Top up-ease: straight rail going up stairs at +35.08° angle
-        // Start from spiral boundary, go straight up at angle
+        // Top up-ease: straight rail going outward then up at +35.08° angle
+        // Start from spiral boundary, go straight outward away from main center
         const easeT = (segmentPosition - (parameters.totalSegments - parameters.topLength)) / parameters.topLength;
         
         // Calculate the spiral end position (where up-ease begins)
@@ -112,17 +121,26 @@ export function useThreeJS(
         const spiralEndX = outerRadius * Math.cos(spiralEndAngle);
         const spiralEndZ = outerRadius * Math.sin(spiralEndAngle);
         
-        // Calculate straight rail direction: up at +35.08° angle
-        const angleRadians = 35.08 * Math.PI / 180; // Positive for up direction
+        // Calculate the direction vector from main center to spiral end
+        const directionX = spiralEndX - 0; // From main center (0,0) to spiral end
+        const directionZ = spiralEndZ - 0;
+        const directionLength = Math.sqrt(directionX * directionX + directionZ * directionZ);
+        
+        // Normalize the direction vector
+        const unitDirectionX = directionX / directionLength;
+        const unitDirectionZ = directionZ / directionLength;
+        
+        // Go straight outward (away from main center) then angle up
         const straightRailLength = 2.0; // Length of straight rail section
+        const outwardDistance = 1.5; // Distance to go outward
         
-        // Calculate end point of straight rail
-        const straightEndX = spiralEndX + straightRailLength * Math.cos(angleRadians);
-        const straightEndZ = spiralEndZ + straightRailLength * Math.sin(angleRadians);
+        // Calculate end point: go outward then angle up
+        const outwardEndX = spiralEndX + (unitDirectionX * outwardDistance);
+        const outwardEndZ = spiralEndZ + (unitDirectionZ * outwardDistance);
         
-        // Linear interpolation from spiral end to straight rail end
-        x = spiralEndX + (straightEndX - spiralEndX) * easeT;
-        z = spiralEndZ + (straightEndZ - spiralEndZ) * easeT;
+        // Linear interpolation from spiral end to outward end
+        x = spiralEndX + (outwardEndX - spiralEndX) * easeT;
+        z = spiralEndZ + (outwardEndZ - spiralEndZ) * easeT;
         
       } else {
         // Main spiral: use main center
@@ -160,8 +178,8 @@ export function useThreeJS(
       let effectiveRadius = insideRadius;
       
       if (segmentPosition <= parameters.bottomLength) {
-        // Bottom over-ease: straight rail going down stairs at -35.08° angle
-        // Start from spiral boundary, go straight down at angle
+        // Bottom over-ease: straight rail going outward then down at -35.08° angle
+        // Start from spiral boundary, go straight outward away from main center
         const easeT = segmentPosition / parameters.bottomLength;
         
         // Calculate the spiral start position (where over-ease begins)
@@ -169,21 +187,30 @@ export function useThreeJS(
         const spiralStartX = insideRadius * Math.cos(spiralStartAngle);
         const spiralStartZ = insideRadius * Math.sin(spiralStartAngle);
         
-        // Calculate straight rail direction: down at -35.08° angle
-        const angleRadians = -35.08 * Math.PI / 180; // Negative for down direction
+        // Calculate the direction vector from main center to spiral start
+        const directionX = spiralStartX - 0; // From main center (0,0) to spiral start
+        const directionZ = spiralStartZ - 0;
+        const directionLength = Math.sqrt(directionX * directionX + directionZ * directionZ);
+        
+        // Normalize the direction vector
+        const unitDirectionX = directionX / directionLength;
+        const unitDirectionZ = directionZ / directionLength;
+        
+        // Go straight outward (away from main center) then angle down
         const straightRailLength = 2.0; // Length of straight rail section
+        const outwardDistance = 1.5; // Distance to go outward
         
-        // Calculate end point of straight rail
-        const straightEndX = spiralStartX + straightRailLength * Math.cos(angleRadians);
-        const straightEndZ = spiralStartZ + straightRailLength * Math.sin(angleRadians);
+        // Calculate end point: go outward then angle down
+        const outwardEndX = spiralStartX + (unitDirectionX * outwardDistance);
+        const outwardEndZ = spiralStartZ + (unitDirectionZ * outwardDistance);
         
-        // Linear interpolation from spiral start to straight rail end
-        x = spiralStartX + (straightEndX - spiralStartX) * easeT;
-        z = spiralStartZ + (straightEndZ - spiralStartZ) * easeT;
+        // Linear interpolation from spiral start to outward end
+        x = spiralStartX + (outwardEndX - spiralStartX) * easeT;
+        z = spiralStartZ + (outwardEndZ - spiralStartZ) * easeT;
         
       } else if (segmentPosition >= parameters.totalSegments - parameters.topLength) {
-        // Top up-ease: straight rail going up stairs at +35.08° angle
-        // Start from spiral boundary, go straight up at angle
+        // Top up-ease: straight rail going outward then up at +35.08° angle
+        // Start from spiral boundary, go straight outward away from main center
         const easeT = (segmentPosition - (parameters.totalSegments - parameters.topLength)) / parameters.topLength;
         
         // Calculate the spiral end position (where up-ease begins)
@@ -191,17 +218,26 @@ export function useThreeJS(
         const spiralEndX = insideRadius * Math.cos(spiralEndAngle);
         const spiralEndZ = insideRadius * Math.sin(spiralEndAngle);
         
-        // Calculate straight rail direction: up at +35.08° angle
-        const angleRadians = 35.08 * Math.PI / 180; // Positive for up direction
+        // Calculate the direction vector from main center to spiral end
+        const directionX = spiralEndX - 0; // From main center (0,0) to spiral end
+        const directionZ = spiralEndZ - 0;
+        const directionLength = Math.sqrt(directionX * directionX + directionZ * directionZ);
+        
+        // Normalize the direction vector
+        const unitDirectionX = directionX / directionLength;
+        const unitDirectionZ = directionZ / directionLength;
+        
+        // Go straight outward (away from main center) then angle up
         const straightRailLength = 2.0; // Length of straight rail section
+        const outwardDistance = 1.5; // Distance to go outward
         
-        // Calculate end point of straight rail
-        const straightEndX = spiralEndX + straightRailLength * Math.cos(angleRadians);
-        const straightEndZ = spiralEndZ + straightRailLength * Math.sin(angleRadians);
+        // Calculate end point: go outward then angle up
+        const outwardEndX = spiralEndX + (unitDirectionX * outwardDistance);
+        const outwardEndZ = spiralEndZ + (unitDirectionZ * outwardDistance);
         
-        // Linear interpolation from spiral end to straight rail end
-        x = spiralEndX + (straightEndX - spiralEndX) * easeT;
-        z = spiralEndZ + (straightEndZ - spiralEndZ) * easeT;
+        // Linear interpolation from spiral end to outward end
+        x = spiralEndX + (outwardEndX - spiralEndX) * easeT;
+        z = spiralEndZ + (outwardEndZ - spiralEndZ) * easeT;
         
       } else {
         // Main spiral: use main center
