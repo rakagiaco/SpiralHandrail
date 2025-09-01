@@ -19,8 +19,10 @@ export function ResultsTable({ title, data, type }: ResultsTableProps) {
   const getDataQualityIndicator = (row: SegmentResult | ReferenceResult) => {
     // Add visual indicators for data quality
     const isManual = 'segment' in row ? false : true; // Reference results are always calculated
-    const hasValidRise = row.rise > 0 && row.rise < 20; // Reasonable rise range
-    const hasValidArc = row.arcDistance >= 0 && row.arcDistance < 50; // Reasonable arc range
+    const riseNum = parseFloat(row.rise);
+    const arcNum = parseFloat(row.arcDistance);
+    const hasValidRise = !isNaN(riseNum) && riseNum > 0 && riseNum < 20; // Reasonable rise range
+    const hasValidArc = !isNaN(arcNum) && arcNum >= 0 && arcNum < 50; // Reasonable arc range
     
     if (!hasValidRise || !hasValidArc) {
       return <span className="inline-block w-3 h-3 bg-red-500 rounded-full mr-2" title="Data validation warning"></span>;
@@ -36,9 +38,14 @@ export function ResultsTable({ title, data, type }: ResultsTableProps) {
     return '📏';
   };
 
-  const getAngleIndicator = (angle: number) => {
-    // Visual angle indicator
-    const normalizedAngle = ((angle % 360) + 360) % 360;
+  const getAngleIndicator = (angle: string) => {
+    // Visual angle indicator - handle string angles
+    const angleNum = parseFloat(angle);
+    if (isNaN(angleNum)) {
+      return <span className="text-red-500">{angle}</span>;
+    }
+    
+    const normalizedAngle = ((angleNum % 360) + 360) % 360;
     const rotation = `rotate(${normalizedAngle}deg)`;
     
     return (
@@ -54,9 +61,14 @@ export function ResultsTable({ title, data, type }: ResultsTableProps) {
     );
   };
 
-  const getRiseBar = (rise: number, maxRise: number = 10) => {
-    // Visual rise bar indicator
-    const percentage = Math.min((rise / maxRise) * 100, 100);
+  const getRiseBar = (rise: string, maxRise: number = 10) => {
+    // Visual rise bar indicator - handle string rise values
+    const riseNum = parseFloat(rise);
+    if (isNaN(riseNum)) {
+      return <span className="text-red-500">{rise}</span>;
+    }
+    
+    const percentage = Math.min((riseNum / maxRise) * 100, 100);
     const barColor = percentage > 80 ? 'bg-red-500' : percentage > 60 ? 'bg-yellow-500' : 'bg-green-500';
     
     return (
@@ -67,18 +79,22 @@ export function ResultsTable({ title, data, type }: ResultsTableProps) {
             style={{ width: `${percentage}%` }}
           ></div>
         </div>
-        <span className="text-xs font-mono">{rise.toFixed(3)}"</span>
+        <span className="text-xs font-mono">{riseNum.toFixed(3)}"</span>
       </div>
     );
   };
 
-  // Calculate summary statistics for debugging
-  const totalRise = data.reduce((sum, row) => sum + row.rise, 0);
-  const avgRise = totalRise / data.length;
-  const minRise = Math.min(...data.map(row => row.rise));
-  const maxRise = Math.max(...data.map(row => row.rise));
-  const totalArc = data.reduce((sum, row) => sum + row.arcDistance, 0);
-  const avgArc = totalArc / data.length;
+  // Calculate summary statistics for debugging - parse strings to numbers first
+  const riseValues = data.map(row => parseFloat(row.rise)).filter(val => !isNaN(val));
+  const arcValues = data.map(row => parseFloat(row.arcDistance)).filter(val => !isNaN(val));
+  
+  const totalRise = riseValues.reduce((sum, val) => sum + val, 0);
+  const avgRise = riseValues.length > 0 ? totalRise / riseValues.length : 0;
+  const minRise = riseValues.length > 0 ? Math.min(...riseValues) : 0;
+  const maxRise = riseValues.length > 0 ? Math.max(...riseValues) : 0;
+  
+  const totalArc = arcValues.reduce((sum, val) => sum + val, 0);
+  const avgArc = arcValues.length > 0 ? totalArc / arcValues.length : 0;
 
   return (
     <div className="bg-white rounded-2xl p-5 shadow-lg border-l-4 border-green-500 overflow-x-auto">
