@@ -420,6 +420,54 @@ export function useThreeJS(
     scene.add(debugInfo);
     sceneRef.current.debugElements.push(debugInfo);
     
+    // Add easement angle debugging
+    const addEasementDebugInfo = () => {
+      // Bottom easement debug
+      const bottomEasementAngle = (parameters.bottomLength / parameters.totalSegments) * parameters.totalDegrees;
+      const bottomDebugText = `Bottom Easement: 0° to ${bottomEasementAngle.toFixed(1)}° (Over-Ease)`;
+      
+      // Top easement debug  
+      const topEasementStart = ((parameters.totalSegments - parameters.topLength) / parameters.totalSegments) * parameters.totalDegrees;
+      const topEasementEnd = parameters.totalDegrees;
+      const topDebugText = `Top Easement: ${topEasementStart.toFixed(1)}° to ${topEasementEnd.toFixed(1)}° (Up-Ease)`;
+      
+      // Create text sprites for easement debugging
+      const createEasementTextSprite = (text: string, position: THREE.Vector3) => {
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        if (!context) return new THREE.Group();
+        
+        canvas.width = 512;
+        canvas.height = 128;
+        context.fillStyle = '#000000';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.fillStyle = '#ffff00';
+        context.font = '20px Arial';
+        context.textAlign = 'center';
+        context.fillText(text, canvas.width / 2, canvas.height / 2);
+        
+        const texture = new THREE.CanvasTexture(canvas);
+        const material = new THREE.SpriteMaterial({ map: texture });
+        const sprite = new THREE.Sprite(material);
+        sprite.position.copy(position);
+        sprite.scale.set(4, 1, 1);
+        
+        return sprite;
+      };
+      
+      const bottomSprite = createEasementTextSprite(bottomDebugText, new THREE.Vector3(0, 12, 0));
+      const topSprite = createEasementTextSprite(topDebugText, new THREE.Vector3(0, 14, 0));
+      
+      scene.add(bottomSprite);
+      scene.add(topSprite);
+      if (sceneRef.current) {
+        sceneRef.current.debugElements.push(bottomSprite);
+        sceneRef.current.debugElements.push(topSprite);
+      }
+    };
+    
+    addEasementDebugInfo();
+    
   }, [parameters, manualRiseData, calculatedRiseData]);
 
   // Function to create debugging information overlay
