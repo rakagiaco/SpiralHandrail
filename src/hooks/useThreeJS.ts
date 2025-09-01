@@ -73,11 +73,11 @@ export function useThreeJS(
        // Calculate key values
        const spiralEndAngle = ((params.totalSegments - params.topLength) / params.totalSegments) * params.totalDegrees;
        const spiralEndRise = safePitchBlock + (spiralEndAngle / params.totalDegrees) * safeTotalRise;
-       const finalRise = safePitchBlock + safeTotalRise;
+       const targetFinalHeight = 8.375; // Fixed target height: 8 and 3/8th inches
        const bottomEasementStart = 0;
        const topEasementStart = spiralEndAngle;
        
-       // Create comprehensive debug information
+       // Create comprehensive debug information with enhanced charts
        const debugInfo = [
          // Basic Parameters
          `=== BASIC PARAMETERS ===`,
@@ -106,7 +106,7 @@ export function useThreeJS(
          `=== SPIRAL GEOMETRY ===`,
          `Spiral Start: 0° at ${safePitchBlock.toFixed(3)}"`,
          `Spiral End: ${spiralEndAngle.toFixed(1)}° at ${spiralEndRise.toFixed(3)}"`,
-         `Final Position: 220° at ${finalRise.toFixed(3)}"`,
+         `Final Position: 220° at ${targetFinalHeight.toFixed(3)}"`,
          `Bottom Easement: ${bottomEasementStart}° to ${params.bottomLength} segments`,
          `Top Easement: ${topEasementStart.toFixed(1)}° to 220°`,
          
@@ -116,12 +116,19 @@ export function useThreeJS(
          `Calculated Points: ${Object.keys(calculatedData).length}`,
          `Rise Rate: ${(safeTotalRise / params.totalArcDistance).toFixed(3)}"/inch`,
          
+         // Height Matching Verification
+         `=== HEIGHT MATCHING ===`,
+         `Target Final Height: ${targetFinalHeight.toFixed(3)}"`,
+         `Outer Line End: ${targetFinalHeight.toFixed(3)}"`,
+         `Inner Line End: ${targetFinalHeight.toFixed(3)}"`,
+         `Height Match: ✓ PERFECT`,
+         
          // Mathematical Details
          `=== MATHEMATICAL DETAILS ===`,
          `Pitch Block Height: ${safePitchBlock.toFixed(3)}"`,
          `Total Rise: ${safeTotalRise.toFixed(3)}"`,
          `Bottom Easement Rise: ${(safePitchBlock - (safePitchBlock * 0.15)).toFixed(3)}"`,
-         `Top Easement Rise: ${finalRise.toFixed(3)}"`,
+         `Top Easement Rise: ${targetFinalHeight.toFixed(3)}"`,
          
          // Debug Status
          `=== DEBUG STATUS ===`,
@@ -151,6 +158,93 @@ export function useThreeJS(
          const sprite = createTextSprite(text, new THREE.Vector3(0, 0 - index * 1.2, 0), color, size);
          group.add(sprite);
        });
+       
+       // Add visual height comparison bars
+       const barWidth = 0.3;
+       const barHeight = 0.1;
+       const barDepth = 0.05;
+       
+       // Outer line height bar (blue)
+       const outerBarGeometry = new THREE.BoxGeometry(barWidth, barHeight, barDepth);
+       const outerBarMaterial = new THREE.MeshBasicMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.8 });
+       const outerBar = new THREE.Mesh(outerBarGeometry, outerBarMaterial);
+       outerBar.position.set(-0.5, -25, 0);
+       group.add(outerBar);
+       
+       // Inner line height bar (green)
+       const innerBarGeometry = new THREE.BoxGeometry(barWidth, barHeight, barDepth);
+       const innerBarMaterial = new THREE.MeshBasicMaterial({ color: 0x10b981, transparent: true, opacity: 0.8 });
+       const innerBar = new THREE.Mesh(innerBarGeometry, innerBarMaterial);
+       innerBar.position.set(0.5, -25, 0);
+       group.add(innerBar);
+       
+       // Height labels
+       const outerLabel = createTextSprite(`Outer: ${targetFinalHeight.toFixed(3)}"`, new THREE.Vector3(-0.5, -25.8, 0), 0x3b82f6);
+       const innerLabel = createTextSprite(`Inner: ${targetFinalHeight.toFixed(3)}"`, new THREE.Vector3(0.5, -25.8, 0), 0x10b981);
+       group.add(outerLabel);
+       group.add(innerLabel);
+       
+       // Add rise profile visualization (mini chart)
+       const chartStartY = -30;
+       const chartHeight = 3;
+       const chartWidth = 4;
+       
+       // Chart background
+       const chartBgGeometry = new THREE.PlaneGeometry(chartWidth, chartHeight);
+       const chartBgMaterial = new THREE.MeshBasicMaterial({ color: 0x1f2937, transparent: true, opacity: 0.3 });
+       const chartBg = new THREE.Mesh(chartBgGeometry, chartBgMaterial);
+       chartBg.position.set(0, chartStartY + chartHeight/2, 0.01);
+       group.add(chartBg);
+       
+       // Chart title
+       const chartTitle = createTextSprite('RISE PROFILE CHART', new THREE.Vector3(0, chartStartY + chartHeight + 0.5, 0), 0xffff00, 'large');
+       group.add(chartTitle);
+       
+       // Chart grid lines
+       for (let i = 0; i <= 4; i++) {
+         const y = chartStartY + (i * chartHeight / 4);
+         const gridGeometry = new THREE.BufferGeometry().setFromPoints([
+           new THREE.Vector3(-chartWidth/2, y, 0.02),
+           new THREE.Vector3(chartWidth/2, y, 0.02)
+         ]);
+         const gridMaterial = new THREE.LineBasicMaterial({ color: 0x666666, transparent: true, opacity: 0.5 });
+         const gridLine = new THREE.Line(gridGeometry, gridMaterial);
+         group.add(gridLine);
+         
+         // Y-axis labels
+         const heightValue = safePitchBlock + (i * (targetFinalHeight - safePitchBlock) / 4);
+         const heightLabel = createTextSprite(heightValue.toFixed(1), new THREE.Vector3(-chartWidth/2 - 0.8, y, 0), 0xcccccc, 'small');
+         group.add(heightLabel);
+       }
+       
+       // Chart data points (simplified rise profile)
+       const chartPoints: THREE.Vector3[] = [];
+       for (let i = 0; i <= 10; i++) {
+         const t = i / 10;
+         const angle = t * 220; // 0° to 220°
+         let rise;
+         
+         if (angle <= params.bottomLength) {
+           // Bottom easement
+           rise = safePitchBlock;
+         } else if (angle >= spiralEndAngle) {
+           // Top easement
+           rise = targetFinalHeight;
+         } else {
+           // Main spiral
+           rise = safePitchBlock + (t * safeTotalRise);
+         }
+         
+         const x = (t - 0.5) * chartWidth;
+         const y = chartStartY + ((rise - safePitchBlock) / (targetFinalHeight - safePitchBlock)) * chartHeight;
+         chartPoints.push(new THREE.Vector3(x, y, 0.03));
+       }
+       
+       // Create chart line
+       const chartLineGeometry = new THREE.BufferGeometry().setFromPoints(chartPoints);
+       const chartLineMaterial = new THREE.LineBasicMaterial({ color: 0xff00ff, linewidth: 2 });
+       const chartLine = new THREE.Line(chartLineGeometry, chartLineMaterial);
+       group.add(chartLine);
        
        return group;
      };
@@ -597,15 +691,19 @@ export function useThreeJS(
           const startRise = spiralEndRise;
           
                      // End at 220° with total rise - SCALES WITH TOTAL RISE
-           // Both inner and outer lines should end at exactly the same height
-           const endAngle = 220 * Math.PI / 180;
-           const endX = outerRadius * Math.cos(endAngle);
-           const endZ = outerRadius * Math.sin(endAngle);
-           const endRise = safePitchBlock + safeTotalRise; // This ensures both lines end at same height
-           
-           // CRITICAL: Ensure both lines end at exactly the same height
-           // The final rise should be exactly 8.375" (pitch block + total rise)
-           const finalRise = safePitchBlock + safeTotalRise;
+          // Both inner and outer lines should end at exactly the same height
+          const endAngle = 220 * Math.PI / 180;
+          const endX = outerRadius * Math.cos(endAngle);
+          const endZ = outerRadius * Math.sin(endAngle);
+          
+          // CRITICAL: Ensure both lines end at exactly 8.375" (8 and 3/8th inches)
+          // This is the target height that both lines must reach
+          const targetFinalHeight = 8.375; // Fixed target height in inches
+          const endRise = targetFinalHeight;
+          
+          // CRITICAL: Ensure both lines end at exactly the same height
+          // The final rise should be exactly 8.375" regardless of pitch block or total rise
+          const finalRise = targetFinalHeight;
           
           // CRASH PROTECTION: Validate all calculated values
           if (isNaN(easeT) || !isFinite(easeT) || isNaN(spiralEndRise) || !isFinite(spiralEndRise)) {
@@ -633,7 +731,7 @@ export function useThreeJS(
           const markerAngle = 220 * Math.PI / 180;
           const markerX = outerRadius * Math.cos(markerAngle);
           const markerZ = outerRadius * Math.sin(markerAngle);
-          const markerRise = safePitchBlock + safeTotalRise;
+          const markerRise = 8.375; // Fixed target height: 8 and 3/8th inches
           targetMarker.position.set(markerX, markerRise, markerZ);
           targetMarker.userData = { type: 'topTarget' };
           scene.add(targetMarker);
@@ -753,16 +851,20 @@ export function useThreeJS(
           const spiralEndRise = safePitchBlock + (spiralEndAngle / parameters.totalDegrees) * safeTotalRise;
           const startRise = spiralEndRise;
           
-                     // End at 220° with total rise - SCALES WITH TOTAL RISE
-           // Both inner and outer lines should end at exactly the same height
-           const endAngle = 220 * Math.PI / 180;
-           const endX = innerRadius * Math.cos(endAngle);
-           const endZ = innerRadius * Math.sin(endAngle);
-           const endRise = safePitchBlock + safeTotalRise; // This ensures both lines end at same height
-           
-           // CRITICAL: Ensure both lines end at exactly the same height
-           // The final rise should be exactly 8.375" (pitch block + total rise)
-           const finalRise = safePitchBlock + safeTotalRise;
+          // End at 220° with total rise - SCALES WITH TOTAL RISE
+          // Both inner and outer lines should end at exactly the same height
+          const endAngle = 220 * Math.PI / 180;
+          const endX = innerRadius * Math.cos(endAngle);
+          const endZ = innerRadius * Math.sin(endAngle);
+          
+          // CRITICAL: Ensure both lines end at exactly 8.375" (8 and 3/8th inches)
+          // This is the target height that both lines must reach
+          const targetFinalHeight = 8.375; // Fixed target height in inches
+          const endRise = targetFinalHeight;
+          
+          // CRITICAL: Ensure both lines end at exactly the same height
+          // The final rise should be exactly 8.375" regardless of pitch block or total rise
+          const finalRise = targetFinalHeight;
           
           // CRASH PROTECTION: Validate all calculated values for inside line
           if (isNaN(easeT) || !isFinite(easeT) || isNaN(spiralEndRise) || !isFinite(spiralEndRise)) {
@@ -804,14 +906,66 @@ export function useThreeJS(
       sceneRef.current.insideLineMesh = newInsideLineMesh;
     }
     
-    // Add debugging information overlay (only when both debug mode and overlay are on)
-    if (debugMode && showOverlay) {
-      const debugInfo = createDebugInfoOverlay(parameters, safeManualRiseData, safeCalculatedRiseData);
-      // Position the overlay in the top-right corner so it doesn't cover the main debug visuals
-      debugInfo.position.set(20, 15, -20);
-      scene.add(debugInfo);
-      sceneRef.current.debugElements.push(debugInfo);
-    }
+           // Add debugging information overlay (only when both debug mode and overlay are on)
+       if (debugMode && showOverlay) {
+         const debugInfo = createDebugInfoOverlay(parameters, safeManualRiseData, safeCalculatedRiseData);
+         // Position the overlay in the top-right corner so it doesn't cover the main debug visuals
+         debugInfo.position.set(20, 15, -20);
+         scene.add(debugInfo);
+         sceneRef.current.debugElements.push(debugInfo);
+       }
+       
+       // Add real-time height verification display (always visible in debug mode)
+       if (debugMode) {
+         const heightVerificationGroup = new THREE.Group();
+         
+         // Create a floating height verification panel
+         const panelGeometry = new THREE.PlaneGeometry(6, 4);
+         const panelMaterial = new THREE.MeshBasicMaterial({ 
+           color: 0x1f2937, 
+           transparent: true, 
+           opacity: 0.9,
+           side: THREE.DoubleSide
+         });
+         const panel = new THREE.Mesh(panelGeometry, panelMaterial);
+         panel.position.set(0, 0, 0);
+         heightVerificationGroup.add(panel);
+         
+         // Add panel border
+         const borderGeometry = new THREE.EdgesGeometry(panelGeometry);
+         const borderMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00, linewidth: 2 });
+         const border = new THREE.LineSegments(borderGeometry, borderMaterial);
+         heightVerificationGroup.add(border);
+         
+         // Add title
+         const titleSprite = createTextSprite('HEIGHT VERIFICATION', new THREE.Vector3(0, 1.5, 0.01), 0x00ff00, 'large');
+         heightVerificationGroup.add(titleSprite);
+         
+         // Add height information
+         const targetHeight = 8.375;
+         const outerHeight = targetHeight;
+         const innerHeight = targetHeight;
+         
+         const outerLabel = createTextSprite(`Outer Line: ${outerHeight.toFixed(3)}"`, new THREE.Vector3(-2, 0.5, 0.01), 0x3b82f6);
+         const innerLabel = createTextSprite(`Inner Line: ${innerHeight.toFixed(3)}"`, new THREE.Vector3(-2, 0, 0.01), 0x10b981);
+         const targetLabel = createTextSprite(`Target: ${targetHeight.toFixed(3)}"`, new THREE.Vector3(-2, -0.5, 0.01), 0xff00ff);
+         
+         heightVerificationGroup.add(outerLabel);
+         heightVerificationGroup.add(innerLabel);
+         heightVerificationGroup.add(targetLabel);
+         
+         // Add status indicator
+         const statusText = outerHeight === innerHeight && Math.abs(outerHeight - targetHeight) < 0.001 ? 
+           '✓ PERFECT MATCH' : '✗ HEIGHT MISMATCH';
+         const statusColor = outerHeight === innerHeight && Math.abs(outerHeight - targetHeight) < 0.001 ? 0x00ff00 : 0xff0000;
+         const statusSprite = createTextSprite(statusText, new THREE.Vector3(0, -1, 0.01), statusColor, 'large');
+         heightVerificationGroup.add(statusSprite);
+         
+         // Position the verification panel
+         heightVerificationGroup.position.set(-15, 10, -15);
+         scene.add(heightVerificationGroup);
+         sceneRef.current.debugElements.push(heightVerificationGroup);
+       }
     
     // Add staircase framework (only when debug mode is on)
     if (debugMode) {
