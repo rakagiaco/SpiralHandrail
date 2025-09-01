@@ -1,11 +1,12 @@
 // Main App component for the Spiral Handrail 3D Visualizer
 // This component manages the global state and renders all sub-components
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import './App.css';
 import { HandrailParameters } from './types/handrail';
 import { ThreeJSVisualization } from './components/ThreeJSVisualization';
 import { ParametersSection } from './components/ParametersSection';
 import { RiseAdjustmentSection } from './components/RiseAdjustmentSection';
+import { calculateRiseAtDistance } from './utils/calculations';
 
 // Default parameters for a standard spiral handrail
 // These values represent a typical 220° spiral with 17.5" arc distance
@@ -32,10 +33,32 @@ function App() {
   const [parameters, setParameters] = useState<HandrailParameters>(defaultParameters);
   
   // Manual rise data entered by the user (overrides calculated values)
-  const [manualRiseData, setManualRiseData] = useState<Record<number, number>>({});
+  // Initialize with your exact reference measurements
+  const [manualRiseData, setManualRiseData] = useState<Record<number, number>>({
+    // Your exact reference measurements at each inch mark
+    0: 1.0,      // Start at pitch block height
+    1: 1.5,      // 1" arc distance
+    2: 2.0,      // 2" arc distance
+    3: 2.5,      // 3" arc distance
+    4: 2.875,    // 4" arc distance
+    5: 3.3125,   // 5" arc distance
+    6: 3.625,    // 6" arc distance
+    7: 4.0,      // 7" arc distance
+    8: 4.375,    // 8" arc distance
+    9: 4.626,    // 9" arc distance
+    10: 4.9,     // 10" arc distance
+    11: 5.25,    // 11" arc distance
+    12: 5.5625,  // 12" arc distance
+    13: 5.875,   // 13" arc distance
+    14: 6.25,    // 14" arc distance
+    15: 6.625,   // 15" arc distance
+    16: 7.125,   // 16" arc distance
+    17: 7.5625,  // 17" arc distance
+    17.5: 8.375  // 17.5" arc distance (end of spiral)
+  });
   
   // Calculated rise data based on mathematical formulas
-  const [calculatedRiseData] = useState<Record<number, number>>({});
+  const [calculatedRiseData, setCalculatedRiseData] = useState<Record<number, number>>({});
   
   // Debug mode toggle - controls visibility of debugging information
   const [debugMode, setDebugMode] = useState<boolean>(false);
@@ -73,6 +96,41 @@ function App() {
     setShowOverlay(newShowOverlay);
   }, []);
 
+  // Function to calculate rise data based on current parameters
+  // This populates the calculatedRiseData with mathematical rise values
+  const calculateRiseData = useCallback(() => {
+    const newCalculatedData: Record<number, number> = {};
+    
+    // Calculate rise at every 0.5" increment from 0 to totalArcDistance
+    for (let arcDist = 0; arcDist <= parameters.totalArcDistance; arcDist += 0.5) {
+      const rise = calculateRiseAtDistance(
+        arcDist,
+        parameters.totalHelicalRise,
+        parameters.totalArcDistance,
+        parameters.pitchBlock
+      );
+      newCalculatedData[arcDist] = rise;
+    }
+    
+    // Also calculate at exact inch marks for the reference chart
+    for (let inch = 0; inch <= Math.ceil(parameters.totalArcDistance); inch++) {
+      const rise = calculateRiseAtDistance(
+        inch,
+        parameters.totalHelicalRise,
+        parameters.totalArcDistance,
+        parameters.pitchBlock
+      );
+      newCalculatedData[inch] = rise;
+    }
+    
+    setCalculatedRiseData(newCalculatedData);
+  }, [parameters.totalHelicalRise, parameters.totalArcDistance, parameters.pitchBlock]);
+
+  // Calculate rise data whenever parameters change
+  useEffect(() => {
+    calculateRiseData();
+  }, [calculateRiseData]);
+
   return (
     <div className="App">
       {/* Main header for the application */}
@@ -99,6 +157,59 @@ function App() {
             onRiseChange={handleRiseChange}
             onReset={handleResetRise}
           />
+          
+          {/* Custom Job Parameters Section */}
+          <div className="bg-white rounded-lg p-6 shadow-lg">
+            <h3 className="text-lg font-semibold mb-4 text-gray-800">Custom Job Parameters</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Custom Outer Radius (inches)
+                </label>
+                <input
+                  type="number"
+                  step="0.001"
+                  value={parameters.customOuterRadius || 4.625}
+                  onChange={(e) => handleParameterChange('customOuterRadius', parseFloat(e.target.value) || 4.625)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Custom Inner Radius (inches)
+                </label>
+                <input
+                  type="number"
+                  step="0.001"
+                  value={parameters.customInnerRadius || 4.625}
+                  onChange={(e) => handleParameterChange('customInnerRadius', parseFloat(e.target.value) || 4.625)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Custom Easement Angle (degrees)
+                </label>
+                <input
+                  type="number"
+                  step="0.001"
+                  value={parameters.customEasementAngle || -35.08}
+                  onChange={(e) => handleParameterChange('customEasementAngle', parseFloat(e.target.value) || -35.08)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              
+              <button
+                onClick={() => setParameters(defaultParameters)}
+                className="w-full bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600 transition-colors"
+              >
+                Reset to Defaults
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Right panel: 3D visualization and debug controls */}

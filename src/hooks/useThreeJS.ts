@@ -1,7 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import * as THREE from 'three';
 import { HandrailParameters } from '../types/handrail';
-import { getCurrentRiseAtDistance } from '../utils/calculations';
 
 export function useThreeJS(
   parameters: HandrailParameters,
@@ -70,15 +69,20 @@ export function useThreeJS(
     const createDebugInfoOverlay = (params: HandrailParameters, manualData: Record<number, number>, calculatedData: Record<number, number>) => {
       const group = new THREE.Group();
       
-      const paramsText = [
-        `Total Arc: ${params.totalArcDistance}"`,
-        `Total Rise: ${params.totalHelicalRise}"`,
-        `Pitch Block: ${params.pitchBlock}"`,
-        `Bottom Offset: ${params.bottomOffset}"`,
-        `Top Offset: ${params.topOffset}"`,
-        `Manual Points: ${Object.keys(manualData).length}`,
-        `Calculated Points: ${Object.keys(calculatedData).length}`
-      ];
+             const paramsText = [
+         `Total Arc: ${params.totalArcDistance}"`,
+         `Total Rise: ${params.totalHelicalRise}"`,
+         `Pitch Block: ${params.pitchBlock}"`,
+         `Bottom Offset: ${params.bottomOffset}"`,
+         `Top Offset: ${params.topOffset}"`,
+         `Manual Points: ${Object.keys(manualData).length}`,
+         `Calculated Points: ${Object.keys(calculatedData).length}`,
+         `Custom Outer Radius: ${params.customOuterRadius || 4.625}"`,
+         `Custom Inner Radius: ${params.customInnerRadius || 4.625}"`,
+         `Custom Easement Angle: ${params.customEasementAngle || -35.08}°`,
+         `Spiral End Angle: ${((params.totalSegments - params.topLength) / params.totalSegments * params.totalDegrees).toFixed(1)}°`,
+         `Easement Start: ${params.totalSegments - params.topLength} segments`
+       ];
       
       paramsText.forEach((text, index) => {
         const sprite = createTextSprite(text, new THREE.Vector3(0, 0 - index * 1.5, 0), 0x00ff00, 'small');
@@ -257,10 +261,29 @@ export function useThreeJS(
       sceneRef.current.debugElements.push(bottomLabel);
       sceneRef.current.debugElements.push(topLabel);
       sceneRef.current.debugElements.push(pitchBlockLabel);
-      sceneRef.current.debugElements.push(outerRadiusLabel);
-      sceneRef.current.debugElements.push(innerRadiusLabel);
-      sceneRef.current.debugElements.push(easementAngleLabel);
-    }
+             sceneRef.current.debugElements.push(outerRadiusLabel);
+       sceneRef.current.debugElements.push(innerRadiusLabel);
+       sceneRef.current.debugElements.push(easementAngleLabel);
+       
+       // Add spiral end point marker for better visualization
+       const spiralEndAngle = ((parameters.totalSegments - parameters.topLength) / parameters.totalSegments) * parameters.totalDegrees;
+       const spiralEndAngleRad = spiralEndAngle * Math.PI / 180;
+       const spiralEndX = outerRadius * Math.cos(spiralEndAngleRad);
+       const spiralEndZ = outerRadius * Math.sin(spiralEndAngleRad);
+       const spiralEndRise = safePitchBlock + (spiralEndAngle / parameters.totalDegrees) * safeTotalRise;
+       
+       const spiralEndMarkerGeometry = new THREE.SphereGeometry(0.3, 16, 16);
+       const spiralEndMarkerMaterial = new THREE.MeshBasicMaterial({ color: 0xff00ff });
+       const spiralEndMarker = new THREE.Mesh(spiralEndMarkerGeometry, spiralEndMarkerMaterial);
+       spiralEndMarker.position.set(spiralEndX, spiralEndRise, spiralEndZ);
+       scene.add(spiralEndMarker);
+       sceneRef.current.debugElements.push(spiralEndMarker);
+       
+       // Add spiral end label
+       const spiralEndLabel = createTextSprite(`Spiral End: ${spiralEndAngle.toFixed(1)}°`, new THREE.Vector3(spiralEndX + 1, spiralEndRise + 0.5, spiralEndZ), 0xff00ff);
+       scene.add(spiralEndLabel);
+       sceneRef.current.debugElements.push(spiralEndLabel);
+     }
     
     // Create outside handrail points with proper easement geometry
     const outerPoints: THREE.Vector3[] = [];
@@ -368,14 +391,16 @@ export function useThreeJS(
           // Top up-ease: direct interpolation from spiral end to final position
           const easeT = (segmentPosition - (parameters.totalSegments - parameters.topLength)) / parameters.topLength;
           
-          // Start at 200° (where spiral ends and easement begins)
-          const startAngle = 200 * Math.PI / 180;
+          // Start at the actual spiral end point (not hardcoded 200°)
+          // Calculate where the spiral naturally ends based on the current parameters
+          const spiralEndAngle = ((parameters.totalSegments - parameters.topLength) / parameters.totalSegments) * parameters.totalDegrees;
+          const startAngle = spiralEndAngle * Math.PI / 180;
           const startX = outerRadius * Math.cos(startAngle);
           const startZ = outerRadius * Math.sin(startAngle);
           
-          // FIXED: Calculate a higher starting rise at 200° (end of spiral) for smoother up-ease
-          // The spiral should end slightly higher to create a gradual, smooth transition
-          const spiralEndRise = safePitchBlock + (200 / 220) * safeTotalRise + (safeTotalRise * 0.15); // Add 15% extra rise
+          // Calculate the rise at the spiral end point for smooth transition
+          // Use the actual spiral rise calculation, not a hardcoded value
+          const spiralEndRise = safePitchBlock + (spiralEndAngle / parameters.totalDegrees) * safeTotalRise;
           const startRise = spiralEndRise;
           
           // End at 220° with total rise - SCALES WITH TOTAL RISE
@@ -391,24 +416,14 @@ export function useThreeJS(
             z = startZ;
             y = startRise;
           } else {
-            // IMPROVED: Create ultra-smooth transition from spiral end to easement end
-            // Use multiple smoothing techniques for the smoothest possible curve
+                                   // FIXED: Create smooth transition that properly interpolates the full 220° span
+            // Use the same smoothstep approach as the bottom easement for consistency
+            const smoothEaseT = easeT * easeT * (3 - 2 * easeT); // Smoothstep function
             
-            // Primary smoothstep function
-            const smoothEaseT = easeT * easeT * (3 - 2 * easeT);
-            
-            // Apply additional smoothing layers for ultra-smooth transition
-            const smoothLayer1 = Math.sin(easeT * Math.PI) * 0.1; // Gentle sine wave
-            const smoothLayer2 = Math.sin(easeT * Math.PI * 2) * 0.05; // Higher frequency wave
-            const smoothLayer3 = Math.sin(easeT * Math.PI * 4) * 0.025; // Even higher frequency
-            
-            // Combine all smoothing layers
-            const finalEaseT = smoothEaseT + smoothLayer1 + smoothLayer2 + smoothLayer3;
-            
-            // Apply smoothing to all coordinates for consistent smoothness
-            x = startX + (endX - startX) * finalEaseT;
-            z = startZ + (endZ - startZ) * finalEaseT;
-            y = startRise + (endRise - startRise) * finalEaseT;
+            // Interpolate all coordinates smoothly from spiral end to final position
+            x = startX + (endX - startX) * smoothEaseT;
+            z = startZ + (endZ - startZ) * smoothEaseT;
+            y = startRise + (endRise - startRise) * smoothEaseT;
           }
         }
         
@@ -528,14 +543,16 @@ export function useThreeJS(
           // Top up-ease: direct interpolation from spiral end to final position
           const easeT = (segmentPosition - (parameters.totalSegments - parameters.topLength)) / parameters.topLength;
           
-          // Start at 200° (where spiral ends and easement begins)
-          const startAngle = 200 * Math.PI / 180;
+          // Start at the actual spiral end point (not hardcoded 200°)
+          // Calculate where the spiral naturally ends based on the current parameters
+          const spiralEndAngle = ((parameters.totalSegments - parameters.topLength) / parameters.totalSegments) * parameters.totalDegrees;
+          const startAngle = spiralEndAngle * Math.PI / 180;
           const startX = innerRadius * Math.cos(startAngle);
           const startZ = innerRadius * Math.sin(startAngle);
           
-          // FIXED: Calculate a higher starting rise at 200° (end of spiral) for smoother up-ease
-          // The spiral should end slightly higher to create a gradual, smooth transition
-          const spiralEndRise = safePitchBlock + (200 / 220) * safeTotalRise + (safeTotalRise * 0.15); // Add 15% extra rise
+          // Calculate the rise at the spiral end point for smooth transition
+          // Use the actual spiral rise calculation, not a hardcoded value
+          const spiralEndRise = safePitchBlock + (spiralEndAngle / parameters.totalDegrees) * safeTotalRise;
           const startRise = spiralEndRise;
           
           // End at 220° with total rise - SCALES WITH TOTAL RISE
@@ -551,17 +568,13 @@ export function useThreeJS(
             z = startZ;
             y = startRise;
           } else {
-            // IMPROVED: Apply the same ultra-smooth transition to inner line
-            const smoothEaseT = easeT * easeT * (3 - 2 * easeT);
-            const smoothLayer1 = Math.sin(easeT * Math.PI) * 0.1;
-            const smoothLayer2 = Math.sin(easeT * Math.PI * 2) * 0.05;
-            const smoothLayer3 = Math.sin(easeT * Math.PI * 4) * 0.025;
-            
-            const finalEaseT = smoothEaseT + smoothLayer1 + smoothLayer2 + smoothLayer3;
-            
-            x = startX + (endX - startX) * finalEaseT;
-            z = startZ + (endZ - startZ) * finalEaseT;
-            y = startRise + (endRise - startRise) * finalEaseT;
+                         // FIXED: Apply the same smooth transition to inner line for consistency
+             const smoothEaseT = easeT * easeT * (3 - 2 * easeT); // Smoothstep function
+             
+             // Interpolate all coordinates smoothly from spiral end to final position
+             x = startX + (endX - startX) * smoothEaseT;
+             z = startZ + (endZ - startZ) * smoothEaseT;
+             y = startRise + (endRise - startRise) * smoothEaseT;
           }
         }
         
@@ -829,11 +842,14 @@ export function useThreeJS(
       }
       renderer.dispose();
     };
-  }, [debugMode]);
+  }, [debugMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Call updateVisualization whenever parameters change
   useEffect(() => {
-    updateVisualization();
-  });
+    if (sceneRef.current) {
+      updateVisualization();
+    }
+  }, [parameters, manualRiseData, calculatedRiseData, debugMode, showOverlay]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return { mountRef, updateVisualization };
 }

@@ -29,11 +29,11 @@ export function RiseAdjustmentSection({
         const hasWarning = difference > 0.5;
         
         inputs.push(
-          <div key={arcDist} className="flex flex-col items-center">
-            <label className="text-xs text-gray-600 mb-1 flex items-center">
-              <span className="mr-1">{arcDist.toFixed(1)}" arc</span>
+          <div key={arcDist} className="flex flex-col items-center p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors">
+            <label className="text-sm font-medium text-gray-700 mb-2 flex items-center justify-center">
+              <span className="mr-2">{arcDist.toFixed(1)}" arc</span>
               {isManual && (
-                <span className="text-blue-500 text-xs" title="Manual override">✏️</span>
+                <span className="text-blue-500 text-sm" title="Manual override">✏️</span>
               )}
             </label>
             <input
@@ -41,17 +41,17 @@ export function RiseAdjustmentSection({
               value={currentValue?.toFixed(3) || '0.000'}
               step="0.125"
               onChange={(e) => onRiseChange(arcDist, parseFloat(e.target.value))}
-              className={`w-20 p-2 text-center text-sm border-2 rounded-lg transition-all focus:outline-none focus:ring-1 focus:ring-blue-100 ${
+              className={`w-24 p-3 text-center text-sm border-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-200 ${
                 isManual 
                   ? hasWarning 
-                    ? 'border-orange-500 bg-orange-50 focus:border-orange-500 focus:ring-orange-100' 
-                    : 'border-blue-500 bg-blue-50 focus:border-blue-500 focus:ring-blue-100'
-                  : 'border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-blue-100 focus:bg-white'
+                    ? 'border-orange-500 bg-orange-50 focus:border-orange-500 focus:ring-orange-200' 
+                    : 'border-blue-500 bg-blue-50 focus:border-blue-500 focus:ring-blue-200'
+                  : 'border-gray-300 bg-white focus:border-blue-500 focus:ring-blue-200'
               }`}
             />
             {isManual && calculatedValue && (
-              <div className={`text-xs mt-1 text-center ${hasWarning ? 'text-orange-600' : 'text-blue-600'}`}>
-                <div>Calc: {calculatedValue.toFixed(3)}"</div>
+              <div className={`text-xs mt-2 text-center space-y-1 ${hasWarning ? 'text-orange-600' : 'text-blue-600'}`}>
+                <div className="font-medium">Calc: {calculatedValue.toFixed(3)}"</div>
                 <div>Diff: {difference.toFixed(3)}"</div>
                 {hasWarning && (
                   <div className="text-orange-500 font-semibold">⚠️ Large diff</div>
@@ -134,7 +134,7 @@ export function RiseAdjustmentSection({
         </div>
       </div>
       
-      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-12 gap-2 mb-4 max-h-96 overflow-y-auto">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4 mb-6 max-h-96 overflow-y-auto p-2">
         {generateInputs()}
       </div>
       
@@ -145,6 +145,18 @@ export function RiseAdjustmentSection({
         >
           <span className="mr-1">🔄</span>
           Reset to Calculated Values
+        </button>
+        
+        <button
+          onClick={() => {
+            // Force recalculation by triggering a parameter change
+            const event = new CustomEvent('recalculateRise');
+            window.dispatchEvent(event);
+          }}
+          className="px-4 py-2 text-sm bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center"
+        >
+          <span className="mr-1">🧮</span>
+          Recalculate Rise Data
         </button>
         
         <button
@@ -164,7 +176,101 @@ export function RiseAdjustmentSection({
         </span>
       </div>
       
-      {/* Footer Info */}
+             {/* Original Reference Data */}
+       <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+         <h4 className="text-sm font-semibold text-blue-700 mb-3 flex items-center">
+           <span className="mr-2">📋</span>
+           Original Reference Data (Your Manual Inputs)
+         </h4>
+         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+           {Object.entries(manualRiseData).map(([arcDist, rise]) => (
+             <div key={arcDist} className="text-center p-2 rounded border bg-blue-100 border-blue-300 text-blue-800">
+               <div className="text-xs font-medium">{parseFloat(arcDist).toFixed(1)}" arc</div>
+               <div className="text-sm font-bold">{rise.toFixed(3)}"</div>
+               <div className="text-xs text-blue-600">Reference</div>
+             </div>
+           ))}
+         </div>
+         {Object.keys(manualRiseData).length === 0 && (
+           <div className="text-center text-blue-600 text-sm py-4">
+             No manual reference data entered yet. Use the input fields above to add your measurements.
+           </div>
+         )}
+       </div>
+       
+       {/* Inch Reference Chart */}
+       <div className="mt-6 p-4 bg-green-50 rounded-lg border border-green-200">
+        <h4 className="text-sm font-semibold text-green-700 mb-3 flex items-center">
+          <span className="mr-2">📏</span>
+          Inch Reference Chart (0" to {totalArcDistance}")
+        </h4>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          {Array.from({ length: Math.ceil(totalArcDistance) + 1 }, (_, i) => {
+            const inch = i;
+            const calculatedRise = calculatedRiseData[inch] || 0;
+            const manualRise = manualRiseData[inch];
+            const isManual = manualRise !== undefined;
+            const displayRise = isManual ? manualRise : calculatedRise;
+            
+            return (
+              <div key={inch} className={`text-center p-2 rounded border ${
+                isManual 
+                  ? 'bg-blue-100 border-blue-300 text-blue-800' 
+                  : 'bg-green-100 border-green-300 text-green-800'
+              }`}>
+                <div className="text-xs font-medium">{inch}" arc</div>
+                <div className="text-sm font-bold">{displayRise.toFixed(3)}"</div>
+                {isManual && (
+                  <div className="text-xs text-blue-600">Manual</div>
+                )}
+              </div>
+            );
+          })}
+                 </div>
+       </div>
+       
+       {/* Mathematical Calculations */}
+       <div className="mt-6 p-4 bg-purple-50 rounded-lg border border-purple-200">
+         <h4 className="text-sm font-semibold text-purple-700 mb-3 flex items-center">
+           <span className="mr-2">🧮</span>
+           Mathematical Calculations & Comparison
+         </h4>
+         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+           {Object.entries(calculatedRiseData).filter(([arcDist]) => {
+             const arc = parseFloat(arcDist);
+             return arc <= totalArcDistance && arc % 1 === 0; // Only show whole inch marks
+           }).map(([arcDist, rise]) => {
+             const arc = parseFloat(arcDist);
+             const manualRise = manualRiseData[arc];
+             const isManual = manualRise !== undefined;
+             const difference = isManual ? Math.abs(manualRise - rise) : 0;
+             const hasWarning = difference > 0.5;
+             
+             return (
+               <div key={arcDist} className={`text-center p-2 rounded border ${
+                 isManual 
+                   ? hasWarning 
+                     ? 'bg-orange-100 border-orange-300 text-orange-800' 
+                     : 'bg-blue-100 border-blue-300 text-blue-800'
+                   : 'bg-purple-100 border-purple-300 text-purple-800'
+               }`}>
+                 <div className="text-xs font-medium">{arc}" arc</div>
+                 <div className="text-sm font-bold">{rise.toFixed(3)}"</div>
+                 {isManual && (
+                   <div className="text-xs">
+                     <div>Manual: {manualRise.toFixed(3)}"</div>
+                     <div className={hasWarning ? 'text-orange-600 font-semibold' : 'text-blue-600'}>
+                       Diff: {difference.toFixed(3)}"
+                     </div>
+                   </div>
+                 )}
+               </div>
+             );
+           })}
+         </div>
+       </div>
+       
+       {/* Footer Info */}
       <div className="mt-4 p-2 bg-blue-100 rounded text-xs text-blue-700 text-center">
         <span className="font-semibold">🔍 Info:</span> 
         {manualPoints > 0 ? (
