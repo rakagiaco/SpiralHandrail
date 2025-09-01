@@ -81,8 +81,8 @@ export function useThreeJS(
       let effectiveRadius = 0; // Initialize effectiveRadius
       
       if (segmentPosition <= parameters.bottomLength) {
-        // Bottom over-ease: straight rail going outward then down at -35.08° angle
-        // Start from spiral boundary, go straight outward away from main center
+        // Bottom over-ease: straight rail looking DOWN the staircase at -35.08°
+        // At 0° transition point, rail should be completely straight
         const easeT = segmentPosition / parameters.bottomLength;
         
         // Calculate the spiral start position (where over-ease begins)
@@ -99,21 +99,21 @@ export function useThreeJS(
         const unitDirectionX = directionX / directionLength;
         const unitDirectionZ = directionZ / directionLength;
         
-        // Go straight outward (away from main center) then angle down
+        // For bottom easement: go straight DOWN the staircase direction
+        // This means extending the arc in the same direction as the staircase flow
         const straightRailLength = 2.0; // Length of straight rail section
-        const outwardDistance = 1.5; // Distance to go outward
         
-        // Calculate end point: go outward then angle down
-        const outwardEndX = spiralStartX + (unitDirectionX * outwardDistance);
-        const outwardEndZ = spiralStartZ + (unitDirectionZ * outwardDistance);
+        // Extend straight in the staircase direction (not outward)
+        const straightEndX = spiralStartX + (unitDirectionX * straightRailLength);
+        const straightEndZ = spiralStartZ + (unitDirectionZ * straightRailLength);
         
-        // Linear interpolation from spiral start to outward end
-        x = spiralStartX + (outwardEndX - spiralStartX) * easeT;
-        z = spiralStartZ + (outwardEndZ - spiralStartZ) * easeT;
+        // Linear interpolation from spiral start to straight end
+        x = spiralStartX + (straightEndX - spiralStartX) * easeT;
+        z = spiralStartZ + (straightEndZ - spiralStartZ) * easeT;
         
       } else if (segmentPosition >= parameters.totalSegments - parameters.topLength) {
-        // Top up-ease: straight rail going outward then up at +35.08° angle
-        // Start from spiral boundary, go straight outward away from main center
+        // Top up-ease: straight rail looking UP the staircase at +35.08°
+        // At 180° transition point, rail should be completely straight
         const easeT = (segmentPosition - (parameters.totalSegments - parameters.topLength)) / parameters.topLength;
         
         // Calculate the spiral end position (where up-ease begins)
@@ -130,17 +130,17 @@ export function useThreeJS(
         const unitDirectionX = directionX / directionLength;
         const unitDirectionZ = directionZ / directionLength;
         
-        // Go straight outward (away from main center) then angle up
+        // For top easement: go straight UP the staircase direction
+        // This means extending the arc in the same direction as the staircase flow
         const straightRailLength = 2.0; // Length of straight rail section
-        const outwardDistance = 1.5; // Distance to go outward
         
-        // Calculate end point: go outward then angle up
-        const outwardEndX = spiralEndX + (unitDirectionX * outwardDistance);
-        const outwardEndZ = spiralEndZ + (unitDirectionZ * outwardDistance);
+        // Extend straight in the staircase direction (not outward)
+        const straightEndX = spiralEndX + (unitDirectionX * straightRailLength);
+        const straightEndZ = spiralEndZ + (unitDirectionZ * straightRailLength);
         
-        // Linear interpolation from spiral end to outward end
-        x = spiralEndX + (outwardEndX - spiralEndX) * easeT;
-        z = spiralEndZ + (outwardEndZ - spiralEndZ) * easeT;
+        // Linear interpolation from spiral end to straight end
+        x = spiralEndX + (straightEndX - spiralEndX) * easeT;
+        z = spiralEndZ + (straightEndZ - spiralEndZ) * easeT;
         
       } else {
         // Main spiral: use main center
@@ -178,14 +178,18 @@ export function useThreeJS(
       let effectiveRadius = insideRadius;
       
       if (segmentPosition <= parameters.bottomLength) {
-        // Bottom over-ease: straight rail transitioning into helix (0° to 20°)
-        // Continue the arc direction to extend beyond 180° to 220°
+        // Bottom over-ease: straight rail looking DOWN the staircase at -35.08°
+        // At 0° transition point, rail should be completely straight
         const easeT = segmentPosition / parameters.bottomLength;
         
         // Calculate the spiral start position (where over-ease begins)
         const spiralStartAngle = (parameters.bottomLength / parameters.totalSegments) * parameters.totalDegrees * Math.PI / 180;
         const spiralStartX = insideRadius * Math.cos(spiralStartAngle);
         const spiralStartZ = insideRadius * Math.sin(spiralStartAngle);
+        
+        // For bottom easement: go straight DOWN the staircase direction
+        // This means extending the arc in the same direction as the staircase flow
+        const straightRailLength = 2.0; // Length of straight rail section
         
         // Calculate the direction vector from main center to spiral start
         const directionX = spiralStartX - 0; // From main center (0,0) to spiral start
@@ -196,26 +200,27 @@ export function useThreeJS(
         const unitDirectionX = directionX / directionLength;
         const unitDirectionZ = directionZ / directionLength;
         
-        // Continue the arc direction to extend the span
-        const arcExtension = 1.5; // Distance to extend the arc
+        // Extend straight in the staircase direction (not outward)
+        const straightEndX = spiralStartX + (unitDirectionX * straightRailLength);
+        const straightEndZ = spiralStartZ + (unitDirectionZ * straightRailLength);
         
-        // Calculate end point: continue the arc direction
-        const arcEndX = spiralStartX + (unitDirectionX * arcExtension);
-        const arcEndZ = spiralStartZ + (unitDirectionZ * arcExtension);
-        
-        // Linear interpolation from spiral start to arc extension end
-        x = spiralStartX + (arcEndX - spiralStartX) * easeT;
-        z = spiralStartZ + (arcEndZ - spiralStartZ) * easeT;
+        // Linear interpolation from spiral start to straight end
+        x = spiralStartX + (straightEndX - spiralStartX) * easeT;
+        z = spiralStartZ + (straightEndZ - spiralStartZ) * easeT;
         
       } else if (segmentPosition >= parameters.totalSegments - parameters.topLength) {
-        // Top up-ease: straight rail transitioning out of helix (200° to 220°)
-        // Continue the arc direction to extend beyond 180° to 220°
+        // Top up-ease: straight rail looking UP the staircase at +35.08°
+        // At 180° transition point, rail should be completely straight
         const easeT = (segmentPosition - (parameters.totalSegments - parameters.topLength)) / parameters.topLength;
         
         // Calculate the spiral end position (where up-ease begins)
         const spiralEndAngle = ((parameters.totalSegments - parameters.topLength) / parameters.totalSegments) * parameters.totalDegrees * Math.PI / 180;
         const spiralEndX = insideRadius * Math.cos(spiralEndAngle);
         const spiralEndZ = insideRadius * Math.sin(spiralEndAngle);
+        
+        // For top easement: go straight UP the staircase direction
+        // This means extending the arc in the same direction as the staircase flow
+        const straightRailLength = 2.0; // Length of straight rail section
         
         // Calculate the direction vector from main center to spiral end
         const directionX = spiralEndX - 0; // From main center (0,0) to spiral end
@@ -226,16 +231,13 @@ export function useThreeJS(
         const unitDirectionX = directionX / directionLength;
         const unitDirectionZ = directionZ / directionLength;
         
-        // Continue the arc direction to extend the span
-        const arcExtension = 1.5; // Distance to extend the arc
+        // Extend straight in the staircase direction (not outward)
+        const straightEndX = spiralEndX + (unitDirectionX * straightRailLength);
+        const straightEndZ = spiralEndZ + (unitDirectionZ * straightRailLength);
         
-        // Calculate end point: continue the arc direction
-        const arcEndX = spiralEndX + (unitDirectionX * arcExtension);
-        const arcEndZ = spiralEndZ + (unitDirectionZ * arcExtension);
-        
-        // Linear interpolation from spiral end to arc extension end
-        x = spiralEndX + (arcEndX - spiralEndX) * easeT;
-        z = spiralEndZ + (arcEndZ - spiralEndZ) * easeT;
+        // Linear interpolation from spiral end to straight end
+        x = spiralEndX + (straightEndX - spiralEndX) * easeT;
+        z = spiralEndZ + (straightEndZ - spiralEndZ) * easeT;
         
       } else {
         // Main spiral: use main center
