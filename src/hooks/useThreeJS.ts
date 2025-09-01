@@ -671,19 +671,20 @@ export function useThreeJS(
             z = startZ;
             y = startRise;
           } else {
-            // FIXED: Create completely smooth bottom easement without angle-based calculations
-            // This eliminates the nub by using pure smoothstep interpolation
-            const smoothEaseT = easeT * easeT * (3 - 2 * easeT); // Smoothstep function
-            
-            // Use a very gentle curve that smoothly transitions from pitch block height
-            // to the spiral start without any sharp angle changes
-            const gentleCurve = smoothEaseT * 0.3; // Very gentle effect
-            
-            // Position stays at the same radius (no X/Z change)
-            x = startX;
-            z = startZ;
-            // Rise smoothly decreases with minimal change - no nub
-            y = startRise - (gentleCurve * 0.5); // Minimal rise change
+                       // FIXED: Create completely smooth bottom easement that flows into the spiral
+             // This eliminates the 90-degree angle by smoothly transitioning position and rise
+             const smoothEaseT = easeT * easeT * (3 - 2 * easeT); // Smoothstep function
+             
+             // Smoothly interpolate from the start position to the spiral position
+             // This prevents the 90-degree angle by gradually changing both position and rise
+             const targetX = outerRadius * Math.cos(angle);
+             const targetZ = outerRadius * Math.sin(angle);
+             const targetRise = safePitchBlock + (t * safeTotalRise);
+             
+             // Interpolate all coordinates smoothly to eliminate sharp angles
+             x = startX + (targetX - startX) * smoothEaseT;
+             z = startZ + (targetZ - startZ) * smoothEaseT;
+             y = startRise + (targetRise - startRise) * smoothEaseT;
           }
         }
         
@@ -785,10 +786,12 @@ export function useThreeJS(
      if (outerPoints.length < 2) {
        console.warn('Insufficient outer points for curve creation, skipping handrail mesh');
      } else {
-       // Create smooth line geometry instead of tube geometry for continuous lines
-       const outerGeometry = new THREE.BufferGeometry().setFromPoints(outerPoints);
-       const outerMaterial = new THREE.LineBasicMaterial({ color: 0x3b82f6, linewidth: 3 });
-       const newHandrailMesh = new THREE.Line(outerGeometry, outerMaterial);
+       // Create the curve with smooth interpolation for straight line rises
+       const outerCurve = new THREE.CatmullRomCurve3(outerPoints);
+       outerCurve.tension = 0.5; // Smooth tension for smooth curves
+       const outerGeometry = new THREE.TubeGeometry(outerCurve, Math.min(steps, outerPoints.length - 1), 0.15, 8, false);
+       const newHandrailMesh = new THREE.Mesh(outerGeometry, new THREE.MeshLambertMaterial({ color: 0x3b82f6 }));
+       newHandrailMesh.castShadow = true;
        scene.add(newHandrailMesh);
        sceneRef.current.handrailMesh = newHandrailMesh;
      }
@@ -867,14 +870,18 @@ export function useThreeJS(
             z = startZ;
             y = startRise;
           } else {
-            // Use a very subtle smoothing that's barely noticeable
-            const subtleEaseT = easeT * easeT * (3 - 2 * easeT) * 0.1; // Very small effect
-            
-            // Position stays at the same radius (no X/Z change)
-            x = startX;
-            z = startZ;
-            // Rise changes very minimally - practically invisible easement
-            y = startRise - (subtleEaseT * 0.2); // Minimal rise change
+                       // Use smooth interpolation to prevent 90-degree angles
+             const smoothEaseT = easeT * easeT * (3 - 2 * easeT); // Smoothstep function
+             
+             // Smoothly interpolate from start to target position to prevent sharp angles
+             const targetX = innerRadius * Math.cos(angle);
+             const targetZ = innerRadius * Math.sin(angle);
+             const targetRise = safePitchBlock + (t * safeTotalRise);
+             
+             // Interpolate all coordinates smoothly
+             x = startX + (targetX - startX) * smoothEaseT;
+             z = startZ + (targetZ - startZ) * smoothEaseT;
+             y = startRise + (targetRise - startRise) * smoothEaseT;
           }
         }
         
@@ -944,10 +951,11 @@ export function useThreeJS(
      if (insidePoints.length < 2) {
        console.warn('Insufficient inside points for curve creation, skipping inside line mesh');
      } else {
-       // Create smooth line geometry instead of tube geometry for continuous lines
-       const insideGeometry = new THREE.BufferGeometry().setFromPoints(insidePoints);
-       const insideMaterial = new THREE.LineBasicMaterial({ color: 0x10b981, linewidth: 2 });
-       const newInsideLineMesh = new THREE.Line(insideGeometry, insideMaterial);
+       // Create inside reference line with smooth curve
+       const insideCurve = new THREE.CatmullRomCurve3(insidePoints);
+       insideCurve.tension = 0.5; // Smooth tension for smooth curves
+       const insideGeometry = new THREE.TubeGeometry(insideCurve, steps, 0.1, 6, false);
+       const newInsideLineMesh = new THREE.Mesh(insideGeometry, new THREE.MeshLambertMaterial({ color: 0x10b981 }));
        scene.add(newInsideLineMesh);
        sceneRef.current.insideLineMesh = newInsideLineMesh;
      }
