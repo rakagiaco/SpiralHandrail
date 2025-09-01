@@ -41,15 +41,25 @@ export function useThreeJS(
     scene.add(mainDot);
     sceneRef.current.centerDots.push(mainDot);
     
-    // Bottom center (orange) - offset inward on Z axis (toward staircase)
+    // Bottom center (orange) - at the start of the spiral where over-ease begins
+    const bottomStartAngle = (parameters.bottomLength / parameters.totalSegments) * parameters.totalDegrees * Math.PI / 180;
     const bottomDot = new THREE.Mesh(dotGeometry, new THREE.MeshLambertMaterial({ color: 0xf59e0b }));
-    bottomDot.position.set(0, 2, -parameters.bottomOffset); // Same X as main center, offset inward on Z
+    bottomDot.position.set(
+      outerRadius * Math.cos(bottomStartAngle), 
+      2, 
+      outerRadius * Math.sin(bottomStartAngle) - parameters.bottomOffset
+    );
     scene.add(bottomDot);
     sceneRef.current.centerDots.push(bottomDot);
     
-    // Top center (red) - offset inward on Z axis (toward staircase)  
+    // Top center (red) - at the end of the spiral where up-ease begins
+    const topEndAngle = ((parameters.totalSegments - parameters.topLength) / parameters.totalSegments) * parameters.totalDegrees * Math.PI / 180;
     const topDot = new THREE.Mesh(dotGeometry, new THREE.MeshLambertMaterial({ color: 0xef4444 }));
-    topDot.position.set(0, 6, -parameters.topOffset); // Same X as main center, offset inward on Z
+    topDot.position.set(
+      outerRadius * Math.cos(topEndAngle), 
+      6, 
+      outerRadius * Math.sin(topEndAngle) + parameters.topOffset
+    );
     scene.add(topDot);
     sceneRef.current.centerDots.push(topDot);
     
@@ -76,49 +86,65 @@ export function useThreeJS(
       );
       
       let x: number, z: number;
-      let centerX = 0;
-      let centerZ = 0;
-      let effectiveRadius = outerRadius;
       
       if (segmentPosition <= parameters.bottomLength) {
-        // Bottom over-ease: use offset center (inward on Z axis)
-        // This creates the "over-ease" effect as you walk up the stairs
-        centerZ = -parameters.bottomOffset; // Negative Z = toward inside of staircase
-        effectiveRadius = outerRadius;
+        // Bottom over-ease: straight rail going down stairs
+        // Use the angle at the start of the spiral to create a straight tangent
+        const startAngle = (parameters.bottomLength / parameters.totalSegments) * parameters.totalDegrees * Math.PI / 180;
+        const startX = outerRadius * Math.cos(startAngle);
+        const startZ = outerRadius * Math.sin(startAngle);
+        
+        // Create straight line from spiral start to offset position
+        const easeT = segmentPosition / parameters.bottomLength;
+        const endX = startX;
+        const endZ = startZ - parameters.bottomOffset; // Offset inward
+        
+        // Linear interpolation for straight rail
+        x = startX + (endX - startX) * easeT;
+        z = startZ + (endZ - startZ) * easeT;
         
       } else if (segmentPosition >= parameters.totalSegments - parameters.topLength) {
-        // Top up-ease: use offset center (inward on Z axis)
-        // This creates the "up-ease" effect as you walk up the stairs
-        centerZ = -parameters.topOffset; // Negative Z = toward inside of staircase
-        effectiveRadius = outerRadius;
+        // Top up-ease: straight rail going up stairs
+        // Use the angle at the end of the spiral to create a straight tangent
+        const endAngle = ((parameters.totalSegments - parameters.topLength) / parameters.totalSegments) * parameters.totalDegrees * Math.PI / 180;
+        const endX = outerRadius * Math.cos(endAngle);
+        const endZ = outerRadius * Math.sin(endAngle);
+        
+        // Create straight line from spiral end to offset position
+        const easeT = (segmentPosition - (parameters.totalSegments - parameters.topLength)) / parameters.topLength;
+        const startX = endX;
+        const startZ = endZ;
+        const finalX = endX;
+        const finalZ = endZ + parameters.topOffset; // Offset inward
+        
+        // Linear interpolation for straight rail
+        x = startX + (finalX - startX) * easeT;
+        z = startZ + (finalZ - startZ) * easeT;
         
       } else {
-        // Main spiral: use main center
-        centerX = 0;
-        centerZ = 0;
-        effectiveRadius = outerRadius;
+        // Main spiral: normal circular geometry around main center
+        x = outerRadius * Math.cos(angle);
+        z = outerRadius * Math.sin(angle);
       }
-      
-      // Calculate position from appropriate center
-      x = centerX + effectiveRadius * Math.cos(angle);
-      z = centerZ + effectiveRadius * Math.sin(angle);
       const y = rise;
       
       outerPoints.push(new THREE.Vector3(x, y, z));
     }
     
-    // Create inside reference line (constant)
+    // Create inside reference line: covers full 220° span but only 10.5" arc distance
     const insidePoints: THREE.Vector3[] = [];
-    const insideArcRatio = 10.5 / 17.5; // 10.5" arc vs 17.5" outer arc
-    const insideAngle = insideArcRatio * parameters.totalDegrees;
+    const insideRadius = 4.5; // Inner radius
     
     for (let i = 0; i <= steps; i++) {
       const t = i / steps;
-      const angle = (t * insideAngle * Math.PI) / 180;
-      const rise = 1.0 + (t * 7.375); // Pitch block + helical rise
+      const angle = (t * parameters.totalDegrees * Math.PI) / 180; // Full 220° span
       
-      const x = innerRadius * Math.cos(angle);
-      const z = innerRadius * Math.sin(angle);
+      // Calculate rise based on the proportional arc distance (10.5" over 17.5")
+      const proportionalArcDistance = (t * 10.5); // Only 10.5" arc distance
+      const rise = 1.0 + (proportionalArcDistance / 10.5) * 7.375; // Straight line from 1.0" to 8.375"
+      
+      const x = insideRadius * Math.cos(angle);
+      const z = insideRadius * Math.sin(angle);
       const y = rise;
       
       insidePoints.push(new THREE.Vector3(x, y, z));
