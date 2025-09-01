@@ -549,6 +549,7 @@ export function useThreeJS(
   // ============================================================================
   // This shows the full staircase geometry to understand where easements connect
   // Uses inner line's constant rise/run: 7⅜" rise over 10.5" run = 35.08° slope
+  // SCISSOR STAIR: Both flights go UP at 35.08°, rotated 180° around main center
   const addStaircaseFramework = (scene: THREE.Scene, parameters: HandrailParameters, debugElements: THREE.Object3D[]) => {
     const stepRise = 7.375 / 7; // 7⅜" total rise divided by 7 steps
     const stepRun = 10.5 / 7;   // 10.5" total run divided by 7 steps
@@ -557,15 +558,15 @@ export function useThreeJS(
     // Create staircase framework points
     const staircasePoints: THREE.Vector3[] = [];
     
-    // 7 steps UP from main center (blue axis - Z direction)
+    // FLIGHT 1: 7 steps UP from main center (going UP at 35.08°)
     for (let i = 1; i <= 7; i++) {
-      const z = i * stepRun; // Positive Z = up the staircase
+      const z = i * stepRun; // Positive Z = up the first flight
       const y = parameters.pitchBlock + (i * stepRise); // Rise from pitch block
       const x = 0; // Centered on main center
       
       staircasePoints.push(new THREE.Vector3(x, y, z));
       
-      // Add step marker
+      // Add step marker (green for first flight)
       const stepGeometry = new THREE.BoxGeometry(0.5, 0.1, 0.5);
       const stepMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.7 });
       const step = new THREE.Mesh(stepGeometry, stepMaterial);
@@ -573,30 +574,31 @@ export function useThreeJS(
       scene.add(step);
       debugElements.push(step);
       
-      // Add step label using existing createTextSprite function
-      const stepLabel = createTextSprite(`Step +${i}`, new THREE.Vector3(x + 1, y, z), 0x00ff00);
+      // Add step label
+      const stepLabel = createTextSprite(`Flight 1 Step ${i}`, new THREE.Vector3(x + 1, y, z), 0x00ff00);
       scene.add(stepLabel);
       debugElements.push(stepLabel);
     }
     
-    // 7 steps DOWN from main center (blue axis - Z direction)
+    // FLIGHT 2: 7 steps UP from main center (going UP at 35.08° but rotated 180°)
+    // This is the scissor stair - same direction, opposite side
     for (let i = 1; i <= 7; i++) {
-      const z = -i * stepRun; // Negative Z = down the staircase
-      const y = parameters.pitchBlock - (i * stepRise); // Drop from pitch block
+      const z = -i * stepRun; // Negative Z = up the second flight (opposite direction)
+      const y = parameters.pitchBlock + (i * stepRise); // Same rise as first flight
       const x = 0; // Centered on main center
       
       staircasePoints.push(new THREE.Vector3(x, y, z));
       
-      // Add step marker
+      // Add step marker (blue for second flight)
       const stepGeometry = new THREE.BoxGeometry(0.5, 0.1, 0.5);
-      const stepMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.7 });
+      const stepMaterial = new THREE.MeshBasicMaterial({ color: 0x0088ff, transparent: true, opacity: 0.7 });
       const step = new THREE.Mesh(stepGeometry, stepMaterial);
       step.position.set(x, y - 0.05, z);
       scene.add(step);
       debugElements.push(step);
       
-      // Add step label using existing createTextSprite function
-      const stepLabel = createTextSprite(`Step -${i}`, new THREE.Vector3(x + 1, y, z), 0xff0000);
+      // Add step label
+      const stepLabel = createTextSprite(`Flight 2 Step ${i}`, new THREE.Vector3(x - 1, y, z), 0x0088ff);
       scene.add(stepLabel);
       debugElements.push(stepLabel);
     }
@@ -608,38 +610,47 @@ export function useThreeJS(
     scene.add(staircaseLine);
     debugElements.push(staircaseLine);
     
-    // Add slope angle indicator using existing createTextSprite function
+    // Add slope angle indicator
     const slopeLabel = createTextSprite(
-      `Stair Slope: ${slopeAngle.toFixed(2)}° (${stepRise.toFixed(3)}" rise / ${stepRun.toFixed(3)}" run)`, 
+      `Scissor Stair Slope: ${slopeAngle.toFixed(2)}° (${stepRise.toFixed(3)}" rise / ${stepRun.toFixed(3)}" run)`, 
       new THREE.Vector3(0, parameters.pitchBlock + 8, 0), 
       0xffff00
     );
     scene.add(slopeLabel);
     debugElements.push(slopeLabel);
     
-    // Add easement connection points
+    // Add scissor stair explanation
+    const explanationLabel = createTextSprite(
+      `Scissor Stair: Both flights go UP at 35.08°\nRotated 180° around main center`, 
+      new THREE.Vector3(0, parameters.pitchBlock + 10, 0), 
+      0xffff00
+    );
+    scene.add(explanationLabel);
+    debugElements.push(explanationLabel);
+    
+    // Add easement connection points - CORRECTED for scissor stair
     const addEasementConnectionPoints = () => {
-      // Bottom easement should connect to step -7 (bottom of staircase)
-      const bottomConnectionZ = -7 * stepRun;
-      const bottomConnectionY = parameters.pitchBlock - (7 * stepRise);
+      // Bottom easement connects to where Flight 2 meets the landing (step 7 of flight 2)
+      const bottomConnectionZ = -7 * stepRun; // Flight 2, step 7
+      const bottomConnectionY = parameters.pitchBlock + (7 * stepRise); // Same rise as step 7
       
-      // Top easement should connect to step +7 (top of staircase)
-      const topConnectionZ = 7 * stepRun;
-      const topConnectionY = parameters.pitchBlock + (7 * stepRise);
+      // Top easement connects to where Flight 1 meets the landing (step 7 of flight 1)  
+      const topConnectionZ = 7 * stepRun; // Flight 1, step 7
+      const topConnectionY = parameters.pitchBlock + (7 * stepRise); // Same rise as step 7
       
       // Create connection point markers
       const connectionGeometry = new THREE.SphereGeometry(0.3, 16, 16);
       
-      // Bottom connection (red)
+      // Bottom connection (blue - Flight 2)
       const bottomConnection = new THREE.Mesh(
         connectionGeometry, 
-        new THREE.MeshBasicMaterial({ color: 0xff0000 })
+        new THREE.MeshBasicMaterial({ color: 0x0088ff })
       );
       bottomConnection.position.set(0, bottomConnectionY, bottomConnectionZ);
       scene.add(bottomConnection);
       debugElements.push(bottomConnection);
       
-      // Top connection (green)
+      // Top connection (green - Flight 1)
       const topConnection = new THREE.Mesh(
         connectionGeometry, 
         new THREE.MeshBasicMaterial({ color: 0x00ff00 })
@@ -648,17 +659,17 @@ export function useThreeJS(
       scene.add(topConnection);
       debugElements.push(topConnection);
       
-      // Add connection labels using existing createTextSprite function
+      // Add connection labels
       const bottomLabel = createTextSprite(
-        `Bottom Easement\nConnection Point`, 
+        `Bottom Easement\nConnects to Flight 2\n(Step 7)`, 
         new THREE.Vector3(2, bottomConnectionY, bottomConnectionZ), 
-        0xff0000
+        0x0088ff
       );
       scene.add(bottomLabel);
       debugElements.push(bottomLabel);
       
       const topLabel = createTextSprite(
-        `Top Easement\nConnection Point`, 
+        `Top Easement\nConnects to Flight 1\n(Step 7)`, 
         new THREE.Vector3(2, topConnectionY, topConnectionZ), 
         0x00ff00
       );
@@ -667,20 +678,20 @@ export function useThreeJS(
       
       // Add target lines showing where easements should aim
       const addTargetLines = () => {
-        // Bottom easement target line (from spiral end to bottom connection)
+        // Bottom easement target line (from spiral end to Flight 2 connection)
         const bottomTargetGeometry = new THREE.BufferGeometry().setFromPoints([
           new THREE.Vector3(0, parameters.pitchBlock, 0), // Start at main center
-          new THREE.Vector3(0, bottomConnectionY, bottomConnectionZ) // End at bottom connection
+          new THREE.Vector3(0, bottomConnectionY, bottomConnectionZ) // End at Flight 2, step 7
         ]);
-        const bottomTargetMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 2 });
+        const bottomTargetMaterial = new THREE.LineBasicMaterial({ color: 0x0088ff, linewidth: 2 });
         const bottomTargetLine = new THREE.Line(bottomTargetGeometry, bottomTargetMaterial);
         scene.add(bottomTargetLine);
         debugElements.push(bottomTargetLine);
         
-        // Top easement target line (from spiral end to top connection)
+        // Top easement target line (from spiral end to Flight 1 connection)
         const topTargetGeometry = new THREE.BufferGeometry().setFromPoints([
           new THREE.Vector3(0, parameters.pitchBlock, 0), // Start at main center
-          new THREE.Vector3(0, topConnectionY, topConnectionZ) // End at top connection
+          new THREE.Vector3(0, topConnectionY, topConnectionZ) // End at Flight 1, step 7
         ]);
         const topTargetMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00, linewidth: 2 });
         const topTargetLine = new THREE.Line(topTargetGeometry, topTargetMaterial);
