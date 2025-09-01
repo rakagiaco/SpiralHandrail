@@ -526,20 +526,20 @@ export function useThreeJS(
     const context = canvas.getContext('2d');
     if (!context) return new THREE.Group();
     
-    canvas.width = 512;
-    canvas.height = 128;
+    canvas.width = 256;
+    canvas.height = 64;
     context.fillStyle = '#000000';
     context.fillRect(0, 0, canvas.width, canvas.height);
     context.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
-    context.font = '24px Arial';
+    context.font = '16px Arial';
     context.textAlign = 'center';
     context.fillText(text, canvas.width / 2, canvas.height / 2);
     
     const texture = new THREE.CanvasTexture(canvas);
-    const material = new THREE.SpriteMaterial({ map: texture });
+    const material = new THREE.SpriteMaterial({ map: texture, transparent: true, opacity: 0.8 });
     const sprite = new THREE.Sprite(material);
     sprite.position.copy(position);
-    sprite.scale.set(5, 1.25, 1);
+    sprite.scale.set(2, 0.5, 1);
     
     return sprite;
   };
@@ -575,7 +575,7 @@ export function useThreeJS(
       debugElements.push(step);
       
       // Add step label
-      const stepLabel = createTextSprite(`Flight 1 Step ${i}`, new THREE.Vector3(x + 1, y, z), 0x00ff00);
+      const stepLabel = createTextSprite(`F1-${i}`, new THREE.Vector3(x + 0.8, y, z), 0x00ff00);
       scene.add(stepLabel);
       debugElements.push(stepLabel);
     }
@@ -598,7 +598,7 @@ export function useThreeJS(
       debugElements.push(step);
       
       // Add step label
-      const stepLabel = createTextSprite(`Flight 2 Step ${i}`, new THREE.Vector3(x - 1, y, z), 0x0088ff);
+      const stepLabel = createTextSprite(`F2-${i}`, new THREE.Vector3(x - 0.8, y, z), 0x0088ff);
       scene.add(stepLabel);
       debugElements.push(stepLabel);
     }
@@ -612,7 +612,7 @@ export function useThreeJS(
     
     // Add slope angle indicator
     const slopeLabel = createTextSprite(
-      `Scissor Stair Slope: ${slopeAngle.toFixed(2)}° (${stepRise.toFixed(3)}" rise / ${stepRun.toFixed(3)}" run)`, 
+      `Slope: ${slopeAngle.toFixed(1)}°`, 
       new THREE.Vector3(0, parameters.pitchBlock + 8, 0), 
       0xffff00
     );
@@ -621,7 +621,7 @@ export function useThreeJS(
     
     // Add scissor stair explanation
     const explanationLabel = createTextSprite(
-      `Scissor Stair: Both flights go UP at 35.08°\nRotated 180° around main center`, 
+      `Scissor Stair: Both flights UP at 35°`, 
       new THREE.Vector3(0, parameters.pitchBlock + 10, 0), 
       0xffff00
     );
@@ -661,7 +661,7 @@ export function useThreeJS(
       
       // Add connection labels
       const bottomLabel = createTextSprite(
-        `Bottom Easement\nConnects to Flight 2\n(Step 7)`, 
+        `Bottom → F2-7`, 
         new THREE.Vector3(2, bottomConnectionY, bottomConnectionZ), 
         0x0088ff
       );
@@ -669,7 +669,7 @@ export function useThreeJS(
       debugElements.push(bottomLabel);
       
       const topLabel = createTextSprite(
-        `Top Easement\nConnects to Flight 1\n(Step 7)`, 
+        `Top → F1-7`, 
         new THREE.Vector3(2, topConnectionY, topConnectionZ), 
         0x00ff00
       );
