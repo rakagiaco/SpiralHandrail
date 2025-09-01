@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import * as THREE from 'three';
 import { HandrailParameters } from '../types/handrail';
-import { calculateRiseAtDistance } from '../utils/calculations';
+import { getCurrentRiseAtDistance } from '../utils/calculations';
 
 export function useThreeJS(
   parameters: HandrailParameters,
@@ -284,11 +284,10 @@ export function useThreeJS(
       // CRASH PROTECTION: Safe rise calculation with fallback
       let rise: number;
       try {
-        rise = calculateRiseAtDistance(
+        rise = getCurrentRiseAtDistance(
           arcDistance, 
-          parameters.totalHelicalRise,
-          parameters.totalArcDistance,
-          parameters.pitchBlock
+          safeManualRiseData, 
+          safeCalculatedRiseData
         );
         
         // Validate rise value
@@ -331,30 +330,26 @@ export function useThreeJS(
             z = startZ;
             y = startRise;
           } else {
-            // FIXED: Create completely smooth bottom easement without angle-based calculations
-            // This eliminates the nub by using pure smoothstep interpolation
+            // FIXED: Create smooth curve that flows into the angle without reaching a fixed end point
+            // This eliminates the "nub" by not trying to interpolate to a specific target
             const smoothEaseT = easeT * easeT * (3 - 2 * easeT); // Smoothstep function
             
-            // Use a very gentle curve that smoothly transitions from pitch block height
-            // to the spiral start without any sharp angle changes
-            const gentleCurve = smoothEaseT * 0.3; // Very gentle effect
+            // Calculate the rise based on the angle and distance, but smoothly
+            const angleProgress = smoothEaseT;
+            const riseChange = angleProgress * Math.sin(Math.abs(angleRad)) * 2.0; // 2.0" is the easement length
             
             // Position stays at the same radius (no X/Z change)
             x = startX;
             z = startZ;
-            // Rise smoothly decreases with minimal change - no nub
-            y = startRise - (gentleCurve * 0.5); // Minimal rise change
+            // Rise smoothly decreases following the angle
+            y = startRise - riseChange;
           }
         }
         
-        // Add interactive target point marker for bottom easement (invisible to avoid 90° angle bug)
+        // Add interactive target point marker for bottom easement
         if (i === 0 && debugMode && parameters.bottomLength > 0) {
           const targetMarkerGeometry = new THREE.SphereGeometry(0.3, 16, 16);
-          const targetMarkerMaterial = new THREE.MeshBasicMaterial({ 
-            color: 0xff0000, 
-            transparent: true, 
-            opacity: 0.0 // Make invisible
-          });
+          const targetMarkerMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
           const targetMarker = new THREE.Mesh(targetMarkerGeometry, targetMarkerMaterial);
           const markerX = outerRadius * Math.cos(0);
           const markerZ = outerRadius * Math.sin(0);
@@ -381,9 +376,8 @@ export function useThreeJS(
           const startX = outerRadius * Math.cos(startAngle);
           const startZ = outerRadius * Math.sin(startAngle);
           
-          // FIXED: Calculate a higher starting rise at 200° (end of spiral) for smoother up-ease
-          // The spiral should end slightly higher to create a gradual, smooth transition
-          const spiralEndRise = safePitchBlock + (200 / 220) * safeTotalRise + (safeTotalRise * 0.15); // Add 15% extra rise
+          // Calculate the correct starting rise at 200° (end of spiral) - SCALES WITH TOTAL RISE
+          const spiralEndRise = safePitchBlock + (200 / 220) * safeTotalRise;
           const startRise = spiralEndRise;
           
           // End at 220° with total rise - SCALES WITH TOTAL RISE
@@ -400,14 +394,20 @@ export function useThreeJS(
             y = startRise;
           } else {
             // IMPROVED: Create ultra-smooth transition from spiral end to easement end
-            // Use the EXACT same smoothing as the inside line for perfect consistency
-            const smoothEaseT = easeT * easeT * (3 - 2 * easeT);
-            const smoothLayer1 = Math.sin(easeT * Math.PI) * 0.1;
-            const smoothLayer2 = Math.sin(easeT * Math.PI * 2) * 0.05;
-            const smoothLayer3 = Math.sin(easeT * Math.PI * 4) * 0.025;
+            // Use multiple smoothing techniques for the smoothest possible curve
             
+            // Primary smoothstep function
+            const smoothEaseT = easeT * easeT * (3 - 2 * easeT);
+            
+            // Apply additional smoothing layers for ultra-smooth transition
+            const smoothLayer1 = Math.sin(easeT * Math.PI) * 0.1; // Gentle sine wave
+            const smoothLayer2 = Math.sin(easeT * Math.PI * 2) * 0.05; // Higher frequency wave
+            const smoothLayer3 = Math.sin(easeT * Math.PI * 4) * 0.025; // Even higher frequency
+            
+            // Combine all smoothing layers
             const finalEaseT = smoothEaseT + smoothLayer1 + smoothLayer2 + smoothLayer3;
             
+            // Apply smoothing to all coordinates for consistent smoothness
             x = startX + (endX - startX) * finalEaseT;
             z = startZ + (endZ - startZ) * finalEaseT;
             y = startRise + (endRise - startRise) * finalEaseT;
@@ -470,12 +470,7 @@ export function useThreeJS(
       let rise: number;
       try {
         const proportionalArcDistance = (t * maxArcDistance);
-        rise = calculateRiseAtDistance(
-          proportionalArcDistance,
-          parameters.totalHelicalRise,
-          parameters.totalArcDistance,
-          parameters.pitchBlock
-        );
+        rise = safePitchBlock + (proportionalArcDistance / maxArcDistance) * safeTotalRise;
         
         // Validate rise value
         if (isNaN(rise) || !isFinite(rise)) {
@@ -540,9 +535,8 @@ export function useThreeJS(
           const startX = innerRadius * Math.cos(startAngle);
           const startZ = innerRadius * Math.sin(startAngle);
           
-          // FIXED: Calculate a higher starting rise at 200° (end of spiral) for smoother up-ease
-          // The spiral should end slightly higher to create a gradual, smooth transition
-          const spiralEndRise = safePitchBlock + (200 / 220) * safeTotalRise + (safeTotalRise * 0.15); // Add 15% extra rise
+          // Calculate the correct starting rise at 200° (end of spiral) - SCALES WITH TOTAL RISE
+          const spiralEndRise = safePitchBlock + (200 / 220) * safeTotalRise;
           const startRise = spiralEndRise;
           
           // End at 220° with total rise - SCALES WITH TOTAL RISE
