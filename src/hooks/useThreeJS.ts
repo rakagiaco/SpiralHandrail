@@ -548,7 +548,7 @@ export function useThreeJS(
     
      }, [parameters, manualRiseData, calculatedRiseData, debugMode, showOverlay]);
 
-  // Function to create debugging information overlay
+    // Function to create debugging information overlay
   const createDebugInfoOverlay = (params: HandrailParameters, manualData: Record<number, number>, calculatedData: Record<number, number>) => {
     const group = new THREE.Group();
     
@@ -571,14 +571,14 @@ export function useThreeJS(
     return group;
   };
 
-     // ============================================================================
-   // STAIRCASE FRAMEWORK - Reference points for easement connections
-   // ============================================================================
-   // This shows the full staircase geometry to understand where easements connect
-   // Uses inner line's constant rise/run: 7⅜" rise over 10.5" run = custom angle slope
-   // SCISSOR STAIR: Both flights go UP at custom angle, rotated 180° around main center
-   // NOTE: This is just a handrail reference - no actual pitch block constraints
-   const addStaircaseFramework = (scene: THREE.Scene, parameters: HandrailParameters, debugElements: THREE.Object3D[]) => {
+  // ============================================================================
+  // STAIRCASE FRAMEWORK - Reference points for easement connections
+  // ============================================================================
+  // This shows the full staircase geometry to understand where easements connect
+  // Uses inner line's constant rise/run: 7⅜" rise over 10.5" run = custom angle slope
+  // SCISSOR STAIR: Both flights go UP at custom angle, rotated 180° around main center
+  // NOTE: This is just a handrail reference - no actual pitch block constraints
+  const addStaircaseFramework = (scene: THREE.Scene, parameters: HandrailParameters, debugElements: THREE.Object3D[]) => {
      // Use custom easement angle if provided, otherwise default to 35.08°
      const customAngle = parameters.customEasementAngle || 35.08;
      const angleRad = customAngle * Math.PI / 180;
