@@ -66,32 +66,94 @@ export function useThreeJS(
 
     const { scene, handrailMesh, insideLineMesh, centerDots, debugElements } = sceneRef.current;
     
-    // Function to create debugging information overlay
-    const createDebugInfoOverlay = (params: HandrailParameters, manualData: Record<number, number>, calculatedData: Record<number, number>) => {
-      const group = new THREE.Group();
-      
-             const paramsText = [
+         // Function to create comprehensive debugging information overlay
+     const createDebugInfoOverlay = (params: HandrailParameters, manualData: Record<number, number>, calculatedData: Record<number, number>) => {
+       const group = new THREE.Group();
+       
+       // Calculate key values
+       const spiralEndAngle = ((params.totalSegments - params.topLength) / params.totalSegments) * params.totalDegrees;
+       const spiralEndRise = safePitchBlock + (spiralEndAngle / params.totalDegrees) * safeTotalRise;
+       const finalRise = safePitchBlock + safeTotalRise;
+       const bottomEasementStart = 0;
+       const topEasementStart = spiralEndAngle;
+       
+       // Create comprehensive debug information
+       const debugInfo = [
+         // Basic Parameters
+         `=== BASIC PARAMETERS ===`,
          `Total Arc: ${params.totalArcDistance}"`,
          `Total Rise: ${params.totalHelicalRise}"`,
+         `Total Degrees: ${params.totalDegrees}°`,
+         `Total Segments: ${params.totalSegments}`,
          `Pitch Block: ${params.pitchBlock}"`,
+         
+         // Easement Configuration
+         `=== EASEMENT CONFIG ===`,
+         `Bottom Length: ${params.bottomLength} segments`,
+         `Top Length: ${params.topLength} segments`,
          `Bottom Offset: ${params.bottomOffset}"`,
          `Top Offset: ${params.topOffset}"`,
+         `Custom Easement Angle: ${params.customEasementAngle || -35.08}°`,
+         
+         // Radius Information
+         `=== RADIUS INFO ===`,
+         `Outer Radius: ${outerRadius.toFixed(3)}"`,
+         `Inner Radius: ${innerRadius.toFixed(3)}"`,
+         `Custom Outer: ${params.customOuterRadius || 4.625}"`,
+         `Custom Inner: ${params.customInnerRadius || 4.5}"`,
+         
+         // Spiral Geometry
+         `=== SPIRAL GEOMETRY ===`,
+         `Spiral Start: 0° at ${safePitchBlock.toFixed(3)}"`,
+         `Spiral End: ${spiralEndAngle.toFixed(1)}° at ${spiralEndRise.toFixed(3)}"`,
+         `Final Position: 220° at ${finalRise.toFixed(3)}"`,
+         `Bottom Easement: ${bottomEasementStart}° to ${params.bottomLength} segments`,
+         `Top Easement: ${topEasementStart.toFixed(1)}° to 220°`,
+         
+         // Rise Data
+         `=== RISE DATA ===`,
          `Manual Points: ${Object.keys(manualData).length}`,
          `Calculated Points: ${Object.keys(calculatedData).length}`,
-         `Custom Outer Radius: ${params.customOuterRadius || 4.625}"`,
-         `Custom Inner Radius: ${params.customInnerRadius || 4.625}"`,
-         `Custom Easement Angle: ${params.customEasementAngle || -35.08}°`,
-         `Spiral End Angle: ${((params.totalSegments - params.topLength) / params.totalSegments * params.totalDegrees).toFixed(1)}°`,
-         `Easement Start: ${params.totalSegments - params.topLength} segments`
+         `Rise Rate: ${(safeTotalRise / params.totalArcDistance).toFixed(3)}"/inch`,
+         
+         // Mathematical Details
+         `=== MATHEMATICAL DETAILS ===`,
+         `Pitch Block Height: ${safePitchBlock.toFixed(3)}"`,
+         `Total Rise: ${safeTotalRise.toFixed(3)}"`,
+         `Bottom Easement Rise: ${(safePitchBlock - (safePitchBlock * 0.15)).toFixed(3)}"`,
+         `Top Easement Rise: ${finalRise.toFixed(3)}"`,
+         
+         // Debug Status
+         `=== DEBUG STATUS ===`,
+         `Debug Mode: ${debugMode ? 'ON' : 'OFF'}`,
+         `Overlay: ${showOverlay ? 'ON' : 'OFF'}`,
+         `Scene Objects: ${scene.children.length}`,
+         `Debug Elements: ${debugElements.length}`
        ];
-      
-      paramsText.forEach((text, index) => {
-        const sprite = createTextSprite(text, new THREE.Vector3(0, 0 - index * 1.5, 0), 0x00ff00, 'small');
-        group.add(sprite);
-      });
-      
-      return group;
-    };
+       
+       // Create text sprites with different colors for different sections
+       debugInfo.forEach((text, index) => {
+         let color = 0x00ff00; // Default green
+         let size: 'small' | 'large' = 'small';
+         
+         // Color code different sections
+         if (text.includes('===')) {
+           color = 0xffff00; // Yellow for section headers
+           size = 'large';
+         } else if (text.includes('Rise') || text.includes('Height')) {
+           color = 0xff00ff; // Magenta for rise information
+         } else if (text.includes('Radius') || text.includes('Angle')) {
+           color = 0x00ffff; // Cyan for geometry
+         } else if (text.includes('Debug') || text.includes('Status')) {
+           color = 0xff8800; // Orange for debug info
+         }
+         
+         const sprite = createTextSprite(text, new THREE.Vector3(0, 0 - index * 1.2, 0), color, size);
+         group.add(sprite);
+       });
+       
+       return group;
+     };
 
     // Function to add staircase framework for reference
     const addStaircaseFramework = (scene: THREE.Scene, parameters: HandrailParameters, debugElements: THREE.Object3D[], totalRise: number) => {
@@ -320,12 +382,77 @@ export function useThreeJS(
        sceneRef.current.debugElements.push(riseProfileLine);
        
        // Add rise profile labels
-       const startRiseLabel = createTextSprite(`Start: ${safePitchBlock.toFixed(1)}"`, new THREE.Vector3(0, safePitchBlock, -15), 0xff00ff);
-       const endRiseLabel = createTextSprite(`End: ${(safePitchBlock + safeTotalRise).toFixed(1)}"`, new THREE.Vector3(0, safePitchBlock + safeTotalRise, 15), 0xff00ff);
+       const startRiseLabel = createTextSprite(`Start: ${safePitchBlock.toFixed(3)}"`, new THREE.Vector3(0, safePitchBlock, -15), 0xff00ff);
+       const endRiseLabel = createTextSprite(`End: ${(safePitchBlock + safeTotalRise).toFixed(3)}"`, new THREE.Vector3(0, safePitchBlock + safeTotalRise, 15), 0xff00ff);
        scene.add(startRiseLabel);
        scene.add(endRiseLabel);
        sceneRef.current.debugElements.push(startRiseLabel);
        sceneRef.current.debugElements.push(endRiseLabel);
+       
+       // Add key rise point markers with exact values
+       const keyRisePoints = [
+         { angle: 0, label: 'Start', color: 0xff0000 },
+         { angle: 45, label: '45°', color: 0xff8800 },
+         { angle: 90, label: '90°', color: 0xffff00 },
+         { angle: 135, label: '135°', color: 0x00ff00 },
+         { angle: 180, label: '180°', color: 0x00ffff },
+         { angle: 220, label: 'End', color: 0xff00ff }
+       ];
+       
+       keyRisePoints.forEach(point => {
+         const angleRad = point.angle * Math.PI / 180;
+         const rise = safePitchBlock + (point.angle / 220) * safeTotalRise;
+         
+         // Create marker sphere
+         const markerGeometry = new THREE.SphereGeometry(0.2, 16, 16);
+         const markerMaterial = new THREE.MeshBasicMaterial({ color: point.color });
+         const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+         marker.position.set(outerRadius * Math.cos(angleRad), rise, outerRadius * Math.sin(angleRad));
+         scene.add(marker);
+         if (sceneRef.current) {
+           sceneRef.current.debugElements.push(marker);
+         }
+         
+         // Create label
+         const label = createTextSprite(`${point.label}: ${rise.toFixed(3)}"`, 
+           new THREE.Vector3(outerRadius * Math.cos(angleRad) + 1, rise + 0.5, outerRadius * Math.sin(angleRad)), 
+           point.color, 'small');
+         scene.add(label);
+         if (sceneRef.current) {
+           sceneRef.current.debugElements.push(label);
+         }
+       });
+       
+       // Add inner line key points
+       const innerKeyPoints = [
+         { angle: 0, label: 'Inner Start', color: 0x10b981 },
+         { angle: 110, label: 'Inner 110°', color: 0x10b981 },
+         { angle: 220, label: 'Inner End', color: 0x10b981 }
+       ];
+       
+       innerKeyPoints.forEach(point => {
+         const angleRad = point.angle * Math.PI / 180;
+         const rise = safePitchBlock + (point.angle / 220) * safeTotalRise;
+         
+         // Create marker sphere
+         const markerGeometry = new THREE.SphereGeometry(0.15, 16, 16);
+         const markerMaterial = new THREE.MeshBasicMaterial({ color: point.color });
+         const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+         marker.position.set(innerRadius * Math.cos(angleRad), rise, innerRadius * Math.sin(angleRad));
+         scene.add(marker);
+         if (sceneRef.current) {
+           sceneRef.current.debugElements.push(marker);
+         }
+         
+         // Create label
+         const label = createTextSprite(`${point.label}: ${rise.toFixed(3)}"`, 
+           new THREE.Vector3(innerRadius * Math.cos(angleRad) - 1, rise + 0.5, innerRadius * Math.sin(angleRad)), 
+           point.color, 'small');
+         scene.add(label);
+         if (sceneRef.current) {
+           sceneRef.current.debugElements.push(label);
+         }
+       });
        
        // Add grid lines for better spatial reference
        for (let i = -10; i <= 10; i += 2) {
@@ -475,6 +602,10 @@ export function useThreeJS(
            const endX = outerRadius * Math.cos(endAngle);
            const endZ = outerRadius * Math.sin(endAngle);
            const endRise = safePitchBlock + safeTotalRise; // This ensures both lines end at same height
+           
+           // CRITICAL: Ensure both lines end at exactly the same height
+           // The final rise should be exactly 8.375" (pitch block + total rise)
+           const finalRise = safePitchBlock + safeTotalRise;
           
           // CRASH PROTECTION: Validate all calculated values
           if (isNaN(easeT) || !isFinite(easeT) || isNaN(spiralEndRise) || !isFinite(spiralEndRise)) {
@@ -628,6 +759,10 @@ export function useThreeJS(
            const endX = innerRadius * Math.cos(endAngle);
            const endZ = innerRadius * Math.sin(endAngle);
            const endRise = safePitchBlock + safeTotalRise; // This ensures both lines end at same height
+           
+           // CRITICAL: Ensure both lines end at exactly the same height
+           // The final rise should be exactly 8.375" (pitch block + total rise)
+           const finalRise = safePitchBlock + safeTotalRise;
           
           // CRASH PROTECTION: Validate all calculated values for inside line
           if (isNaN(easeT) || !isFinite(easeT) || isNaN(spiralEndRise) || !isFinite(spiralEndRise)) {

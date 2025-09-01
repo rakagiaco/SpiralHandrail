@@ -6,6 +6,7 @@ import { HandrailParameters } from './types/handrail';
 import { ThreeJSVisualization } from './components/ThreeJSVisualization';
 import { ParametersSection } from './components/ParametersSection';
 import { RiseAdjustmentSection } from './components/RiseAdjustmentSection';
+import { ComprehensiveDebugPanel } from './components/ComprehensiveDebugPanel';
 import { calculateRiseAtDistance } from './utils/calculations';
 
 // Default parameters for a standard spiral handrail
@@ -141,21 +142,12 @@ function App() {
 
       {/* Main content area with all the application sections */}
       <main className="App-main">
-        {/* Left panel: Parameter controls and rise data input */}
-        <div className="left-panel">
+        {/* Top section: Parameters and Custom Job Parameters */}
+        <div className="top-section">
           {/* Section for adjusting handrail parameters (dimensions, angles, etc.) */}
           <ParametersSection
             parameters={parameters}
             onParameterChange={handleParameterChange}
-          />
-          
-          {/* Section for entering manual rise data points */}
-          <RiseAdjustmentSection
-            totalArcDistance={parameters.totalArcDistance}
-            manualRiseData={manualRiseData}
-            calculatedRiseData={calculatedRiseData}
-            onRiseChange={handleRiseChange}
-            onReset={handleResetRise}
           />
           
           {/* Custom Job Parameters Section */}
@@ -212,9 +204,8 @@ function App() {
           </div>
         </div>
 
-        {/* Right panel: 3D visualization and debug controls */}
-        <div className="right-panel">
-          {/* Main 3D visualization component using Three.js */}
+        {/* Center section: 3D visualization */}
+        <div className="center-section">
           <ThreeJSVisualization
             parameters={parameters}
             manualRiseData={manualRiseData}
@@ -223,6 +214,31 @@ function App() {
             showOverlay={showOverlay}
             onDebugModeChange={handleDebugModeChange}
             onShowOverlayChange={handleShowOverlayChange}
+          />
+        </div>
+
+        {/* Bottom section: Charts and data - Full width below visualizer */}
+        <div className="bottom-section">
+          {/* Comprehensive Debug Panel - Always visible when debug mode is on */}
+          {debugMode && (
+            <ComprehensiveDebugPanel
+              parameters={parameters}
+              manualRiseData={manualRiseData}
+              calculatedRiseData={calculatedRiseData}
+              debugMode={debugMode}
+              showOverlay={showOverlay}
+              onDebugModeChange={handleDebugModeChange}
+              onShowOverlayChange={handleShowOverlayChange}
+            />
+          )}
+          
+          {/* Section for entering manual rise data points */}
+          <RiseAdjustmentSection
+            totalArcDistance={parameters.totalArcDistance}
+            manualRiseData={manualRiseData}
+            calculatedRiseData={calculatedRiseData}
+            onRiseChange={handleRiseChange}
+            onReset={handleResetRise}
           />
         </div>
       </main>
