@@ -12,21 +12,21 @@ export function useThreeJS(
   showOverlay: boolean
 ) {
   const mountRef = useRef<HTMLDivElement>(null);
-     const sceneRef = useRef<{
-     scene: THREE.Scene;
-     camera: THREE.PerspectiveCamera;
-     renderer: THREE.WebGLRenderer;
-     handrailMesh: THREE.Mesh | null;
-     insideLineMesh: THREE.Mesh | null;
-     centerDots: THREE.Mesh[];
-     debugElements: THREE.Object3D[];
-     bottomTargetMarker: THREE.Mesh | null;
-     topTargetMarker: THREE.Mesh | null;
-     isDraggingTarget: boolean;
-     draggedTarget: 'bottom' | 'top' | null;
-     dragPlane: THREE.Plane | null;
-     initialPinchDistance?: number; // For mobile pinch-to-zoom
-   } | null>(null);
+           const sceneRef = useRef<{
+      scene: THREE.Scene;
+      camera: THREE.PerspectiveCamera;
+      renderer: THREE.WebGLRenderer;
+      handrailMesh: THREE.Mesh | THREE.Line | null;
+      insideLineMesh: THREE.Mesh | THREE.Line | null;
+      centerDots: THREE.Mesh[];
+      debugElements: THREE.Object3D[];
+      bottomTargetMarker: THREE.Mesh | null;
+      topTargetMarker: THREE.Mesh | null;
+      isDraggingTarget: boolean;
+      draggedTarget: 'bottom' | 'top' | null;
+      dragPlane: THREE.Plane | null;
+      initialPinchDistance?: number; // For mobile pinch-to-zoom
+    } | null>(null);
 
   // Helper function to create text sprites
   const createTextSprite = (text: string, position: THREE.Vector3, color: number = 0xffffff, size: 'small' | 'large' = 'small') => {
@@ -102,8 +102,8 @@ export function useThreeJS(
            `Outer Radius: ${outerRadius.toFixed(3)}" (interpolated)`,
            `Inner Radius: ${innerRadius.toFixed(3)}" (interpolated)`,
            `Custom Outer: ${params.customOuterRadius || 4.625}"`,
-           `Custom Inner: ${params.customInnerRadius || 4.5}" (diameter)`,
-           `Interpolation: ${(params.customOuterRadius && params.customOuterRadius !== 4.625) || (params.customInnerRadius && params.customInnerRadius !== 4.5) ? 'ACTIVE' : 'None'}`,
+                       `Custom Inner: ${params.customInnerRadius || 10.5}" (diameter)`,
+                       `Interpolation: ${(params.customOuterRadius && params.customOuterRadius !== 4.625) || (params.customInnerRadius && params.customInnerRadius !== 10.5) ? 'ACTIVE' : 'None'}`,
          
          // Spiral Geometry
          `=== SPIRAL GEOMETRY ===`,
@@ -367,11 +367,11 @@ export function useThreeJS(
     const safeBottomOffset = Math.max(-10, Math.min(10, parameters.bottomOffset || 0));
     const safeTopOffset = Math.max(-10, Math.min(10, parameters.topOffset || 0));
     
-                                                           // Calculate radii with protection - use custom parameters if provided
-        const customOuterRadius = parameters.customOuterRadius || 4.625;
-        const customInnerRadius = parameters.customInnerRadius || 4.5;
-        
-                 // Convert custom inner radius from diameter to radius if needed
+                                                                    // Calculate radii with protection - use custom parameters if provided
+         const customOuterRadius = parameters.customOuterRadius || 4.625;
+         const customInnerRadius = parameters.customInnerRadius || 10.5;
+         
+         // Convert custom inner radius from diameter to radius if needed
          const customInnerRadiusValue = customInnerRadius <= 2.5 ? customInnerRadius : customInnerRadius / 2;
          
          // Apply custom radius values directly - no interpolation needed
@@ -417,7 +417,7 @@ export function useThreeJS(
       
              // Add radius information labels
        const outerRadiusLabel = createTextSprite(`Outer Radius: ${outerRadius.toFixed(1)}" (Custom: ${parameters.customOuterRadius || 4.625}")`, new THREE.Vector3(0, 8, 0), 0x3b82f6);
-       const innerRadiusLabel = createTextSprite(`Inner Radius: ${innerRadius.toFixed(1)}" (Custom: ${parameters.customInnerRadius || 4.5}")`, new THREE.Vector3(0, 7, 0), 0x10b981);
+               const innerRadiusLabel = createTextSprite(`Inner Radius: ${innerRadius.toFixed(1)}" (Custom: ${parameters.customInnerRadius || 10.5}")`, new THREE.Vector3(0, 7, 0), 0x10b981);
       const easementAngleLabel = createTextSprite(`Easement Angle: ${(parameters.customEasementAngle || -35.08).toFixed(1)}°`, new THREE.Vector3(0, 6, 0), 0xf59e0b);
       
       scene.add(mainLabel);
@@ -781,19 +781,17 @@ export function useThreeJS(
       outerPoints.push(new THREE.Vector3(x, y, z));
     }
     
-    // CRASH PROTECTION: Validate points before creating curves
-    if (outerPoints.length < 2) {
-      console.warn('Insufficient outer points for curve creation, skipping handrail mesh');
-    } else {
-             // Create the curve with smooth interpolation for straight line rises
-       const outerCurve = new THREE.CatmullRomCurve3(outerPoints);
-       outerCurve.tension = 0.5; // Smooth tension for smooth curves
-      const outerGeometry = new THREE.TubeGeometry(outerCurve, Math.min(steps, outerPoints.length - 1), 0.15, 8, false);
-      const newHandrailMesh = new THREE.Mesh(outerGeometry, new THREE.MeshLambertMaterial({ color: 0x3b82f6 }));
-      newHandrailMesh.castShadow = true;
-      scene.add(newHandrailMesh);
-      sceneRef.current.handrailMesh = newHandrailMesh;
-    }
+         // CRASH PROTECTION: Validate points before creating curves
+     if (outerPoints.length < 2) {
+       console.warn('Insufficient outer points for curve creation, skipping handrail mesh');
+     } else {
+       // Create smooth line geometry instead of tube geometry for continuous lines
+       const outerGeometry = new THREE.BufferGeometry().setFromPoints(outerPoints);
+       const outerMaterial = new THREE.LineBasicMaterial({ color: 0x3b82f6, linewidth: 3 });
+       const newHandrailMesh = new THREE.Line(outerGeometry, outerMaterial);
+       scene.add(newHandrailMesh);
+       sceneRef.current.handrailMesh = newHandrailMesh;
+     }
     
     // Create inside reference line: covers full 220° span but only 10.5" arc distance
     const insidePoints: THREE.Vector3[] = [];
@@ -942,18 +940,17 @@ export function useThreeJS(
       insidePoints.push(new THREE.Vector3(x, y, z));
     }
     
-    // CRASH PROTECTION: Validate inside points before creating curve
-    if (insidePoints.length < 2) {
-      console.warn('Insufficient inside points for curve creation, skipping inside line mesh');
-    } else {
-             // Create inside reference line with smooth curve
-       const insideCurve = new THREE.CatmullRomCurve3(insidePoints);
-       insideCurve.tension = 0.5; // Smooth tension for smooth curves
-      const insideGeometry = new THREE.TubeGeometry(insideCurve, steps, 0.1, 6, false);
-      const newInsideLineMesh = new THREE.Mesh(insideGeometry, new THREE.MeshLambertMaterial({ color: 0x10b981 }));
-      scene.add(newInsideLineMesh);
-      sceneRef.current.insideLineMesh = newInsideLineMesh;
-    }
+         // CRASH PROTECTION: Validate inside points before creating curve
+     if (insidePoints.length < 2) {
+       console.warn('Insufficient inside points for curve creation, skipping inside line mesh');
+     } else {
+       // Create smooth line geometry instead of tube geometry for continuous lines
+       const insideGeometry = new THREE.BufferGeometry().setFromPoints(insidePoints);
+       const insideMaterial = new THREE.LineBasicMaterial({ color: 0x10b981, linewidth: 2 });
+       const newInsideLineMesh = new THREE.Line(insideGeometry, insideMaterial);
+       scene.add(newInsideLineMesh);
+       sceneRef.current.insideLineMesh = newInsideLineMesh;
+     }
     
            // Add debugging information overlay (only when both debug mode and overlay are on)
        if (debugMode && showOverlay) {
