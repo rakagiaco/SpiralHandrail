@@ -140,9 +140,12 @@ export function useThreeJS(
     const riseProfilePoints: THREE.Vector3[] = [];
     const riseProfileGeometry = new THREE.BufferGeometry();
     
-    // Create outside handrail points with proper easement geometry
-    const outerPoints: THREE.Vector3[] = [];
-    const steps = 200; // Increased steps for smoother curves
+         // Create outside handrail points with proper easement geometry
+     // KEY CONCEPT: Easements rotate around their respective offset centers by ~90° counterclockwise
+     // This creates the smooth transition from helical spiral to straight rail sections
+     // The rotation maintains the 4.625" radius while changing the angular direction
+     const outerPoints: THREE.Vector3[] = [];
+     const steps = 200; // Increased steps for smoother curves
     
     for (let i = 0; i <= steps; i++) {
       const t = i / steps;
@@ -170,9 +173,9 @@ export function useThreeJS(
       let centerZ = 0; // Initialize centerZ
       let effectiveRadius = 0; // Initialize effectiveRadius
       
-                           if (segmentPosition <= parameters.bottomLength) {
-          // Bottom over-ease: straight rail looking DOWN the staircase at -35.08°
-          // At 0° transition point, rail should be completely straight
+                                                       if (segmentPosition <= parameters.bottomLength) {
+          // Bottom over-ease: rotate around bottom offset center by ~90° counterclockwise
+          // At 0° transition point, rail should rotate to follow staircase direction
           const easeT = segmentPosition / parameters.bottomLength;
           
           // Calculate the spiral start position (where over-ease begins)
@@ -180,42 +183,38 @@ export function useThreeJS(
           const spiralStartX = outerRadius * Math.cos(spiralStartAngle);
           const spiralStartZ = outerRadius * Math.sin(spiralStartAngle);
           
-          // For bottom easement: flow naturally DOWN at -35.08° angle
-          // This is just a reference angle - not trying to connect to actual stairs
-          const straightRailLength = 2.0; // Extend in staircase direction
+          // Bottom offset center position (1.5" from main center)
+          const bottomCenterX = 0;
+          const bottomCenterZ = -parameters.bottomOffset; // -1.5"
           
-          // Calculate direction vector that follows the natural staircase flow
-          // At 0° (bottom), we want to go DOWN at -35.08° angle
-          const angleRad = -35.08 * Math.PI / 180; // Negative for going DOWN
-          const unitDirectionX = Math.cos(angleRad); // X component of -35.08° angle
-          const unitDirectionY = Math.sin(angleRad); // Y component (rise) of -35.08° angle
-          const unitDirectionZ = 0; // No Z change for straight rail
+          // Calculate the angle from bottom center to spiral start
+          const startAngleFromBottomCenter = Math.atan2(spiralStartZ - bottomCenterZ, spiralStartX - bottomCenterX);
           
-          // Extend in the staircase direction
-          const straightEndX = spiralStartX + (unitDirectionX * straightRailLength);
-          const straightEndY = 0 + (unitDirectionY * straightRailLength); // Start at current rise
-          const straightEndZ = spiralStartZ + (unitDirectionZ * straightRailLength);
+          // Rotate counterclockwise by ~90° (π/2 radians) as we ease out
+          const rotatedAngle = startAngleFromBottomCenter + (Math.PI / 2) * easeT;
           
-          // Linear interpolation from spiral start to straight end
-          x = spiralStartX + (straightEndX - spiralStartX) * easeT;
-          const y = rise + (straightEndY - 0) * easeT; // Interpolate rise
-          z = spiralStartZ + (straightEndZ - spiralStartZ) * easeT;
+          // Calculate the radius from bottom center to maintain 4.625" radius
+          const radiusFromBottomCenter = 4.625; // Same as main helix radius
+          
+          // Calculate position based on rotated angle around bottom center
+          x = bottomCenterX + radiusFromBottomCenter * Math.cos(rotatedAngle);
+          z = bottomCenterZ + radiusFromBottomCenter * Math.sin(rotatedAngle);
         
-                 // Add debugging line for bottom easement direction
-         if (i % 20 === 0) { // Add debug line every 20th point
-           const debugLineGeometry = new THREE.BufferGeometry().setFromPoints([
-             new THREE.Vector3(spiralStartX, rise, spiralStartZ),
-             new THREE.Vector3(straightEndX, straightEndY, straightEndZ)
-           ]);
-           const debugLineMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 2 });
-           const debugLine = new THREE.Line(debugLineGeometry, debugLineMaterial);
-           scene.add(debugLine);
-           sceneRef.current.debugElements.push(debugLine);
-         }
+                                   // Add debugging line for bottom easement direction
+          if (i % 20 === 0) { // Add debug line every 20th point
+            const debugLineGeometry = new THREE.BufferGeometry().setFromPoints([
+              new THREE.Vector3(spiralStartX, rise, spiralStartZ),
+              new THREE.Vector3(x, rise, z)
+            ]);
+            const debugLineMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 2 });
+            const debugLine = new THREE.Line(debugLineGeometry, debugLineMaterial);
+            scene.add(debugLine);
+            sceneRef.current.debugElements.push(debugLine);
+          }
         
-                           } else if (segmentPosition >= parameters.totalSegments - parameters.topLength) {
-          // Top up-ease: straight rail looking UP the staircase at +35.08°
-          // At 180° transition point, rail should be completely straight
+                                                       } else if (segmentPosition >= parameters.totalSegments - parameters.topLength) {
+          // Top up-ease: rotate around top offset center by ~90° counterclockwise
+          // At 180° transition point, rail should rotate to follow staircase direction
           const easeT = (segmentPosition - (parameters.totalSegments - parameters.topLength)) / parameters.topLength;
           
           // Calculate the spiral end position (where up-ease begins)
@@ -223,38 +222,34 @@ export function useThreeJS(
           const spiralEndX = outerRadius * Math.cos(spiralEndAngle);
           const spiralEndZ = outerRadius * Math.sin(spiralEndAngle);
           
-          // For top easement: flow naturally UP at +35.08° angle
-          // This is just a reference angle - not trying to connect to actual stairs
-          const straightRailLength = 2.0; // Extend in staircase direction
+          // Top offset center position (1.875" from main center)
+          const topCenterX = 0;
+          const topCenterZ = -parameters.topOffset; // -1.875"
           
-          // Calculate direction vector that follows the natural staircase flow
-          // At 180° (top), we want to go UP at +35.08° angle
-          const angleRad = 35.08 * Math.PI / 180; // Positive for going UP
-          const unitDirectionX = Math.cos(angleRad); // X component of +35.08° angle
-          const unitDirectionY = Math.sin(angleRad); // Y component (rise) of +35.08° angle
-          const unitDirectionZ = 0; // No Z change for straight rail
+          // Calculate the angle from top center to spiral end
+          const endAngleFromTopCenter = Math.atan2(spiralEndZ - topCenterZ, spiralEndX - topCenterX);
           
-          // Extend in the staircase direction
-          const straightEndX = spiralEndX + (unitDirectionX * straightRailLength);
-          const straightEndY = 0 + (unitDirectionY * straightRailLength); // Start at current rise
-          const straightEndZ = spiralEndZ + (unitDirectionZ * straightRailLength);
+          // Rotate counterclockwise by ~90° (π/2 radians) as we ease out
+          const rotatedAngle = endAngleFromTopCenter + (Math.PI / 2) * easeT;
           
-          // Linear interpolation from spiral end to straight end
-          x = spiralEndX + (straightEndX - spiralEndX) * easeT;
-          const y = rise + (straightEndY - 0) * easeT; // Interpolate rise
-          z = spiralEndZ + (straightEndZ - spiralEndZ) * easeT;
+          // Calculate the radius from top center to maintain 4.625" radius
+          const radiusFromTopCenter = 4.625; // Same as main helix radius
+          
+          // Calculate position based on rotated angle around top center
+          x = topCenterX + radiusFromTopCenter * Math.cos(rotatedAngle);
+          z = topCenterZ + radiusFromTopCenter * Math.sin(rotatedAngle);
         
-                 // Add debugging line for top easement direction
-         if (i % 20 === 0) { // Add debug line every 20th point
-           const debugLineGeometry = new THREE.BufferGeometry().setFromPoints([
-             new THREE.Vector3(spiralEndX, rise, spiralEndZ),
-             new THREE.Vector3(straightEndX, straightEndY, straightEndZ)
-           ]);
-           const debugLineMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00, linewidth: 2 });
-           const debugLine = new THREE.Line(debugLineGeometry, debugLineMaterial);
-           scene.add(debugLine);
-           sceneRef.current.debugElements.push(debugLine);
-         }
+                                   // Add debugging line for top easement direction
+          if (i % 20 === 0) { // Add debug line every 20th point
+            const debugLineGeometry = new THREE.BufferGeometry().setFromPoints([
+              new THREE.Vector3(spiralEndX, rise, spiralEndZ),
+              new THREE.Vector3(x, rise, z)
+            ]);
+            const debugLineMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00, linewidth: 2 });
+            const debugLine = new THREE.Line(debugLineGeometry, debugLineMaterial);
+            scene.add(debugLine);
+            sceneRef.current.debugElements.push(debugLine);
+          }
         
       } else {
         // Main spiral: use main center
@@ -302,10 +297,12 @@ export function useThreeJS(
     scene.add(riseAxesHelper);
     sceneRef.current.debugElements.push(riseAxesHelper);
     
-    // Create inside reference line: covers full 220° span but only 10.5" arc distance
-    // Includes easements to flow smoothly into straight rails
-    const insidePoints: THREE.Vector3[] = [];
-    const insideRadius = 4.5; // Inner radius
+         // Create inside reference line: covers full 220° span but only 10.5" arc distance
+     // Includes easements to flow smoothly into straight rails
+     // KEY CONCEPT: Inner line easements use the same rotation logic as outer line
+     // Both rotate around their respective offset centers by ~90° counterclockwise
+     const insidePoints: THREE.Vector3[] = [];
+     const insideRadius = 4.5; // Inner radius
     
     for (let i = 0; i <= steps; i++) {
       const t = i / steps;
@@ -332,25 +329,25 @@ export function useThreeJS(
         const spiralStartX = insideRadius * Math.cos(spiralStartAngle);
         const spiralStartZ = insideRadius * Math.sin(spiralStartAngle);
         
-        // For bottom easement: flow naturally DOWN at -35.08° angle
-        // This is just a reference angle - not trying to connect to actual stairs
-        const straightRailLength = 2.0; // Extend in staircase direction
+        // For bottom easement: rotate around bottom offset center by ~90° counterclockwise
+        // At 0° transition point, rail should rotate to follow staircase direction
         
-        // Calculate direction vector that follows the natural staircase flow
-        // At 0° (bottom), we want to go DOWN at -35.08° angle
-        const angleRad = -35.08 * Math.PI / 180; // Negative for going DOWN
-        const unitDirectionX = Math.cos(angleRad); // X component of -35.08° angle
-        const unitDirectionY = Math.sin(angleRad); // Y component (rise) of -35.08° angle
-        const unitDirectionZ = 0; // No Z change for straight rail
+        // Bottom offset center position (1.5" from main center)
+        const bottomCenterX = 0;
+        const bottomCenterZ = -parameters.bottomOffset; // -1.5"
         
-        // Extend in the staircase direction
-        const straightEndX = spiralStartX + (unitDirectionX * straightRailLength);
-        const straightEndY = 0 + (unitDirectionY * straightRailLength); // Start at current rise
-        const straightEndZ = spiralStartZ + (unitDirectionZ * straightRailLength);
+        // Calculate the angle from bottom center to spiral start
+        const startAngleFromBottomCenter = Math.atan2(spiralStartZ - bottomCenterZ, spiralStartX - bottomCenterX);
         
-        // Linear interpolation from spiral start to straight end
-        x = spiralStartX + (straightEndX - spiralStartX) * easeT;
-        z = spiralStartZ + (straightEndZ - spiralStartZ) * easeT;
+        // Rotate counterclockwise by ~90° (π/2 radians) as we ease out
+        const rotatedAngle = startAngleFromBottomCenter + (Math.PI / 2) * easeT;
+        
+        // Calculate the radius from bottom center to maintain 4.625" radius
+        const radiusFromBottomCenter = 4.625; // Same as main helix radius
+        
+        // Calculate position based on rotated angle around bottom center
+        x = bottomCenterX + radiusFromBottomCenter * Math.cos(rotatedAngle);
+        z = bottomCenterZ + radiusFromBottomCenter * Math.sin(rotatedAngle);
         
       } else if (segmentPosition >= parameters.totalSegments - parameters.topLength) {
         // Top up-ease: straight rail looking UP the staircase at +35.08°
@@ -362,25 +359,25 @@ export function useThreeJS(
         const spiralEndX = insideRadius * Math.cos(spiralEndAngle);
         const spiralEndZ = insideRadius * Math.sin(spiralEndAngle);
         
-        // For top easement: flow naturally UP at +35.08° angle
-        // This is just a reference angle - not trying to connect to actual stairs
-        const straightRailLength = 2.0; // Extend in staircase direction
+        // For top easement: rotate around top offset center by ~90° counterclockwise
+        // At 180° transition point, rail should rotate to follow staircase direction
         
-        // Calculate direction vector that follows the natural staircase flow
-        // At 180° (top), we want to go UP at +35.08° angle
-        const angleRad = 35.08 * Math.PI / 180; // Positive for going UP
-        const unitDirectionX = Math.cos(angleRad); // X component of +35.08° angle
-        const unitDirectionY = Math.sin(angleRad); // Y component (rise) of +35.08° angle
-        const unitDirectionZ = 0; // No Z change for straight rail
+        // Top offset center position (1.875" from main center)
+        const topCenterX = 0;
+        const topCenterZ = -parameters.topOffset; // -1.875"
         
-        // Extend in the staircase direction
-        const straightEndX = spiralEndX + (unitDirectionX * straightRailLength);
-        const straightEndY = 0 + (unitDirectionY * straightRailLength); // Start at current rise
-        const straightEndZ = spiralEndZ + (unitDirectionZ * straightRailLength);
+        // Calculate the angle from top center to spiral end
+        const endAngleFromTopCenter = Math.atan2(spiralEndZ - topCenterZ, spiralEndX - topCenterX);
         
-        // Linear interpolation from spiral end to straight end
-        x = spiralEndX + (straightEndX - spiralEndX) * easeT;
-        z = spiralEndZ + (straightEndZ - spiralEndZ) * easeT;
+        // Rotate counterclockwise by ~90° (π/2 radians) as we ease out
+        const rotatedAngle = endAngleFromTopCenter + (Math.PI / 2) * easeT;
+        
+        // Calculate the radius from top center to maintain 4.625" radius
+        const radiusFromTopCenter = 4.625; // Same as main helix radius
+        
+        // Calculate position based on rotated angle around top center
+        x = topCenterX + radiusFromTopCenter * Math.cos(rotatedAngle);
+        z = topCenterZ + radiusFromTopCenter * Math.sin(rotatedAngle);
         
       } else {
         // Main spiral: use main center
