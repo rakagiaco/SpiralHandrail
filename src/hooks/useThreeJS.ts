@@ -175,26 +175,27 @@ export function useThreeJS(
       // Add to rise profile visualization
       riseProfilePoints.push(new THREE.Vector3(arcDistance, rise, 0));
       
-       let x: number, z: number, y: number;
+               let x: number, z: number, y: number = rise; // Initialize y with fallback
        
-                               if (segmentPosition <= parameters.bottomLength) {
-          // Bottom over-ease: angle DOWN at -35.08° from 0° to 20°
-          const easeT = segmentPosition / parameters.bottomLength;
+                                                               if (segmentPosition <= parameters.bottomLength) {
+           // Bottom over-ease: angle DOWN at -35.08° from 0° to 22°
+           const easeT = segmentPosition / parameters.bottomLength;
+           
+           // Start at 0° with 1.0" rise (pitch block height)
+           const startAngle = 0;
+           const startX = outerRadius * Math.cos(startAngle);
+           const startZ = outerRadius * Math.sin(startAngle);
+           const startRise = 1.0; // Pitch block height
+           
+           // Calculate the easement end point by angling DOWN at -35.08° (vertical angle)
+           // This follows the direction of the blue flight going DOWN
+           const easementLength = 2.0; // Back to original length
+           const angleRad = -35.08 * Math.PI / 180; // Back to 35.08° as specified
           
-          // Start at 0° with 1.0" rise (pitch block height)
-          const startAngle = 0;
-          const startX = outerRadius * Math.cos(startAngle);
-          const startZ = outerRadius * Math.sin(startAngle);
-          const startRise = 1.0; // Pitch block height
-          
-          // Calculate the easement end point by angling DOWN at -35.08° (vertical angle)
-          // This follows the direction of the blue flight going DOWN
-          const easementLength = 2.0; // Length of the easement section
-          const angleRad = -35.08 * Math.PI / 180; // Negative for downward angle
-          
-                    // Project the easement direction vertically DOWN from the start point
-          const easementEndX = startX; // Same X position (no horizontal movement)
-          const easementEndZ = startZ; // Same Z position (no horizontal movement)
+          // Project the easement direction gradually DOWN from the start point
+          // Move slightly outward and down to create a smooth curve
+          const easementEndX = startX + easementLength * 0.3; // Slight outward movement
+          const easementEndZ = startZ + easementLength * 0.3; // Slight forward movement
           const easementEndRise = startRise - easementLength * Math.sin(Math.abs(angleRad)); // Vertical drop
           
           // Linear interpolation from start to easement end
@@ -323,12 +324,13 @@ export function useThreeJS(
           
           // Calculate the easement end point by angling DOWN at -35.08° (vertical angle)
           // This follows the direction of the blue flight going DOWN
-          const easementLength = 2.0; // Length of the easement section
-          const angleRad = -35.08 * Math.PI / 180; // Negative for downward angle
+          const easementLength = 2.0; // Back to original length
+          const angleRad = -35.08 * Math.PI / 180; // Back to 35.08° as specified
           
-          // Project the easement direction vertically DOWN from the start point
-          const easementEndX = startX; // Same X position (no horizontal movement)
-          const easementEndZ = startZ; // Same Z position (no horizontal movement)
+          // Project the easement direction gradually DOWN from the start point
+          // Move slightly outward and down to create a smooth curve
+          const easementEndX = startX + easementLength * 0.3; // Slight outward movement
+          const easementEndZ = startZ + easementLength * 0.3; // Slight forward movement
           const easementEndRise = startRise - easementLength * Math.sin(Math.abs(angleRad)); // Vertical drop
           
           // Linear interpolation from start to easement end
