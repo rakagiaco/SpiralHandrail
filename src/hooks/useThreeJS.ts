@@ -16,23 +16,26 @@ export function useThreeJS(
     handrailMesh: THREE.Mesh | null;
     insideLineMesh: THREE.Mesh | null;
     centerDots: THREE.Mesh[];
+    debugElements: THREE.Object3D[];
   } | null>(null);
 
   const updateVisualization = useCallback(() => {
     if (!sceneRef.current) return;
 
-    const { scene, handrailMesh, insideLineMesh, centerDots } = sceneRef.current;
+    const { scene, handrailMesh, insideLineMesh, centerDots, debugElements } = sceneRef.current;
     
-    // Remove existing meshes
+    // Remove existing meshes and debug elements
     if (handrailMesh) scene.remove(handrailMesh);
     if (insideLineMesh) scene.remove(insideLineMesh);
     centerDots.forEach(dot => scene.remove(dot));
+    debugElements.forEach(element => scene.remove(element));
     sceneRef.current.centerDots = [];
+    sceneRef.current.debugElements = [];
     
     const outerRadius = 8;
     const innerRadius = 4.5;
     
-    // Add center dots
+    // Add center dots with enhanced debugging
     const dotGeometry = new THREE.SphereGeometry(0.4, 16, 16);
     
     // Main center (blue) at origin
@@ -52,6 +55,90 @@ export function useThreeJS(
     topDot.position.set(0, 6, -parameters.topOffset); // Fixed offset: 1.875" from main center
     scene.add(topDot);
     sceneRef.current.centerDots.push(topDot);
+    
+    // ============================================================================
+    // DEBUGGING VISUALS - Enhanced coordinate system and measurements
+    // ============================================================================
+    
+    // Enhanced coordinate axes with labels
+    const axesHelper = new THREE.AxesHelper(15);
+    axesHelper.material.linewidth = 3;
+    scene.add(axesHelper);
+    sceneRef.current.debugElements.push(axesHelper);
+    
+    // Add coordinate grid for better spatial understanding
+    const gridHelper = new THREE.GridHelper(30, 30, 0x444444, 0x222222);
+    gridHelper.position.y = -1;
+    scene.add(gridHelper);
+    sceneRef.current.debugElements.push(gridHelper);
+    
+    // Add radius circles for debugging
+    const outerCircleGeometry = new THREE.RingGeometry(outerRadius - 0.1, outerRadius + 0.1, 64);
+    const outerCircleMaterial = new THREE.MeshBasicMaterial({ 
+      color: 0x3b82f6, 
+      transparent: true, 
+      opacity: 0.3,
+      side: THREE.DoubleSide 
+    });
+    const outerCircle = new THREE.Mesh(outerCircleGeometry, outerCircleMaterial);
+    outerCircle.rotation.x = -Math.PI / 2;
+    outerCircle.position.y = -0.5;
+    scene.add(outerCircle);
+    sceneRef.current.debugElements.push(outerCircle);
+    
+    const innerCircleGeometry = new THREE.RingGeometry(innerRadius - 0.1, innerRadius + 0.1, 64);
+    const innerCircleMaterial = new THREE.MeshBasicMaterial({ 
+      color: 0x10b981, 
+      transparent: true, 
+      opacity: 0.3,
+      side: THREE.DoubleSide 
+    });
+    const innerCircle = new THREE.Mesh(innerCircleGeometry, innerCircleMaterial);
+    innerCircle.rotation.x = -Math.PI / 2;
+    innerCircle.position.y = -0.5;
+    scene.add(innerCircle);
+    sceneRef.current.debugElements.push(innerCircle);
+    
+    // Add angle markers every 45 degrees
+    for (let angle = 0; angle <= 360; angle += 45) {
+      const rad = (angle * Math.PI) / 180;
+      const markerLength = 0.5;
+      const startX = (outerRadius + 1) * Math.cos(rad);
+      const startZ = (outerRadius + 1) * Math.sin(rad);
+      const endX = (outerRadius + 1 + markerLength) * Math.cos(rad);
+      const endZ = (outerRadius + 1 + markerLength) * Math.sin(rad);
+      
+      const markerGeometry = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(startX, -0.5, startZ),
+        new THREE.Vector3(endX, -0.5, endZ)
+      ]);
+      const markerMaterial = new THREE.LineBasicMaterial({ color: 0x666666, linewidth: 2 });
+      const marker = new THREE.Line(markerGeometry, markerMaterial);
+      scene.add(marker);
+      sceneRef.current.debugElements.push(marker);
+      
+      // Add angle labels
+      const labelGeometry = new THREE.PlaneGeometry(1, 0.5);
+      const labelMaterial = new THREE.MeshBasicMaterial({ 
+        color: 0x666666, 
+        transparent: true, 
+        opacity: 0.8,
+        side: THREE.DoubleSide 
+      });
+      const label = new THREE.Mesh(labelGeometry, labelMaterial);
+      label.position.set(
+        (outerRadius + 2.5) * Math.cos(rad),
+        -0.2,
+        (outerRadius + 2.5) * Math.sin(rad)
+      );
+      label.lookAt(0, -0.2, 0);
+      scene.add(label);
+      sceneRef.current.debugElements.push(label);
+    }
+    
+    // Add measurement lines and rise profile visualization
+    const riseProfilePoints: THREE.Vector3[] = [];
+    const riseProfileGeometry = new THREE.BufferGeometry();
     
     // Create outside handrail points with proper easement geometry
     const outerPoints: THREE.Vector3[] = [];
@@ -74,6 +161,9 @@ export function useThreeJS(
         parameters.totalHelicalRise,
         parameters.pitchBlock
       );
+      
+      // Add to rise profile visualization
+      riseProfilePoints.push(new THREE.Vector3(arcDistance, rise, 0));
       
       let x: number, z: number;
       let centerX = 0; // Initialize centerX
@@ -111,6 +201,18 @@ export function useThreeJS(
         x = spiralStartX + (straightEndX - spiralStartX) * easeT;
         z = spiralStartZ + (straightEndZ - spiralStartZ) * easeT;
         
+        // Add debugging line for bottom easement direction
+        if (i % 20 === 0) { // Add debug line every 20th point
+          const debugLineGeometry = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(spiralStartX, rise, spiralStartZ),
+            new THREE.Vector3(straightEndX, rise, straightEndZ)
+          ]);
+          const debugLineMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 2 });
+          const debugLine = new THREE.Line(debugLineGeometry, debugLineMaterial);
+          scene.add(debugLine);
+          sceneRef.current.debugElements.push(debugLine);
+        }
+        
       } else if (segmentPosition >= parameters.totalSegments - parameters.topLength) {
         // Top up-ease: straight rail looking UP the staircase at +35.08°
         // At 180° transition point, rail should be completely straight
@@ -142,6 +244,18 @@ export function useThreeJS(
         x = spiralEndX + (straightEndX - spiralEndX) * easeT;
         z = spiralEndZ + (straightEndZ - spiralEndZ) * easeT;
         
+        // Add debugging line for top easement direction
+        if (i % 20 === 0) { // Add debug line every 20th point
+          const debugLineGeometry = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(spiralEndX, rise, spiralEndZ),
+            new THREE.Vector3(straightEndX, rise, straightEndZ)
+          ]);
+          const debugLineMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00, linewidth: 2 });
+          const debugLine = new THREE.Line(debugLineGeometry, debugLineMaterial);
+          scene.add(debugLine);
+          sceneRef.current.debugElements.push(debugLine);
+        }
+        
       } else {
         // Main spiral: use main center
         centerX = 0;
@@ -151,11 +265,42 @@ export function useThreeJS(
         // Calculate position from main center
         x = centerX + effectiveRadius * Math.cos(angle);
         z = centerZ + effectiveRadius * Math.sin(angle);
+        
+        // Add debugging markers for main spiral every 45 degrees
+        if (Math.abs(angle * 180 / Math.PI % 45) < 0.1) {
+          const markerGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+          const markerMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+          const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+          marker.position.set(x, rise, z);
+          scene.add(marker);
+          sceneRef.current.debugElements.push(marker);
+        }
       }
       
       const y = rise;
       outerPoints.push(new THREE.Vector3(x, y, z));
     }
+    
+    // Create rise profile visualization (2D graph in 3D space)
+    riseProfileGeometry.setFromPoints(riseProfilePoints);
+    const riseProfileMaterial = new THREE.LineBasicMaterial({ color: 0xff00ff, linewidth: 3 });
+    const riseProfileLine = new THREE.Line(riseProfileGeometry, riseProfileMaterial);
+    riseProfileLine.position.set(-20, 0, -20); // Position the rise profile graph
+    scene.add(riseProfileLine);
+    sceneRef.current.debugElements.push(riseProfileLine);
+    
+    // Add rise profile grid
+    const riseGridHelper = new THREE.GridHelper(40, 20, 0x444444, 0x222222);
+    riseGridHelper.position.set(-20, -1, -20);
+    riseGridHelper.rotation.x = -Math.PI / 2;
+    scene.add(riseGridHelper);
+    sceneRef.current.debugElements.push(riseGridHelper);
+    
+    // Add rise profile axes
+    const riseAxesHelper = new THREE.AxesHelper(20);
+    riseAxesHelper.position.set(-20, 0, -20);
+    scene.add(riseAxesHelper);
+    sceneRef.current.debugElements.push(riseAxesHelper);
     
     // Create inside reference line: covers full 220° span but only 10.5" arc distance
     // Includes easements to flow smoothly into straight rails
@@ -269,7 +414,60 @@ export function useThreeJS(
     const newInsideLineMesh = new THREE.Mesh(insideGeometry, new THREE.MeshLambertMaterial({ color: 0x10b981 }));
     scene.add(newInsideLineMesh);
     sceneRef.current.insideLineMesh = newInsideLineMesh;
+    
+    // Add debugging information overlay
+    const debugInfo = createDebugInfoOverlay(parameters, manualRiseData, calculatedRiseData);
+    scene.add(debugInfo);
+    sceneRef.current.debugElements.push(debugInfo);
+    
   }, [parameters, manualRiseData, calculatedRiseData]);
+
+  // Function to create debugging information overlay
+  const createDebugInfoOverlay = (params: HandrailParameters, manualData: Record<number, number>, calculatedData: Record<number, number>) => {
+    const group = new THREE.Group();
+    
+    // Create text sprites for debugging information
+    const createTextSprite = (text: string, position: THREE.Vector3, color: number = 0xffffff) => {
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      if (!context) return new THREE.Group();
+      
+      canvas.width = 512;
+      canvas.height = 128;
+      context.fillStyle = '#000000';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
+      context.font = '24px Arial';
+      context.textAlign = 'center';
+      context.fillText(text, canvas.width / 2, canvas.height / 2);
+      
+      const texture = new THREE.CanvasTexture(canvas);
+      const material = new THREE.SpriteMaterial({ map: texture });
+      const sprite = new THREE.Sprite(material);
+      sprite.position.copy(position);
+      sprite.scale.set(5, 1.25, 1);
+      
+      return sprite;
+    };
+    
+    // Add key parameter information
+    const paramsText = [
+      `Total Arc: ${params.totalArcDistance}"`,
+      `Total Rise: ${params.totalHelicalRise}"`,
+      `Pitch Block: ${params.pitchBlock}"`,
+      `Bottom Offset: ${params.bottomOffset}"`,
+      `Top Offset: ${params.topOffset}"`,
+      `Manual Points: ${Object.keys(manualData).length}`,
+      `Calculated Points: ${Object.keys(calculatedData).length}`
+    ];
+    
+    paramsText.forEach((text, index) => {
+      const sprite = createTextSprite(text, new THREE.Vector3(-25, 15 - index * 2, -25), 0x00ff00);
+      group.add(sprite);
+    });
+    
+    return group;
+  };
 
   useEffect(() => {
     if (!mountRef.current) return;
@@ -391,7 +589,8 @@ export function useThreeJS(
       renderer,
       handrailMesh: null,
       insideLineMesh: null,
-      centerDots: []
+      centerDots: [],
+      debugElements: []
     };
 
     // Animation loop

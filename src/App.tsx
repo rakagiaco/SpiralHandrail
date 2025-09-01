@@ -25,22 +25,42 @@ function App() {
   const [segmentResults, setSegmentResults] = useState<SegmentResult[]>([]);
   const [referenceResults, setReferenceResults] = useState<ReferenceResult[]>([]);
 
+  // Debug state
+  const [debugMode, setDebugMode] = useState(false);
+  const [lastCalculationTime, setLastCalculationTime] = useState<number>(0);
+  const [calculationErrors, setCalculationErrors] = useState<string[]>([]);
+
   const generateCalculatedRiseData = useCallback(() => {
+    const startTime = performance.now();
     const newCalculatedData: Record<number, number> = {};
+    const errors: string[] = [];
     
-    for (let arcDist = 0; arcDist <= Math.ceil(parameters.totalArcDistance); arcDist++) {
-      if (arcDist <= parameters.totalArcDistance) {
-        const calculatedRise = calculateRiseAtDistance(
-          arcDist, 
-          parameters.totalHelicalRise, 
-          parameters.totalArcDistance, 
-          parameters.pitchBlock
-        );
-        newCalculatedData[arcDist] = calculatedRise;
+    try {
+      for (let arcDist = 0; arcDist <= Math.ceil(parameters.totalArcDistance); arcDist++) {
+        if (arcDist <= parameters.totalArcDistance) {
+          const calculatedRise = calculateRiseAtDistance(
+            arcDist, 
+            parameters.totalHelicalRise, 
+            parameters.totalArcDistance, 
+            parameters.pitchBlock
+          );
+          
+          // Validate calculated rise
+          if (calculatedRise < 0 || calculatedRise > 20) {
+            errors.push(`Invalid rise at ${arcDist}": ${calculatedRise}"`);
+          }
+          
+          newCalculatedData[arcDist] = calculatedRise;
+        }
       }
+      
+      setCalculatedRiseData(newCalculatedData);
+      setCalculationErrors(errors);
+      setLastCalculationTime(performance.now() - startTime);
+    } catch (error) {
+      errors.push(`Calculation error: ${error}`);
+      setCalculationErrors(errors);
     }
-    
-    setCalculatedRiseData(newCalculatedData);
   }, [parameters.totalHelicalRise, parameters.totalArcDistance, parameters.pitchBlock]);
 
   useEffect(() => {
@@ -60,133 +80,263 @@ function App() {
   };
 
   const calculateSegments = () => {
+    const startTime = performance.now();
     const anglePerSeg = parameters.totalDegrees / parameters.totalSegments;
     const results: SegmentResult[] = [];
+    const errors: string[] = [];
     
-    for (let i = 0; i <= parameters.totalSegments; i++) {
-      const angle = i * anglePerSeg;
-      const arcDistance = (i / parameters.totalSegments) * parameters.totalArcDistance;
-      const rise = getCurrentRiseAtDistance(
-        arcDistance, 
-        manualRiseData, 
-        calculatedRiseData, 
-        parameters.totalArcDistance,
-        parameters.totalHelicalRise,
-        parameters.pitchBlock
-      );
-      
-      let sectionName: string, sectionType: 'Bottom Over-Ease' | 'Main Spiral' | 'Top Up-Ease';
-      if (i <= parameters.bottomLength) {
-        sectionName = `Over-Ease-${i}`;
-        sectionType = 'Bottom Over-Ease';
-      } else if (i >= parameters.totalSegments - parameters.topLength) {
-        const topIndex = i - (parameters.totalSegments - parameters.topLength);
-        sectionName = `Up-Ease-${topIndex}`;
-        sectionType = 'Top Up-Ease';
-      } else {
-        const spiralIndex = i - Math.ceil(parameters.bottomLength);
-        sectionName = `Spiral-${spiralIndex}`;
-        sectionType = 'Main Spiral';
+    try {
+      for (let i = 0; i <= parameters.totalSegments; i++) {
+        const angle = i * anglePerSeg;
+        const arcDistance = (i / parameters.totalSegments) * parameters.totalArcDistance;
+        const rise = getCurrentRiseAtDistance(
+          arcDistance, 
+          manualRiseData, 
+          calculatedRiseData, 
+          parameters.totalArcDistance,
+          parameters.totalHelicalRise,
+          parameters.pitchBlock
+        );
+        
+        // Validate rise value
+        if (rise < 0 || rise > 20) {
+          errors.push(`Invalid rise at segment ${i}: ${rise}"`);
+        }
+        
+        let sectionName: string, sectionType: 'Bottom Over-Ease' | 'Main Spiral' | 'Top Up-Ease';
+        if (i <= parameters.bottomLength) {
+          sectionName = `Over-Ease-${i}`;
+          sectionType = 'Bottom Over-Ease';
+        } else if (i >= parameters.totalSegments - parameters.topLength) {
+          const topIndex = i - (parameters.totalSegments - parameters.topLength);
+          sectionName = `Up-Ease-${topIndex}`;
+          sectionType = 'Top Up-Ease';
+        } else {
+          const spiralIndex = i - Math.ceil(parameters.bottomLength);
+          sectionName = `Spiral-${spiralIndex}`;
+          sectionType = 'Main Spiral';
+        }
+        
+        results.push({
+          segment: sectionName,
+          section: sectionType,
+          angle: angle.toFixed(1),
+          arcDistance: arcDistance.toFixed(2),
+          rise: rise.toFixed(3)
+        });
       }
       
-      results.push({
-        segment: sectionName,
-        section: sectionType,
-        angle: angle.toFixed(1),
-        arcDistance: arcDistance.toFixed(2),
-        rise: rise.toFixed(3)
-      });
+      setSegmentResults(results);
+      setCalculationErrors(errors);
+      setLastCalculationTime(performance.now() - startTime);
+    } catch (error) {
+      errors.push(`Segment calculation error: ${error}`);
+      setCalculationErrors(errors);
     }
-    
-    setSegmentResults(results);
   };
 
   const calculateReference = () => {
+    const startTime = performance.now();
     const results: ReferenceResult[] = [];
+    const errors: string[] = [];
     
-    for (let arcDist = 0; arcDist <= parameters.totalArcDistance; arcDist += 1.0) {
-      const angle = (arcDist / parameters.totalArcDistance) * parameters.totalDegrees;
-      const rise = getCurrentRiseAtDistance(
-        arcDist, 
-        manualRiseData, 
-        calculatedRiseData, 
-        parameters.totalArcDistance,
-        parameters.totalHelicalRise,
-        parameters.pitchBlock
-      );
-      const segmentPosition = (arcDist / parameters.totalArcDistance) * parameters.totalSegments;
-      
-      let sectionType: 'Over-Ease' | 'Main Spiral' | 'Up-Ease';
-      if (segmentPosition <= parameters.bottomLength) {
-        sectionType = 'Over-Ease';
-      } else if (segmentPosition >= parameters.totalSegments - parameters.topLength) {
-        sectionType = 'Up-Ease';
-      } else {
-        sectionType = 'Main Spiral';
+    try {
+      // Calculate reference points every 0.5" for detailed analysis
+      for (let arcDist = 0; arcDist <= parameters.totalArcDistance; arcDist += 0.5) {
+        const rise = getCurrentRiseAtDistance(
+          arcDist, 
+          manualRiseData, 
+          calculatedRiseData, 
+          parameters.totalArcDistance,
+          parameters.totalHelicalRise,
+          parameters.pitchBlock
+        );
+        
+        // Validate rise value
+        if (rise < 0 || rise > 20) {
+          errors.push(`Invalid reference rise at ${arcDist}": ${rise}"`);
+        }
+        
+        let sectionName: string;
+        if (arcDist <= parameters.bottomLength) {
+          sectionName = 'Bottom Over-Ease';
+        } else if (arcDist >= parameters.totalArcDistance - parameters.topLength) {
+          sectionName = 'Top Up-Ease';
+        } else {
+          sectionName = 'Main Spiral';
+        }
+        
+        const angle = (arcDist / parameters.totalArcDistance) * parameters.totalDegrees;
+        
+        results.push({
+          arcDistance: arcDist.toFixed(1),
+          section: sectionName,
+          angle: angle.toFixed(1),
+          rise: rise.toFixed(3)
+        });
       }
       
-      results.push({
-        arcDistance: arcDist.toFixed(1),
-        section: sectionType,
-        angle: angle.toFixed(1),
-        rise: rise.toFixed(3)
-      });
+      setReferenceResults(results);
+      setCalculationErrors(errors);
+      setLastCalculationTime(performance.now() - startTime);
+    } catch (error) {
+      errors.push(`Reference calculation error: ${error}`);
+      setCalculationErrors(errors);
     }
-    
-    setReferenceResults(results);
   };
 
   const exportData = () => {
-    let text = 'SPIRAL HANDRAIL CALCULATOR\n';
-    text += '=========================\n\n';
-    text += 'Parameters:\n';
-    text += `Total Degrees: ${parameters.totalDegrees}°\n`;
-    text += `Total Helical Rise: ${parameters.totalHelicalRise}"\n`;
-    text += `Total Arc Distance: ${parameters.totalArcDistance}"\n`;
-    text += `Pitch Block Height: ${parameters.pitchBlock}"\n`;
-    text += `Total Segments: ${parameters.totalSegments}\n`;
-    text += `Bottom Offset: ${parameters.bottomOffset}" (toward staircase)\n`;
-    text += `Top Offset: ${parameters.topOffset}" (toward staircase)\n\n`;
+    const data = {
+      parameters,
+      manualRiseData,
+      calculatedRiseData,
+      segmentResults,
+      referenceResults,
+      timestamp: new Date().toISOString(),
+      debugInfo: {
+        lastCalculationTime,
+        calculationErrors,
+        debugMode
+      }
+    };
     
-    if (Object.keys(manualRiseData).length > 0) {
-      text += 'MANUAL RISE ADJUSTMENTS:\n';
-      Object.keys(manualRiseData)
-        .sort((a, b) => parseFloat(a) - parseFloat(b))
-        .forEach(arcDist => {
-          text += `${arcDist}" arc: ${manualRiseData[parseInt(arcDist)].toFixed(3)}"\n`;
-        });
-      text += '\n';
-    }
-    
-    if (segmentResults.length > 0) {
-      text += 'SEGMENT BOUNDARIES:\n';
-      text += 'Segment\tSection\tAngle\tArc Distance\tRise\n';
-      segmentResults.forEach(row => {
-        text += `${row.segment}\t${row.section}\t${row.angle}°\t${row.arcDistance}"\t${row.rise}"\n`;
-      });
-      text += '\n';
-    }
-    
-    if (referenceResults.length > 0) {
-      text += 'REFERENCE POINTS:\n';
-      text += 'Arc Distance\tSection\tAngle\tRise\n';
-      referenceResults.forEach(row => {
-        text += `${row.arcDistance}"\t${row.section}\t${row.angle}°\t${row.rise}"\n`;
-      });
-    }
-    
-    const blob = new Blob([text], { type: 'text/plain' });
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'spiral_handrail_data.txt';
-    link.click();
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `handrail-data-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
     URL.revokeObjectURL(url);
   };
 
+  // System health monitoring
+  const systemHealth = {
+    parametersValid: parameters.totalDegrees > 0 && parameters.totalHelicalRise > 0 && parameters.totalArcDistance > 0,
+    dataConsistency: Object.keys(manualRiseData).length === 0 || Object.keys(calculatedRiseData).length > 0,
+    calculationSuccess: calculationErrors.length === 0,
+    performance: lastCalculationTime < 100, // Less than 100ms is good
+    coverage: parameters.totalSegments > 0 && parameters.bottomLength + parameters.topLength <= parameters.totalSegments
+  };
+
+  const getHealthStatus = () => {
+    const issues = Object.values(systemHealth).filter(valid => !valid).length;
+    if (issues === 0) return { status: '🟢 Healthy', color: 'text-green-600', bg: 'bg-green-50' };
+    if (issues <= 2) return { status: '🟡 Warning', color: 'text-yellow-600', bg: 'bg-yellow-50' };
+    return { status: '🔴 Critical', color: 'text-red-600', bg: 'bg-red-50' };
+  };
+
+  const healthStatus = getHealthStatus();
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-purple-700 p-5">
-      <div className="max-w-7xl mx-auto bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl overflow-hidden">
+    <div className="min-h-screen bg-gray-100 p-4">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Debug Status Panel */}
+        <div className={`${healthStatus.bg} border-2 border-gray-200 rounded-2xl p-4`}>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold text-gray-800 flex items-center">
+              <span className="mr-2">🔧</span>
+              Spiral Handrail Calculator
+              <span className={`ml-4 text-lg font-normal ${healthStatus.color}`}>
+                {healthStatus.status}
+              </span>
+            </h2>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setDebugMode(!debugMode)}
+                className={`px-3 py-1 text-sm rounded-lg transition-colors ${
+                  debugMode 
+                    ? 'bg-purple-600 text-white' 
+                    : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
+                }`}
+              >
+                {debugMode ? '🐛 Debug ON' : '🐛 Debug OFF'}
+              </button>
+              <button
+                onClick={exportData}
+                className="px-3 py-1 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                💾 Export Data
+              </button>
+            </div>
+          </div>
+          
+          {/* System Health Dashboard */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+            <div className="text-center">
+              <div className="font-semibold text-gray-700">Parameters</div>
+              <div className={`text-lg ${systemHealth.parametersValid ? 'text-green-600' : 'text-red-600'}`}>
+                {systemHealth.parametersValid ? '✅ Valid' : '❌ Invalid'}
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="font-semibold text-gray-700">Data Consistency</div>
+              <div className={`text-lg ${systemHealth.dataConsistency ? 'text-green-600' : 'text-red-600'}`}>
+                {systemHealth.dataConsistency ? '✅ Consistent' : '❌ Inconsistent'}
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="font-semibold text-gray-700">Calculations</div>
+              <div className={`text-lg ${systemHealth.calculationSuccess ? 'text-green-600' : 'text-red-600'}`}>
+                {systemHealth.calculationSuccess ? '✅ Success' : '❌ Errors'}
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="font-semibold text-gray-700">Performance</div>
+              <div className={`text-lg ${systemHealth.performance ? 'text-green-600' : 'text-yellow-600'}`}>
+                {lastCalculationTime.toFixed(1)}ms
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="font-semibold text-gray-700">Coverage</div>
+              <div className={`text-lg ${systemHealth.coverage ? 'text-green-600' : 'text-red-600'}`}>
+                {systemHealth.coverage ? '✅ Valid' : '❌ Invalid'}
+              </div>
+            </div>
+          </div>
+          
+          {/* Debug Information */}
+          {debugMode && (
+            <div className="mt-4 p-3 bg-gray-100 rounded-lg border border-gray-300">
+              <h4 className="text-sm font-semibold text-gray-700 mb-2">🐛 Debug Information</h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                <div>
+                  <div className="font-semibold">Manual Overrides:</div>
+                  <div>{Object.keys(manualRiseData).length} points</div>
+                  <div>Range: {Object.values(manualRiseData).length > 0 ? 
+                    `${Math.min(...Object.values(manualRiseData)).toFixed(3)}" - ${Math.max(...Object.values(manualRiseData)).toFixed(3)}"` : 
+                    'None'
+                  }</div>
+                </div>
+                <div>
+                  <div className="font-semibold">Calculated Points:</div>
+                  <div>{Object.keys(calculatedRiseData).length} points</div>
+                  <div>Range: {Object.values(calculatedRiseData).length > 0 ? 
+                    `${Math.min(...Object.values(calculatedRiseData)).toFixed(3)}" - ${Math.max(...Object.values(calculatedRiseData)).toFixed(3)}"` : 
+                    'None'
+                  }</div>
+                </div>
+                <div>
+                  <div className="font-semibold">Segments:</div>
+                  <div>{segmentResults.length} calculated</div>
+                  <div>Last calc: {lastCalculationTime.toFixed(1)}ms</div>
+                </div>
+                <div>
+                  <div className="font-semibold">Errors:</div>
+                  <div className={calculationErrors.length > 0 ? 'text-red-600' : 'text-green-600'}>
+                    {calculationErrors.length} issues
+                  </div>
+                  {calculationErrors.length > 0 && (
+                    <div className="text-red-500 text-xs">
+                      {calculationErrors.slice(0, 2).join(', ')}
+                      {calculationErrors.length > 2 && ` +${calculationErrors.length - 2} more`}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-800 to-indigo-800 text-white p-8 text-center">
           <h1 className="text-4xl font-bold mb-2">Spiral Handrail Calculator</h1>
