@@ -371,30 +371,19 @@ export function useThreeJS(
         const customOuterRadius = parameters.customOuterRadius || 4.625;
         const customInnerRadius = parameters.customInnerRadius || 4.5;
         
-        // Convert custom inner radius from diameter to radius if needed
-        const customInnerRadiusValue = customInnerRadius <= 2.5 ? customInnerRadius : customInnerRadius / 2;
-        
-        // Apply smooth interpolation for radius changes
-        // This ensures the visual appearance remains consistent when changing custom radius values
-        const baseOuterRadius = 4.625; // Default outer radius
-        const baseInnerRadius = 2.25;  // Default inner radius (4.5" diameter / 2)
-        
-        // Calculate interpolation factor based on how much the custom values differ from defaults
-        const outerInterpolationFactor = Math.min(1.0, Math.abs(customOuterRadius - baseOuterRadius) / baseOuterRadius);
-        const innerInterpolationFactor = Math.min(1.0, Math.abs(customInnerRadiusValue - baseInnerRadius) / baseInnerRadius);
-        
-        // Smoothly interpolate between base and custom values
-        const interpolatedOuterRadius = baseOuterRadius + (customOuterRadius - baseOuterRadius) * outerInterpolationFactor;
-        const interpolatedInnerRadius = baseInnerRadius + (customInnerRadiusValue - baseInnerRadius) * innerInterpolationFactor;
-        
-        const outerRadius = Math.max(0.1, interpolatedOuterRadius + safeBottomOffset);
-        let innerRadius = Math.max(0.1, interpolatedInnerRadius - safeTopOffset);
-    
-    // CRASH PROTECTION: Ensure inner radius is smaller than outer radius
-    if (innerRadius >= outerRadius) {
-      console.warn('Inner radius must be smaller than outer radius, adjusting');
-      innerRadius = outerRadius * 0.8;
-    }
+                 // Convert custom inner radius from diameter to radius if needed
+         const customInnerRadiusValue = customInnerRadius <= 2.5 ? customInnerRadius : customInnerRadius / 2;
+         
+         // Apply custom radius values directly - no interpolation needed
+         // The custom values should directly control the 3D model
+         const outerRadius = Math.max(0.1, customOuterRadius + safeBottomOffset);
+         let innerRadius = Math.max(0.1, customInnerRadiusValue - safeTopOffset);
+         
+                  // CRASH PROTECTION: Ensure inner radius is smaller than outer radius
+         if (innerRadius >= outerRadius) {
+           console.warn('Inner radius must be smaller than outer radius, adjusting');
+           innerRadius = outerRadius * 0.8;
+         }
     
     // Add center dots with enhanced debugging (only when debug mode is on)
     if (debugMode) {
@@ -597,9 +586,9 @@ export function useThreeJS(
        }
      }
     
-    // Create outside handrail points with proper easement geometry
-    const outerPoints: THREE.Vector3[] = [];
-    const steps = 200;
+         // Create outside handrail points with proper easement geometry
+     const outerPoints: THREE.Vector3[] = [];
+     const steps = 1000; // Increased from 200 to 1000 for smooth curves
     
     // CRASH PROTECTION: Validate calculation inputs
     const safeManualRiseData = (!manualRiseData || typeof manualRiseData !== 'object') ? {} : manualRiseData;
@@ -796,9 +785,9 @@ export function useThreeJS(
     if (outerPoints.length < 2) {
       console.warn('Insufficient outer points for curve creation, skipping handrail mesh');
     } else {
-      // Create the curve with smooth interpolation for straight line rises
-      const outerCurve = new THREE.CatmullRomCurve3(outerPoints);
-      outerCurve.tension = 0.0; // No tension for exact point following
+             // Create the curve with smooth interpolation for straight line rises
+       const outerCurve = new THREE.CatmullRomCurve3(outerPoints);
+       outerCurve.tension = 0.5; // Smooth tension for smooth curves
       const outerGeometry = new THREE.TubeGeometry(outerCurve, Math.min(steps, outerPoints.length - 1), 0.15, 8, false);
       const newHandrailMesh = new THREE.Mesh(outerGeometry, new THREE.MeshLambertMaterial({ color: 0x3b82f6 }));
       newHandrailMesh.castShadow = true;
@@ -957,9 +946,9 @@ export function useThreeJS(
     if (insidePoints.length < 2) {
       console.warn('Insufficient inside points for curve creation, skipping inside line mesh');
     } else {
-      // Create inside reference line with smooth curve
-      const insideCurve = new THREE.CatmullRomCurve3(insidePoints);
-      insideCurve.tension = 0.0; // No tension for exact point following
+             // Create inside reference line with smooth curve
+       const insideCurve = new THREE.CatmullRomCurve3(insidePoints);
+       insideCurve.tension = 0.5; // Smooth tension for smooth curves
       const insideGeometry = new THREE.TubeGeometry(insideCurve, steps, 0.1, 6, false);
       const newInsideLineMesh = new THREE.Mesh(insideGeometry, new THREE.MeshLambertMaterial({ color: 0x10b981 }));
       scene.add(newInsideLineMesh);
