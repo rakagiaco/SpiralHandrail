@@ -121,6 +121,7 @@ export function useThreeJS(
          `Target Final Height: ${targetFinalHeight.toFixed(3)}"`,
          `Outer Line End: ${targetFinalHeight.toFixed(3)}"`,
          `Inner Line End: ${targetFinalHeight.toFixed(3)}"`,
+         `Inner Line Rise: 7.375" over 10.5" arc`,
          `Height Match: ✓ PERFECT`,
          
          // Mathematical Details
@@ -517,16 +518,18 @@ export function useThreeJS(
          }
        });
        
-       // Add inner line key points
-       const innerKeyPoints = [
-         { angle: 0, label: 'Inner Start', color: 0x10b981 },
-         { angle: 110, label: 'Inner 110°', color: 0x10b981 },
-         { angle: 220, label: 'Inner End', color: 0x10b981 }
-       ];
-       
-       innerKeyPoints.forEach(point => {
-         const angleRad = point.angle * Math.PI / 180;
-         const rise = safePitchBlock + (point.angle / 220) * safeTotalRise;
+                // Add inner line key points
+         const innerKeyPoints = [
+           { angle: 0, label: 'Inner Start', color: 0x10b981 },
+           { angle: 110, label: 'Inner 110°', color: 0x10b981 },
+           { angle: 220, label: 'Inner End', color: 0x10b981 }
+         ];
+         
+         innerKeyPoints.forEach(point => {
+           const angleRad = point.angle * Math.PI / 180;
+           // Inner line has proportional rise based on 10.5" arc distance
+           const innerLineTotalRise = 7.375; // 7 and 3/8 inches
+           const rise = safePitchBlock + (point.angle / 220) * innerLineTotalRise;
          
          // Create marker sphere
          const markerGeometry = new THREE.SphereGeometry(0.15, 16, 16);
@@ -775,21 +778,24 @@ export function useThreeJS(
       const segmentPosition = (arcDistance / parameters.totalArcDistance) * parameters.totalSegments;
       const angle = (t * parameters.totalDegrees * Math.PI) / 180; // Full 220° span
       
-      // CRASH PROTECTION: Safe rise calculation for inside line
-      let rise: number;
-      try {
-        const proportionalArcDistance = (t * maxArcDistance);
-        rise = safePitchBlock + (proportionalArcDistance / maxArcDistance) * safeTotalRise;
-        
-        // Validate rise value
-        if (isNaN(rise) || !isFinite(rise)) {
-          console.warn(`Invalid inside line rise at step ${i}, using fallback`);
-          rise = safePitchBlock + (t * safeTotalRise);
-        }
-      } catch (error) {
-        console.warn(`Error calculating inside line rise at step ${i}, using fallback:`, error);
-        rise = safePitchBlock + (t * safeTotalRise);
-      }
+             // CRASH PROTECTION: Safe rise calculation for inside line
+       let rise: number;
+       try {
+         // Inner line should only rise proportionally to its actual arc distance (10.5")
+         // This creates a more gradual, realistic rise pattern
+         const proportionalArcDistance = (t * maxArcDistance);
+         const innerLineTotalRise = 7.375; // 7 and 3/8 inches (without pitch block offset)
+         rise = safePitchBlock + (proportionalArcDistance / maxArcDistance) * innerLineTotalRise;
+         
+         // Validate rise value
+         if (isNaN(rise) || !isFinite(rise)) {
+           console.warn(`Invalid inside line rise at step ${i}, using fallback`);
+           rise = safePitchBlock + (t * innerLineTotalRise);
+         }
+       } catch (error) {
+         console.warn(`Error calculating inside line rise at step ${i}, using fallback:`, error);
+         rise = safePitchBlock + (t * 7.375);
+       }
       
       let x: number, z: number, y: number = rise;
       
@@ -851,20 +857,19 @@ export function useThreeJS(
           const spiralEndRise = safePitchBlock + (spiralEndAngle / parameters.totalDegrees) * safeTotalRise;
           const startRise = spiralEndRise;
           
-          // End at 220° with total rise - SCALES WITH TOTAL RISE
-          // Both inner and outer lines should end at exactly the same height
-          const endAngle = 220 * Math.PI / 180;
-          const endX = innerRadius * Math.cos(endAngle);
-          const endZ = innerRadius * Math.sin(endAngle);
-          
-          // CRITICAL: Ensure both lines end at exactly 8.375" (8 and 3/8th inches)
-          // This is the target height that both lines must reach
-          const targetFinalHeight = 8.375; // Fixed target height in inches
-          const endRise = targetFinalHeight;
-          
-          // CRITICAL: Ensure both lines end at exactly the same height
-          // The final rise should be exactly 8.375" regardless of pitch block or total rise
-          const finalRise = targetFinalHeight;
+                     // End at 220° - Inner line should end at same height as outer line
+           const endAngle = 220 * Math.PI / 180;
+           const endX = innerRadius * Math.cos(endAngle);
+           const endZ = innerRadius * Math.sin(endAngle);
+           
+           // CRITICAL: Inner line must end at exactly 8.375" to match outer line
+           // But it should get there more gradually since it only travels 10.5" arc
+           const targetFinalHeight = 8.375; // Fixed target height in inches
+           const endRise = targetFinalHeight;
+           
+           // CRITICAL: Inner line should have a more gradual easement
+           // Since it only travels 10.5" arc, the rise should be smoother
+           const finalRise = targetFinalHeight;
           
           // CRASH PROTECTION: Validate all calculated values for inside line
           if (isNaN(easeT) || !isFinite(easeT) || isNaN(spiralEndRise) || !isFinite(spiralEndRise)) {
