@@ -101,7 +101,7 @@ export function useThreeJS(
         
         // For bottom easement: go straight DOWN the staircase direction
         // This means extending the arc in the same direction as the staircase flow
-        const straightRailLength = 2.0; // Length of straight rail section
+        const straightRailLength = 0.4; // Much shorter for minimal outward projection
         
         // Extend straight in the staircase direction (not outward)
         const straightEndX = spiralStartX + (unitDirectionX * straightRailLength);
@@ -132,7 +132,7 @@ export function useThreeJS(
         
         // For top easement: go straight UP the staircase direction
         // This means extending the arc in the same direction as the staircase flow
-        const straightRailLength = 2.0; // Length of straight rail section
+        const straightRailLength = 0.4; // Much shorter for minimal outward projection
         
         // Extend straight in the staircase direction (not outward)
         const straightEndX = spiralEndX + (unitDirectionX * straightRailLength);
@@ -189,7 +189,7 @@ export function useThreeJS(
         
         // For bottom easement: go straight DOWN the staircase direction
         // This means extending the arc in the same direction as the staircase flow
-        const straightRailLength = 2.0; // Length of straight rail section
+        const straightRailLength = 0.4; // Much shorter for minimal outward projection
         
         // Calculate the direction vector from main center to spiral start
         const directionX = spiralStartX - 0; // From main center (0,0) to spiral start
@@ -220,7 +220,7 @@ export function useThreeJS(
         
         // For top easement: go straight UP the staircase direction
         // This means extending the arc in the same direction as the staircase flow
-        const straightRailLength = 2.0; // Length of straight rail section
+        const straightRailLength = 0.4; // Much shorter for minimal outward projection
         
         // Calculate the direction vector from main center to spiral end
         const directionX = spiralEndX - 0; // From main center (0,0) to spiral end
