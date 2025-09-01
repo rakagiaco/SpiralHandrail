@@ -170,43 +170,36 @@ export function useThreeJS(
       let centerZ = 0; // Initialize centerZ
       let effectiveRadius = 0; // Initialize effectiveRadius
       
-             if (segmentPosition <= parameters.bottomLength) {
-         // Bottom over-ease: straight rail looking DOWN the staircase at -35.08°
-         // At 0° transition point, rail should be completely straight
-         const easeT = segmentPosition / parameters.bottomLength;
-         
-         // Calculate the spiral start position (where over-ease begins)
-         const spiralStartAngle = (parameters.bottomLength / parameters.totalSegments) * parameters.totalDegrees * Math.PI / 180;
-         const spiralStartX = outerRadius * Math.cos(spiralStartAngle);
-         const spiralStartZ = outerRadius * Math.sin(spiralStartAngle);
-         
-         // For bottom easement: point TOWARD the bottom staircase connection point
-         // Bottom connection is at (0, -7*stepRun, -7*stepRise) = (0, -10.5", -7.375")
-         const bottomConnectionX = 0;
-         const bottomConnectionY = -10.5; // -7 * stepRun
-         const bottomConnectionZ = -7.375; // -7 * stepRise
-         
-         // Calculate direction vector FROM spiral start TO connection point
-         const directionX = bottomConnectionX - spiralStartX;
-         const directionY = bottomConnectionY - 0; // Rise difference
-         const directionZ = bottomConnectionZ - spiralStartZ;
-         const directionLength = Math.sqrt(directionX * directionX + directionY * directionY + directionZ * directionZ);
-         
-         // Normalize the direction vector
-         const unitDirectionX = directionX / directionLength;
-         const unitDirectionY = directionY / directionLength;
-         const unitDirectionZ = directionZ / directionLength;
-         
-         // Extend toward the connection point
-         const straightRailLength = 2.0; // Extend toward staircase
-         const straightEndX = spiralStartX + (unitDirectionX * straightRailLength);
-         const straightEndY = 0 + (unitDirectionY * straightRailLength); // Start at current rise
-         const straightEndZ = spiralStartZ + (unitDirectionZ * straightRailLength);
-         
-         // Linear interpolation from spiral start to straight end
-         x = spiralStartX + (straightEndX - spiralStartX) * easeT;
-         const y = rise + (straightEndY - 0) * easeT; // Interpolate rise
-         z = spiralStartZ + (straightEndZ - spiralStartZ) * easeT;
+                           if (segmentPosition <= parameters.bottomLength) {
+          // Bottom over-ease: straight rail looking DOWN the staircase at -35.08°
+          // At 0° transition point, rail should be completely straight
+          const easeT = segmentPosition / parameters.bottomLength;
+          
+          // Calculate the spiral start position (where over-ease begins)
+          const spiralStartAngle = (parameters.bottomLength / parameters.totalSegments) * parameters.totalDegrees * Math.PI / 180;
+          const spiralStartX = outerRadius * Math.cos(spiralStartAngle);
+          const spiralStartZ = outerRadius * Math.sin(spiralStartAngle);
+          
+          // For bottom easement: flow naturally DOWN at -35.08° angle
+          // This is just a reference angle - not trying to connect to actual stairs
+          const straightRailLength = 2.0; // Extend in staircase direction
+          
+          // Calculate direction vector that follows the natural staircase flow
+          // At 0° (bottom), we want to go DOWN at -35.08° angle
+          const angleRad = -35.08 * Math.PI / 180; // Negative for going DOWN
+          const unitDirectionX = Math.cos(angleRad); // X component of -35.08° angle
+          const unitDirectionY = Math.sin(angleRad); // Y component (rise) of -35.08° angle
+          const unitDirectionZ = 0; // No Z change for straight rail
+          
+          // Extend in the staircase direction
+          const straightEndX = spiralStartX + (unitDirectionX * straightRailLength);
+          const straightEndY = 0 + (unitDirectionY * straightRailLength); // Start at current rise
+          const straightEndZ = spiralStartZ + (unitDirectionZ * straightRailLength);
+          
+          // Linear interpolation from spiral start to straight end
+          x = spiralStartX + (straightEndX - spiralStartX) * easeT;
+          const y = rise + (straightEndY - 0) * easeT; // Interpolate rise
+          z = spiralStartZ + (straightEndZ - spiralStartZ) * easeT;
         
                  // Add debugging line for bottom easement direction
          if (i % 20 === 0) { // Add debug line every 20th point
@@ -220,43 +213,36 @@ export function useThreeJS(
            sceneRef.current.debugElements.push(debugLine);
          }
         
-             } else if (segmentPosition >= parameters.totalSegments - parameters.topLength) {
-         // Top up-ease: straight rail looking UP the staircase at +35.08°
-         // At 180° transition point, rail should be completely straight
-         const easeT = (segmentPosition - (parameters.totalSegments - parameters.topLength)) / parameters.topLength;
-         
-         // Calculate the spiral end position (where up-ease begins)
-         const spiralEndAngle = ((parameters.totalSegments - parameters.topLength) / parameters.totalSegments) * parameters.totalDegrees * Math.PI / 180;
-         const spiralEndX = outerRadius * Math.cos(spiralEndAngle);
-         const spiralEndZ = outerRadius * Math.sin(spiralEndAngle);
-         
-         // For top easement: point TOWARD the top staircase connection point
-         // Top connection is at (0, 6*stepRun, -6*stepRise) = (0, 9", -6.32")
-         const topConnectionX = 0;
-         const topConnectionY = 9; // 6 * stepRun
-         const topConnectionZ = -6.32; // -6 * stepRise
-         
-         // Calculate direction vector FROM spiral end TO connection point
-         const directionX = topConnectionX - spiralEndX;
-         const directionY = topConnectionY - 0; // Rise difference
-         const directionZ = topConnectionZ - spiralEndZ;
-         const directionLength = Math.sqrt(directionX * directionX + directionY * directionY + directionZ * directionZ);
-         
-         // Normalize the direction vector
-         const unitDirectionX = directionX / directionLength;
-         const unitDirectionY = directionY / directionLength;
-         const unitDirectionZ = directionZ / directionLength;
-         
-         // Extend toward the connection point
-         const straightRailLength = 2.0; // Extend toward staircase
-         const straightEndX = spiralEndX + (unitDirectionX * straightRailLength);
-         const straightEndY = 0 + (unitDirectionY * straightRailLength); // Start at current rise
-         const straightEndZ = spiralEndZ + (unitDirectionZ * straightRailLength);
-         
-         // Linear interpolation from spiral end to straight end
-         x = spiralEndX + (straightEndX - spiralEndX) * easeT;
-         const y = rise + (straightEndY - 0) * easeT; // Interpolate rise
-         z = spiralEndZ + (straightEndZ - spiralEndZ) * easeT;
+                           } else if (segmentPosition >= parameters.totalSegments - parameters.topLength) {
+          // Top up-ease: straight rail looking UP the staircase at +35.08°
+          // At 180° transition point, rail should be completely straight
+          const easeT = (segmentPosition - (parameters.totalSegments - parameters.topLength)) / parameters.topLength;
+          
+          // Calculate the spiral end position (where up-ease begins)
+          const spiralEndAngle = ((parameters.totalSegments - parameters.topLength) / parameters.totalSegments) * parameters.totalDegrees * Math.PI / 180;
+          const spiralEndX = outerRadius * Math.cos(spiralEndAngle);
+          const spiralEndZ = outerRadius * Math.sin(spiralEndAngle);
+          
+          // For top easement: flow naturally UP at +35.08° angle
+          // This is just a reference angle - not trying to connect to actual stairs
+          const straightRailLength = 2.0; // Extend in staircase direction
+          
+          // Calculate direction vector that follows the natural staircase flow
+          // At 180° (top), we want to go UP at +35.08° angle
+          const angleRad = 35.08 * Math.PI / 180; // Positive for going UP
+          const unitDirectionX = Math.cos(angleRad); // X component of +35.08° angle
+          const unitDirectionY = Math.sin(angleRad); // Y component (rise) of +35.08° angle
+          const unitDirectionZ = 0; // No Z change for straight rail
+          
+          // Extend in the staircase direction
+          const straightEndX = spiralEndX + (unitDirectionX * straightRailLength);
+          const straightEndY = 0 + (unitDirectionY * straightRailLength); // Start at current rise
+          const straightEndZ = spiralEndZ + (unitDirectionZ * straightRailLength);
+          
+          // Linear interpolation from spiral end to straight end
+          x = spiralEndX + (straightEndX - spiralEndX) * easeT;
+          const y = rise + (straightEndY - 0) * easeT; // Interpolate rise
+          z = spiralEndZ + (straightEndZ - spiralEndZ) * easeT;
         
                  // Add debugging line for top easement direction
          if (i % 20 === 0) { // Add debug line every 20th point
@@ -346,27 +332,18 @@ export function useThreeJS(
         const spiralStartX = insideRadius * Math.cos(spiralStartAngle);
         const spiralStartZ = insideRadius * Math.sin(spiralStartAngle);
         
-        // For bottom easement: point TOWARD the bottom staircase connection point
-        // Bottom connection is at (0, -7*stepRun, -7*stepRise) = (0, -10.5", -7.375")
-        const bottomConnectionX = 0;
-        const bottomConnectionY = -10.5; // -7 * stepRun
-        const bottomConnectionZ = -7.375; // -7 * stepRise
+        // For bottom easement: flow naturally DOWN at -35.08° angle
+        // This is just a reference angle - not trying to connect to actual stairs
+        const straightRailLength = 2.0; // Extend in staircase direction
         
-        // Calculate direction vector FROM spiral start TO connection point
-        const directionX = bottomConnectionX - spiralStartX;
-        const directionY = bottomConnectionY - 0; // Rise difference
-        const directionZ = bottomConnectionZ - spiralStartZ;
-        const directionLength = Math.sqrt(directionX * directionX + directionY * directionY + directionZ * directionZ);
+        // Calculate direction vector that follows the natural staircase flow
+        // At 0° (bottom), we want to go DOWN at -35.08° angle
+        const angleRad = -35.08 * Math.PI / 180; // Negative for going DOWN
+        const unitDirectionX = Math.cos(angleRad); // X component of -35.08° angle
+        const unitDirectionY = Math.sin(angleRad); // Y component (rise) of -35.08° angle
+        const unitDirectionZ = 0; // No Z change for straight rail
         
-        // Normalize the direction vector
-        const unitDirectionX = directionX / directionLength;
-        const unitDirectionY = directionY / directionLength;
-        const unitDirectionZ = directionZ / directionLength;
-        
-        // Extend toward the connection point
-        const straightRailLength = 2.0; // Extend toward staircase
-        
-        // Extend toward the connection point
+        // Extend in the staircase direction
         const straightEndX = spiralStartX + (unitDirectionX * straightRailLength);
         const straightEndY = 0 + (unitDirectionY * straightRailLength); // Start at current rise
         const straightEndZ = spiralStartZ + (unitDirectionZ * straightRailLength);
@@ -385,25 +362,18 @@ export function useThreeJS(
         const spiralEndX = insideRadius * Math.cos(spiralEndAngle);
         const spiralEndZ = insideRadius * Math.sin(spiralEndAngle);
         
-        // For top easement: point TOWARD the top staircase connection point
-        // Top connection is at (0, 6*stepRun, -6*stepRise) = (0, 9", -6.32")
-        const topConnectionX = 0;
-        const topConnectionY = 9; // 6 * stepRun
-        const topConnectionZ = -6.32; // -6 * stepRise
+        // For top easement: flow naturally UP at +35.08° angle
+        // This is just a reference angle - not trying to connect to actual stairs
+        const straightRailLength = 2.0; // Extend in staircase direction
         
-        // Calculate direction vector FROM spiral end TO connection point
-        const directionX = topConnectionX - spiralEndX;
-        const directionY = topConnectionY - 0; // Rise difference
-        const directionZ = topConnectionZ - spiralEndZ;
-        const directionLength = Math.sqrt(directionX * directionX + directionY * directionY + directionZ * directionZ);
+        // Calculate direction vector that follows the natural staircase flow
+        // At 180° (top), we want to go UP at +35.08° angle
+        const angleRad = 35.08 * Math.PI / 180; // Positive for going UP
+        const unitDirectionX = Math.cos(angleRad); // X component of +35.08° angle
+        const unitDirectionY = Math.sin(angleRad); // Y component (rise) of +35.08° angle
+        const unitDirectionZ = 0; // No Z change for straight rail
         
-        // Normalize the direction vector
-        const unitDirectionX = directionX / directionLength;
-        const unitDirectionY = directionY / directionLength;
-        const unitDirectionZ = directionZ / directionLength;
-        
-        // Extend toward the connection point
-        const straightRailLength = 2.0; // Extend toward staircase
+        // Extend in the staircase direction
         const straightEndX = spiralEndX + (unitDirectionX * straightRailLength);
         const straightEndY = 0 + (unitDirectionY * straightRailLength); // Start at current rise
         const straightEndZ = spiralEndZ + (unitDirectionZ * straightRailLength);
