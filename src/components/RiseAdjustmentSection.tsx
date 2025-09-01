@@ -28,27 +28,27 @@ export function RiseAdjustmentSection({
         const difference = isManual && calculatedValue ? Math.abs(currentValue - calculatedValue) : 0;
         const hasWarning = difference > 0.5;
         
-        inputs.push(
-          <div key={arcDist} className="flex flex-col items-center p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors">
-            <label className="text-sm font-medium text-gray-700 mb-2 flex items-center justify-center">
-              <span className="mr-2">{arcDist.toFixed(1)}" arc</span>
-              {isManual && (
-                <span className="text-blue-500 text-sm" title="Manual override">✏️</span>
-              )}
-            </label>
-            <input
-              type="number"
-              value={currentValue?.toFixed(3) || '0.000'}
-              step="0.125"
-              onChange={(e) => onRiseChange(arcDist, parseFloat(e.target.value))}
-              className={`w-24 p-3 text-center text-sm border-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-200 ${
-                isManual 
-                  ? hasWarning 
-                    ? 'border-orange-500 bg-orange-50 focus:border-orange-500 focus:ring-orange-200' 
-                    : 'border-blue-500 bg-blue-50 focus:border-blue-500 focus:ring-blue-200'
-                  : 'border-gray-300 bg-white focus:border-blue-500 focus:ring-blue-200'
-              }`}
-            />
+                 inputs.push(
+           <div key={arcDist} className="flex flex-col items-center p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors">
+             <label className="text-base font-semibold text-gray-700 mb-3 flex items-center justify-center">
+               <span className="mr-2">{arcDist.toFixed(1)}" arc</span>
+               {isManual && (
+                 <span className="text-blue-500 text-lg" title="Manual override">✏️</span>
+               )}
+             </label>
+             <input
+               type="number"
+               value={currentValue?.toFixed(3) || '0.000'}
+               step="0.125"
+               onChange={(e) => onRiseChange(arcDist, parseFloat(e.target.value))}
+               className={`w-32 p-4 text-center text-base border-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-200 ${
+                 isManual 
+                   ? hasWarning 
+                     ? 'border-orange-500 bg-orange-50 focus:border-orange-500 focus:ring-orange-200' 
+                     : 'border-blue-500 bg-blue-50 focus:border-blue-500 focus:ring-blue-200'
+                   : 'border-gray-300 bg-white focus:border-blue-500 focus:ring-blue-200'
+               }`}
+             />
             {isManual && calculatedValue && (
               <div className={`text-xs mt-2 text-center space-y-1 ${hasWarning ? 'text-orange-600' : 'text-blue-600'}`}>
                 <div className="font-medium">Calc: {calculatedValue.toFixed(3)}"</div>
@@ -134,9 +134,9 @@ export function RiseAdjustmentSection({
         </div>
       </div>
       
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4 mb-6 max-h-96 overflow-y-auto p-2">
-        {generateInputs()}
-      </div>
+             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 mb-6 max-h-96 overflow-y-auto p-4">
+         {generateInputs()}
+       </div>
       
       <div className="flex flex-wrap gap-2 items-center">
         <button
@@ -182,12 +182,12 @@ export function RiseAdjustmentSection({
            <span className="mr-2">📋</span>
            Original Reference Data (Your Manual Inputs)
          </h4>
-         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
            {Object.entries(manualRiseData).map(([arcDist, rise]) => (
-             <div key={arcDist} className="text-center p-2 rounded border bg-blue-100 border-blue-300 text-blue-800">
-               <div className="text-xs font-medium">{parseFloat(arcDist).toFixed(1)}" arc</div>
-               <div className="text-sm font-bold">{rise.toFixed(3)}"</div>
-               <div className="text-xs text-blue-600">Reference</div>
+             <div key={arcDist} className="text-center p-3 rounded-lg border-2 bg-blue-100 border-blue-300 text-blue-800">
+               <div className="text-sm font-semibold">{parseFloat(arcDist).toFixed(1)}" arc</div>
+               <div className="text-lg font-bold">{rise.toFixed(3)}"</div>
+               <div className="text-sm text-blue-600">Reference</div>
              </div>
            ))}
          </div>
@@ -204,29 +204,29 @@ export function RiseAdjustmentSection({
           <span className="mr-2">📏</span>
           Inch Reference Chart (0" to {totalArcDistance}")
         </h4>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-          {Array.from({ length: Math.ceil(totalArcDistance) + 1 }, (_, i) => {
-            const inch = i;
-            const calculatedRise = calculatedRiseData[inch] || 0;
-            const manualRise = manualRiseData[inch];
-            const isManual = manualRise !== undefined;
-            const displayRise = isManual ? manualRise : calculatedRise;
-            
-            return (
-              <div key={inch} className={`text-center p-2 rounded border ${
-                isManual 
-                  ? 'bg-blue-100 border-blue-300 text-blue-800' 
-                  : 'bg-green-100 border-green-300 text-green-800'
-              }`}>
-                <div className="text-xs font-medium">{inch}" arc</div>
-                <div className="text-sm font-bold">{displayRise.toFixed(3)}"</div>
-                {isManual && (
-                  <div className="text-xs text-blue-600">Manual</div>
-                )}
-              </div>
-            );
-          })}
-                 </div>
+                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+           {Array.from({ length: Math.ceil(totalArcDistance) + 1 }, (_, i) => {
+             const inch = i;
+             const calculatedRise = calculatedRiseData[inch] || 0;
+             const manualRise = manualRiseData[inch];
+             const isManual = manualRise !== undefined;
+             const displayRise = isManual ? manualRise : calculatedRise;
+             
+             return (
+               <div key={inch} className={`text-center p-3 rounded-lg border-2 ${
+                 isManual 
+                   ? 'bg-blue-100 border-blue-300 text-blue-800' 
+                   : 'bg-green-100 border-green-300 text-green-800'
+               }`}>
+                 <div className="text-sm font-semibold">{inch}" arc</div>
+                 <div className="text-lg font-bold">{displayRise.toFixed(3)}"</div>
+                 {isManual && (
+                   <div className="text-sm text-blue-600">Manual</div>
+                 )}
+               </div>
+             );
+           })}
+                  </div>
        </div>
        
        {/* Mathematical Calculations */}
@@ -235,7 +235,7 @@ export function RiseAdjustmentSection({
            <span className="mr-2">🧮</span>
            Mathematical Calculations & Comparison
          </h4>
-         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
            {Object.entries(calculatedRiseData).filter(([arcDist]) => {
              const arc = parseFloat(arcDist);
              return arc <= totalArcDistance && arc % 1 === 0; // Only show whole inch marks
@@ -247,17 +247,17 @@ export function RiseAdjustmentSection({
              const hasWarning = difference > 0.5;
              
              return (
-               <div key={arcDist} className={`text-center p-2 rounded border ${
+               <div key={arcDist} className={`text-center p-3 rounded-lg border-2 ${
                  isManual 
                    ? hasWarning 
                      ? 'bg-orange-100 border-orange-300 text-orange-800' 
                      : 'bg-blue-100 border-blue-300 text-blue-800'
                    : 'bg-purple-100 border-purple-300 text-purple-800'
                }`}>
-                 <div className="text-xs font-medium">{arc}" arc</div>
-                 <div className="text-sm font-bold">{rise.toFixed(3)}"</div>
+                 <div className="text-sm font-semibold">{arc}" arc</div>
+                 <div className="text-lg font-bold">{rise.toFixed(3)}"</div>
                  {isManual && (
-                   <div className="text-xs">
+                   <div className="text-sm">
                      <div>Manual: {manualRise.toFixed(3)}"</div>
                      <div className={hasWarning ? 'text-orange-600 font-semibold' : 'text-blue-600'}>
                        Diff: {difference.toFixed(3)}"

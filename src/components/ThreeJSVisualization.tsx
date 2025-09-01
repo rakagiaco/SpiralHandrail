@@ -85,11 +85,11 @@ export function ThreeJSVisualization({
       )}
 
       {/* Main 3D visualization container */}
-      <div className="relative">
+      <div className="relative w-full h-96 md:h-[500px] lg:h-[600px]">
         {/* Debug mode toggle button - always visible */}
         <button
           onClick={() => onDebugModeChange(!debugMode)}
-          className={`absolute top-2 right-2 z-10 px-3 py-1 text-sm rounded-lg transition-colors ${
+          className={`absolute top-2 right-2 z-10 px-3 py-2 text-sm md:text-base rounded-lg transition-colors ${
             debugMode 
               ? 'bg-purple-600 text-white' 
               : 'bg-gray-300 text-gray-700 hover:bg-gray-400'

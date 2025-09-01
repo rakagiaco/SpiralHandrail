@@ -10,20 +10,21 @@ export function useThreeJS(
   showOverlay: boolean
 ) {
   const mountRef = useRef<HTMLDivElement>(null);
-  const sceneRef = useRef<{
-    scene: THREE.Scene;
-    camera: THREE.PerspectiveCamera;
-    renderer: THREE.WebGLRenderer;
-    handrailMesh: THREE.Mesh | null;
-    insideLineMesh: THREE.Mesh | null;
-    centerDots: THREE.Mesh[];
-    debugElements: THREE.Object3D[];
-    bottomTargetMarker: THREE.Mesh | null;
-    topTargetMarker: THREE.Mesh | null;
-    isDraggingTarget: boolean;
-    draggedTarget: 'bottom' | 'top' | null;
-    dragPlane: THREE.Plane | null;
-  } | null>(null);
+     const sceneRef = useRef<{
+     scene: THREE.Scene;
+     camera: THREE.PerspectiveCamera;
+     renderer: THREE.WebGLRenderer;
+     handrailMesh: THREE.Mesh | null;
+     insideLineMesh: THREE.Mesh | null;
+     centerDots: THREE.Mesh[];
+     debugElements: THREE.Object3D[];
+     bottomTargetMarker: THREE.Mesh | null;
+     topTargetMarker: THREE.Mesh | null;
+     isDraggingTarget: boolean;
+     draggedTarget: 'bottom' | 'top' | null;
+     dragPlane: THREE.Plane | null;
+     initialPinchDistance?: number; // For mobile pinch-to-zoom
+   } | null>(null);
 
   // Helper function to create text sprites
   const createTextSprite = (text: string, position: THREE.Vector3, color: number = 0xffffff, size: 'small' | 'large' = 'small') => {
@@ -205,9 +206,9 @@ export function useThreeJS(
     const safeBottomOffset = Math.max(-10, Math.min(10, parameters.bottomOffset || 0));
     const safeTopOffset = Math.max(-10, Math.min(10, parameters.topOffset || 0));
     
-    // Calculate radii with protection
-    const outerRadius = Math.max(0.1, 4.625 + safeBottomOffset);
-    let innerRadius = Math.max(0.1, 4.625 - safeTopOffset);
+         // Calculate radii with protection
+     const outerRadius = Math.max(0.1, 4.625 + safeBottomOffset);
+     let innerRadius = Math.max(0.1, 4.5 - safeTopOffset); // Fixed: inner radius should be 4.5", not 4.625"
     
     // CRASH PROTECTION: Ensure inner radius is smaller than outer radius
     if (innerRadius >= outerRadius) {
@@ -283,6 +284,71 @@ export function useThreeJS(
        const spiralEndLabel = createTextSprite(`Spiral End: ${spiralEndAngle.toFixed(1)}°`, new THREE.Vector3(spiralEndX + 1, spiralEndRise + 0.5, spiralEndZ), 0xff00ff);
        scene.add(spiralEndLabel);
        sceneRef.current.debugElements.push(spiralEndLabel);
+       
+       // Add inner and outer radius circles for reference
+       const outerCircleGeometry = new THREE.RingGeometry(outerRadius - 0.05, outerRadius + 0.05, 64);
+       const outerCircleMaterial = new THREE.MeshBasicMaterial({ 
+         color: 0x3b82f6, transparent: true, opacity: 0.3, side: THREE.DoubleSide 
+       });
+       const outerCircle = new THREE.Mesh(outerCircleGeometry, outerCircleMaterial);
+       outerCircle.rotation.x = -Math.PI / 2;
+       outerCircle.position.y = 0;
+       scene.add(outerCircle);
+       sceneRef.current.debugElements.push(outerCircle);
+       
+       const innerCircleGeometry = new THREE.RingGeometry(innerRadius - 0.05, innerRadius + 0.05, 64);
+       const innerCircleMaterial = new THREE.MeshBasicMaterial({ 
+         color: 0x10b981, transparent: true, opacity: 0.3, side: THREE.DoubleSide 
+       });
+       const innerCircle = new THREE.Mesh(innerCircleGeometry, innerCircleMaterial);
+       innerCircle.rotation.x = -Math.PI / 2;
+       innerCircle.position.y = 0;
+       scene.add(innerCircle);
+       sceneRef.current.debugElements.push(innerCircle);
+       
+       // Add vertical rise profile line
+       const riseProfilePoints: THREE.Vector3[] = [];
+       for (let i = 0; i <= 20; i++) {
+         const t = i / 20;
+         const rise = safePitchBlock + (t * safeTotalRise);
+         riseProfilePoints.push(new THREE.Vector3(0, rise, -15 + (t * 30)));
+       }
+       const riseProfileGeometry = new THREE.BufferGeometry().setFromPoints(riseProfilePoints);
+       const riseProfileMaterial = new THREE.LineBasicMaterial({ color: 0xff00ff, linewidth: 2 });
+       const riseProfileLine = new THREE.Line(riseProfileGeometry, riseProfileMaterial);
+       scene.add(riseProfileLine);
+       sceneRef.current.debugElements.push(riseProfileLine);
+       
+       // Add rise profile labels
+       const startRiseLabel = createTextSprite(`Start: ${safePitchBlock.toFixed(1)}"`, new THREE.Vector3(0, safePitchBlock, -15), 0xff00ff);
+       const endRiseLabel = createTextSprite(`End: ${(safePitchBlock + safeTotalRise).toFixed(1)}"`, new THREE.Vector3(0, safePitchBlock + safeTotalRise, 15), 0xff00ff);
+       scene.add(startRiseLabel);
+       scene.add(endRiseLabel);
+       sceneRef.current.debugElements.push(startRiseLabel);
+       sceneRef.current.debugElements.push(endRiseLabel);
+       
+       // Add grid lines for better spatial reference
+       for (let i = -10; i <= 10; i += 2) {
+         // X-axis grid lines
+         const xGridGeometry = new THREE.BufferGeometry().setFromPoints([
+           new THREE.Vector3(i, 0, -10),
+           new THREE.Vector3(i, 0, 10)
+         ]);
+         const xGridMaterial = new THREE.LineBasicMaterial({ color: 0x374151, transparent: true, opacity: 0.3 });
+         const xGridLine = new THREE.Line(xGridGeometry, xGridMaterial);
+         scene.add(xGridLine);
+         sceneRef.current.debugElements.push(xGridLine);
+         
+         // Z-axis grid lines
+         const zGridGeometry = new THREE.BufferGeometry().setFromPoints([
+           new THREE.Vector3(-10, 0, i),
+           new THREE.Vector3(10, 0, i)
+         ]);
+         const zGridMaterial = new THREE.LineBasicMaterial({ color: 0x374151, transparent: true, opacity: 0.3 });
+         const zGridLine = new THREE.Line(zGridGeometry, zGridMaterial);
+         scene.add(zGridLine);
+         sceneRef.current.debugElements.push(zGridLine);
+       }
      }
     
     // Create outside handrail points with proper easement geometry
@@ -403,11 +469,12 @@ export function useThreeJS(
           const spiralEndRise = safePitchBlock + (spiralEndAngle / parameters.totalDegrees) * safeTotalRise;
           const startRise = spiralEndRise;
           
-          // End at 220° with total rise - SCALES WITH TOTAL RISE
-          const endAngle = 220 * Math.PI / 180;
-          const endX = outerRadius * Math.cos(endAngle);
-          const endZ = outerRadius * Math.sin(endAngle);
-          const endRise = safePitchBlock + safeTotalRise;
+                     // End at 220° with total rise - SCALES WITH TOTAL RISE
+           // Both inner and outer lines should end at exactly the same height
+           const endAngle = 220 * Math.PI / 180;
+           const endX = outerRadius * Math.cos(endAngle);
+           const endZ = outerRadius * Math.sin(endAngle);
+           const endRise = safePitchBlock + safeTotalRise; // This ensures both lines end at same height
           
           // CRASH PROTECTION: Validate all calculated values
           if (isNaN(easeT) || !isFinite(easeT) || isNaN(spiralEndRise) || !isFinite(spiralEndRise)) {
@@ -555,11 +622,12 @@ export function useThreeJS(
           const spiralEndRise = safePitchBlock + (spiralEndAngle / parameters.totalDegrees) * safeTotalRise;
           const startRise = spiralEndRise;
           
-          // End at 220° with total rise - SCALES WITH TOTAL RISE
-          const endAngle = 220 * Math.PI / 180;
-          const endX = innerRadius * Math.cos(endAngle);
-          const endZ = innerRadius * Math.sin(endAngle);
-          const endRise = safePitchBlock + safeTotalRise;
+                     // End at 220° with total rise - SCALES WITH TOTAL RISE
+           // Both inner and outer lines should end at exactly the same height
+           const endAngle = 220 * Math.PI / 180;
+           const endX = innerRadius * Math.cos(endAngle);
+           const endZ = innerRadius * Math.sin(endAngle);
+           const endRise = safePitchBlock + safeTotalRise; // This ensures both lines end at same height
           
           // CRASH PROTECTION: Validate all calculated values for inside line
           if (isNaN(easeT) || !isFinite(easeT) || isNaN(spiralEndRise) || !isFinite(spiralEndRise)) {
@@ -744,25 +812,51 @@ export function useThreeJS(
       }
     };
     
-    const handleTouchStart = (e: TouchEvent) => {
-      if (e.touches.length === 1) {
-        isDragging = true;
-        previousPosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-      }
-      e.preventDefault();
-    };
-    
-    const handleTouchMove = (e: TouchEvent) => {
-      if (isDragging && e.touches.length === 1) {
-        handleRotation(e.touches[0].clientX, e.touches[0].clientY);
-      }
-      e.preventDefault();
-    };
-    
-    const handleTouchEnd = (e: TouchEvent) => {
-      isDragging = false;
-      e.preventDefault();
-    };
+         const handleTouchStart = (e: TouchEvent) => {
+       if (e.touches.length === 1) {
+         isDragging = true;
+         previousPosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+       } else if (e.touches.length === 2) {
+         // Handle pinch-to-zoom for mobile
+         const touch1 = e.touches[0];
+         const touch2 = e.touches[1];
+         const distance = Math.sqrt(
+           Math.pow(touch2.clientX - touch1.clientX, 2) + 
+           Math.pow(touch2.clientY - touch1.clientY, 2)
+         );
+         // Store initial distance for zoom calculation
+         if (sceneRef.current) {
+           sceneRef.current.initialPinchDistance = distance;
+         }
+       }
+       e.preventDefault();
+     };
+     
+     const handleTouchMove = (e: TouchEvent) => {
+       if (isDragging && e.touches.length === 1) {
+         handleRotation(e.touches[0].clientX, e.touches[0].clientY);
+       } else if (e.touches.length === 2 && sceneRef.current?.initialPinchDistance) {
+         // Handle pinch-to-zoom
+         const touch1 = e.touches[0];
+         const touch2 = e.touches[1];
+         const currentDistance = Math.sqrt(
+           Math.pow(touch2.clientX - touch1.clientX, 2) + 
+           Math.pow(touch2.clientY - touch1.clientY, 2)
+         );
+         const scale = currentDistance / sceneRef.current.initialPinchDistance;
+         camera.position.multiplyScalar(scale > 1 ? 1.05 : 0.95);
+         sceneRef.current.initialPinchDistance = currentDistance;
+       }
+       e.preventDefault();
+     };
+     
+     const handleTouchEnd = (e: TouchEvent) => {
+       isDragging = false;
+       if (sceneRef.current) {
+         sceneRef.current.initialPinchDistance = undefined;
+       }
+       e.preventDefault();
+     };
     
     const handleWheel = (e: WheelEvent) => {
       const scale = e.deltaY > 0 ? 1.1 : 0.9;
@@ -778,20 +872,22 @@ export function useThreeJS(
     renderer.domElement.addEventListener('touchend', handleTouchEnd);
     renderer.domElement.addEventListener('wheel', handleWheel, { passive: false });
 
-    // Add reference elements (only when debug mode is on)
-    if (debugMode) {
-      const axesHelper = new THREE.AxesHelper(10);
-      scene.add(axesHelper);
-      
-      const planeGeometry = new THREE.PlaneGeometry(25, 25);
-      const planeMaterial = new THREE.MeshLambertMaterial({ 
-        color: 0x94a3b8, transparent: true, opacity: 0.15, side: THREE.DoubleSide 
-      });
-      const plane = new THREE.Mesh(planeGeometry, planeMaterial);
-      plane.rotation.x = -Math.PI / 2;
-      plane.position.y = -1;
-      scene.add(plane);
-    }
+         // Add reference elements (only when debug mode is on)
+     if (debugMode) {
+       // Add coordinate axes
+       const axesHelper = new THREE.AxesHelper(10);
+       scene.add(axesHelper);
+       
+       // Add reference plane
+       const planeGeometry = new THREE.PlaneGeometry(25, 25);
+       const planeMaterial = new THREE.MeshLambertMaterial({ 
+         color: 0x94a3b8, transparent: true, opacity: 0.15, side: THREE.DoubleSide 
+       });
+       const plane = new THREE.Mesh(planeGeometry, planeMaterial);
+       plane.rotation.x = -Math.PI / 2;
+       plane.position.y = -1;
+       scene.add(plane);
+     }
 
     sceneRef.current = {
       scene,
