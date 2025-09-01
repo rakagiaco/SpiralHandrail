@@ -264,7 +264,8 @@ export function useThreeJS(
          const easementEndX = startX; // No horizontal movement - straight down
          const easementEndZ = startZ; // No forward movement - straight down
          // Ensure the easement is always visible by making it angle down from pitch block height
-         const easementEndRise = startRise - easementLength * Math.sin(Math.abs(angleRad));
+         // Use Math.max to ensure it's at least 0.5" above floor for visibility
+         const easementEndRise = Math.max(0.5, startRise - easementLength * Math.sin(Math.abs(angleRad)));
                
                // Direct linear interpolation - no complex blending, no 90° angle
                x = startX + (easementEndX - startX) * easeT;
@@ -408,12 +409,13 @@ export function useThreeJS(
               const innerBottomEasementAngle = parameters.customEasementAngle || -35.08; // Allow custom angle, default to -35.08°
               const angleRad = innerBottomEasementAngle * Math.PI / 180; // Convert to radians
               
-                            // Project the easement direction directly DOWN at custom angle from the start point
-               // Connect to the upper offset dot (pitch block height) - no lower dot at 0
-               const easementEndX = startX; // No horizontal movement - straight down
-               const easementEndZ = startZ; // No forward movement - straight down
-               // Ensure the easement is always visible by making it angle down from pitch block height
-               const easementEndRise = startRise - easementLength * Math.sin(Math.abs(angleRad));
+                                                         // Project the easement direction directly DOWN at custom angle from the start point
+                // Connect to the upper offset dot (pitch block height) - no lower dot at 0
+                const easementEndX = startX; // No horizontal movement - straight down
+                const easementEndZ = startZ; // No forward movement - straight down
+                // Ensure the easement is always visible by making it angle down from pitch block height
+                // Use Math.max to ensure it's at least 0.5" above floor for visibility
+                const easementEndRise = Math.max(0.5, startRise - easementLength * Math.sin(Math.abs(angleRad)));
              
              // Direct linear interpolation - no complex blending, no 90° angle
              x = startX + (easementEndX - startX) * easeT;
@@ -475,11 +477,13 @@ export function useThreeJS(
     scene.add(newInsideLineMesh);
     sceneRef.current.insideLineMesh = newInsideLineMesh;
     
-                   // Add debugging information overlay (only when both debug mode and overlay are on)
-      if (debugMode && showOverlay) {
-        const debugInfo = createDebugInfoOverlay(parameters, manualRiseData, calculatedRiseData);
-        scene.add(debugInfo);
-        sceneRef.current.debugElements.push(debugInfo);
+                        // Add debugging information overlay (only when both debug mode and overlay are on)
+       if (debugMode && showOverlay) {
+         const debugInfo = createDebugInfoOverlay(parameters, manualRiseData, calculatedRiseData);
+         // Position the overlay in the top-right corner so it doesn't cover the main debug visuals
+         debugInfo.position.set(20, 15, -20);
+         scene.add(debugInfo);
+         sceneRef.current.debugElements.push(debugInfo);
        
        // Add easement angle debugging
        const addEasementDebugInfo = () => {
@@ -548,28 +552,29 @@ export function useThreeJS(
     
      }, [parameters, manualRiseData, calculatedRiseData, debugMode, showOverlay]);
 
-    // Function to create debugging information overlay
-  const createDebugInfoOverlay = (params: HandrailParameters, manualData: Record<number, number>, calculatedData: Record<number, number>) => {
-    const group = new THREE.Group();
-    
-    // Add key parameter information
-    const paramsText = [
-      `Total Arc: ${params.totalArcDistance}"`,
-      `Total Rise: ${params.totalHelicalRise}"`,
-      `Pitch Block: ${params.pitchBlock}"`,
-      `Bottom Offset: ${params.bottomOffset}"`,
-      `Top Offset: ${params.topOffset}"`,
-      `Manual Points: ${Object.keys(manualData).length}`,
-      `Calculated Points: ${Object.keys(calculatedData).length}`
-    ];
-    
-    paramsText.forEach((text, index) => {
-      const sprite = createTextSprite(text, new THREE.Vector3(-25, 15 - index * 2, -25), 0x00ff00, 'large');
-      group.add(sprite);
-    });
-    
-    return group;
-  };
+       // Function to create debugging information overlay
+   const createDebugInfoOverlay = (params: HandrailParameters, manualData: Record<number, number>, calculatedData: Record<number, number>) => {
+     const group = new THREE.Group();
+     
+     // Add key parameter information
+     const paramsText = [
+       `Total Arc: ${params.totalArcDistance}"`,
+       `Total Rise: ${params.totalHelicalRise}"`,
+       `Pitch Block: ${params.pitchBlock}"`,
+       `Bottom Offset: ${params.bottomOffset}"`,
+       `Top Offset: ${params.topOffset}"`,
+       `Manual Points: ${Object.keys(manualData).length}`,
+       `Calculated Points: ${Object.keys(calculatedData).length}`
+     ];
+     
+     paramsText.forEach((text, index) => {
+       // Use smaller text and position relative to the group (which is positioned in top-right)
+       const sprite = createTextSprite(text, new THREE.Vector3(0, 0 - index * 1.5, 0), 0x00ff00, 'small');
+       group.add(sprite);
+     });
+     
+     return group;
+   };
 
   // ============================================================================
   // STAIRCASE FRAMEWORK - Reference points for easement connections
