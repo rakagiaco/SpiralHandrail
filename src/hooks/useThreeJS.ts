@@ -17,7 +17,30 @@ export function useThreeJS(
     insideLineMesh: THREE.Mesh | null;
     centerDots: THREE.Mesh[];
     debugElements: THREE.Object3D[];
+    // Interactive controls for easement positioning
+    bottomTargetMarker: THREE.Mesh | null;
+    topTargetMarker: THREE.Mesh | null;
+    isDraggingTarget: boolean;
+    draggedTarget: 'bottom' | 'top' | null;
+    dragPlane: THREE.Plane | null;
   } | null>(null);
+
+  // Helper function to get manual target coordinates from markers or defaults
+  const getManualTargetCoordinates = (type: 'bottom' | 'top') => {
+    if (type === 'bottom') {
+      if (sceneRef.current?.bottomTargetMarker) {
+        const pos = sceneRef.current.bottomTargetMarker.position;
+        return { x: pos.x, y: pos.y, z: pos.z };
+      }
+      return { x: 0, y: -2, z: -6 };
+    } else {
+      if (sceneRef.current?.topTargetMarker) {
+        const pos = sceneRef.current.topTargetMarker.position;
+        return { x: pos.x, y: pos.y, z: pos.z };
+      }
+      return { x: 0, y: 2, z: -6 };
+    }
+  };
 
   const updateVisualization = useCallback(() => {
     if (!sceneRef.current) return;
@@ -140,10 +163,10 @@ export function useThreeJS(
     const riseProfilePoints: THREE.Vector3[] = [];
     const riseProfileGeometry = new THREE.BufferGeometry();
     
-         // Create outside handrail points with proper easement geometry
-     // KEY CONCEPT: Easements rotate around their respective offset centers by ~90° counterclockwise
-     // This creates the smooth transition from helical spiral to straight rail sections
-     // The rotation maintains the 4.625" radius while changing the angular direction
+                   // Create outside handrail points with proper easement geometry
+      // KEY CONCEPT: MANUAL POSITIONING SYSTEM for easements
+      // You can manually adjust the target points to get the right easement direction
+      // Once positioned correctly, interpolation will smoothly connect to your reference points
      const outerPoints: THREE.Vector3[] = [];
      const steps = 200; // Increased steps for smoother curves
     
@@ -168,14 +191,11 @@ export function useThreeJS(
       // Add to rise profile visualization
       riseProfilePoints.push(new THREE.Vector3(arcDistance, rise, 0));
       
-      let x: number, z: number;
-      let centerX = 0; // Initialize centerX
-      let centerZ = 0; // Initialize centerZ
-      let effectiveRadius = 0; // Initialize effectiveRadius
-      
-                                                       if (segmentPosition <= parameters.bottomLength) {
-          // Bottom over-ease: rotate around bottom offset center by ~90° counterclockwise
-          // At 0° transition point, rail should rotate to follow staircase direction
+       let x: number, z: number;
+       
+       if (segmentPosition <= parameters.bottomLength) {
+          // Bottom over-ease: MANUAL POSITIONING SYSTEM
+          // You can manually adjust these target points to get the right direction
           const easeT = segmentPosition / parameters.bottomLength;
           
           // Calculate the spiral start position (where over-ease begins)
@@ -183,38 +203,29 @@ export function useThreeJS(
           const spiralStartX = outerRadius * Math.cos(spiralStartAngle);
           const spiralStartZ = outerRadius * Math.sin(spiralStartAngle);
           
-          // Bottom offset center position (1.5" from main center)
-          const bottomCenterX = 0;
-          const bottomCenterZ = -parameters.bottomOffset; // -1.5"
+                  // Get manual target coordinates from interactive markers or defaults
+         const { x: manualBottomTargetX, y: manualBottomTargetY, z: manualBottomTargetZ } = getManualTargetCoordinates('bottom');
           
-          // Calculate the angle from bottom center to spiral start
-          const startAngleFromBottomCenter = Math.atan2(spiralStartZ - bottomCenterZ, spiralStartX - bottomCenterX);
-          
-          // Rotate counterclockwise by ~90° (π/2 radians) as we ease out
-          const rotatedAngle = startAngleFromBottomCenter + (Math.PI / 2) * easeT;
-          
-          // Calculate the radius from bottom center to maintain 4.625" radius
-          const radiusFromBottomCenter = 4.625; // Same as main helix radius
-          
-          // Calculate position based on rotated angle around bottom center
-          x = bottomCenterX + radiusFromBottomCenter * Math.cos(rotatedAngle);
-          z = bottomCenterZ + radiusFromBottomCenter * Math.sin(rotatedAngle);
+          // Linear interpolation from spiral start to manual target
+          x = spiralStartX + (manualBottomTargetX - spiralStartX) * easeT;
+          const y = rise + (manualBottomTargetY - 0) * easeT; // Interpolate rise
+          z = spiralStartZ + (manualBottomTargetZ - spiralStartZ) * easeT;
         
-                                   // Add debugging line for bottom easement direction
-          if (i % 20 === 0) { // Add debug line every 20th point
-            const debugLineGeometry = new THREE.BufferGeometry().setFromPoints([
-              new THREE.Vector3(spiralStartX, rise, spiralStartZ),
-              new THREE.Vector3(x, rise, z)
-            ]);
-            const debugLineMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 2 });
-            const debugLine = new THREE.Line(debugLineGeometry, debugLineMaterial);
-            scene.add(debugLine);
-            sceneRef.current.debugElements.push(debugLine);
-          }
+         // Add interactive target point marker for bottom easement
+         if (i === 0) { // Only add one marker at the start
+              const targetMarkerGeometry = new THREE.SphereGeometry(0.3, 16, 16);
+              const targetMarkerMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+              const targetMarker = new THREE.Mesh(targetMarkerGeometry, targetMarkerMaterial);
+              targetMarker.position.set(manualBottomTargetX, manualBottomTargetY, manualBottomTargetZ);
+              targetMarker.userData = { type: 'bottomTarget' };
+              scene.add(targetMarker);
+              sceneRef.current.debugElements.push(targetMarker);
+              sceneRef.current.bottomTargetMarker = targetMarker;
+            }
         
-                                                       } else if (segmentPosition >= parameters.totalSegments - parameters.topLength) {
-          // Top up-ease: rotate around top offset center by ~90° counterclockwise
-          // At 180° transition point, rail should rotate to follow staircase direction
+       } else if (segmentPosition >= parameters.totalSegments - parameters.topLength) {
+          // Top up-ease: MANUAL POSITIONING SYSTEM
+          // You can manually adjust these target points to get the right direction
           const easeT = (segmentPosition - (parameters.totalSegments - parameters.topLength)) / parameters.topLength;
           
           // Calculate the spiral end position (where up-ease begins)
@@ -222,44 +233,31 @@ export function useThreeJS(
           const spiralEndX = outerRadius * Math.cos(spiralEndAngle);
           const spiralEndZ = outerRadius * Math.sin(spiralEndAngle);
           
-          // Top offset center position (1.875" from main center)
-          const topCenterX = 0;
-          const topCenterZ = -parameters.topOffset; // -1.875"
+                              // Get manual target coordinates from interactive markers or defaults
+         const { x: manualTopTargetX, y: manualTopTargetY, z: manualTopTargetZ } = getManualTargetCoordinates('top');
           
-          // Calculate the angle from top center to spiral end
-          const endAngleFromTopCenter = Math.atan2(spiralEndZ - topCenterZ, spiralEndX - topCenterX);
-          
-          // Rotate counterclockwise by ~90° (π/2 radians) as we ease out
-          const rotatedAngle = endAngleFromTopCenter + (Math.PI / 2) * easeT;
-          
-          // Calculate the radius from top center to maintain 4.625" radius
-          const radiusFromTopCenter = 4.625; // Same as main helix radius
-          
-          // Calculate position based on rotated angle around top center
-          x = topCenterX + radiusFromTopCenter * Math.cos(rotatedAngle);
-          z = topCenterZ + radiusFromTopCenter * Math.sin(rotatedAngle);
+          // Linear interpolation from spiral end to manual target
+          x = spiralEndX + (manualTopTargetX - spiralEndX) * easeT;
+          const y = rise + (manualTopTargetY - 0) * easeT; // Interpolate rise
+          z = spiralEndZ + (manualTopTargetZ - spiralEndZ) * easeT;
         
-                                   // Add debugging line for top easement direction
-          if (i % 20 === 0) { // Add debug line every 20th point
-            const debugLineGeometry = new THREE.BufferGeometry().setFromPoints([
-              new THREE.Vector3(spiralEndX, rise, spiralEndZ),
-              new THREE.Vector3(x, rise, z)
-            ]);
-            const debugLineMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00, linewidth: 2 });
-            const debugLine = new THREE.Line(debugLineGeometry, debugLineMaterial);
-            scene.add(debugLine);
-            sceneRef.current.debugElements.push(debugLine);
-          }
+         // Add interactive target point marker for top easement
+         if (i === steps) { // Only add one marker at the end
+              const targetMarkerGeometry = new THREE.SphereGeometry(0.3, 16, 16);
+              const targetMarkerMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+              const targetMarker = new THREE.Mesh(targetMarkerGeometry, targetMarkerMaterial);
+              targetMarker.position.set(manualTopTargetX, manualTopTargetY, manualTopTargetZ);
+              targetMarker.userData = { type: 'topTarget' };
+              scene.add(targetMarker);
+              sceneRef.current.debugElements.push(targetMarker);
+              sceneRef.current.topTargetMarker = targetMarker;
+            }
         
       } else {
         // Main spiral: use main center
-        centerX = 0;
-        centerZ = 0;
-        effectiveRadius = outerRadius;
-        
         // Calculate position from main center
-        x = centerX + effectiveRadius * Math.cos(angle);
-        z = centerZ + effectiveRadius * Math.sin(angle);
+        x = outerRadius * Math.cos(angle);
+        z = outerRadius * Math.sin(angle);
         
         // Add debugging markers for main spiral every 45 degrees
         if (Math.abs(angle * 180 / Math.PI % 45) < 0.1) {
@@ -297,27 +295,24 @@ export function useThreeJS(
     scene.add(riseAxesHelper);
     sceneRef.current.debugElements.push(riseAxesHelper);
     
-         // Create inside reference line: covers full 220° span but only 10.5" arc distance
+     // Create inside reference line: covers full 220° span but only 10.5" arc distance
      // Includes easements to flow smoothly into straight rails
-     // KEY CONCEPT: Inner line easements use the same rotation logic as outer line
-     // Both rotate around their respective offset centers by ~90° counterclockwise
+     // KEY CONCEPT: Inner line easements use the same manual positioning system as outer line
+     // Both use the same target points for consistency and smooth transitions
      const insidePoints: THREE.Vector3[] = [];
      const insideRadius = 4.5; // Inner radius
-    
-    for (let i = 0; i <= steps; i++) {
-      const t = i / steps;
-      const arcDistance = t * parameters.totalArcDistance;
-      const segmentPosition = (arcDistance / parameters.totalArcDistance) * parameters.totalSegments;
-      const angle = (t * parameters.totalDegrees * Math.PI) / 180; // Full 220° span
-      
-      // Calculate rise based on the proportional arc distance (10.5" over 17.5")
-      const proportionalArcDistance = (t * 10.5); // Only 10.5" arc distance
-      const rise = 1.0 + (proportionalArcDistance / 10.5) * 7.375; // Straight line from 1.0" to 8.375"
-      
-      let x: number, z: number;
-      let centerX = 0;
-      let centerZ = 0;
-      let effectiveRadius = insideRadius;
+     
+     for (let i = 0; i <= steps; i++) {
+       const t = i / steps;
+       const arcDistance = t * parameters.totalArcDistance;
+       const segmentPosition = (arcDistance / parameters.totalArcDistance) * parameters.totalSegments;
+       const angle = (t * parameters.totalDegrees * Math.PI) / 180; // Full 220° span
+       
+       // Calculate rise based on the proportional arc distance (10.5" over 17.5")
+       const proportionalArcDistance = (t * 10.5); // Only 10.5" arc distance
+       const rise = 1.0 + (proportionalArcDistance / 10.5) * 7.375; // Straight line from 1.0" to 8.375"
+       
+       let x: number, z: number;
       
       if (segmentPosition <= parameters.bottomLength) {
         // Bottom over-ease: straight rail looking DOWN the staircase at -35.08°
@@ -329,25 +324,15 @@ export function useThreeJS(
         const spiralStartX = insideRadius * Math.cos(spiralStartAngle);
         const spiralStartZ = insideRadius * Math.sin(spiralStartAngle);
         
-        // For bottom easement: rotate around bottom offset center by ~90° counterclockwise
-        // At 0° transition point, rail should rotate to follow staircase direction
+        // For bottom easement: MANUAL POSITIONING SYSTEM (same as outer line)
+        // Use the same manual target points for consistency
         
-        // Bottom offset center position (1.5" from main center)
-        const bottomCenterX = 0;
-        const bottomCenterZ = -parameters.bottomOffset; // -1.5"
+         // Get manual target coordinates from interactive markers or defaults
+         const { x: manualBottomTargetX, y: manualBottomTargetY, z: manualBottomTargetZ } = getManualTargetCoordinates('bottom');
         
-        // Calculate the angle from bottom center to spiral start
-        const startAngleFromBottomCenter = Math.atan2(spiralStartZ - bottomCenterZ, spiralStartX - bottomCenterX);
-        
-        // Rotate counterclockwise by ~90° (π/2 radians) as we ease out
-        const rotatedAngle = startAngleFromBottomCenter + (Math.PI / 2) * easeT;
-        
-        // Calculate the radius from bottom center to maintain 4.625" radius
-        const radiusFromBottomCenter = 4.625; // Same as main helix radius
-        
-        // Calculate position based on rotated angle around bottom center
-        x = bottomCenterX + radiusFromBottomCenter * Math.cos(rotatedAngle);
-        z = bottomCenterZ + radiusFromBottomCenter * Math.sin(rotatedAngle);
+        // Linear interpolation from spiral start to manual target
+        x = spiralStartX + (manualBottomTargetX - spiralStartX) * easeT;
+        z = spiralStartZ + (manualBottomTargetZ - spiralStartZ) * easeT;
         
       } else if (segmentPosition >= parameters.totalSegments - parameters.topLength) {
         // Top up-ease: straight rail looking UP the staircase at +35.08°
@@ -359,34 +344,21 @@ export function useThreeJS(
         const spiralEndX = insideRadius * Math.cos(spiralEndAngle);
         const spiralEndZ = insideRadius * Math.sin(spiralEndAngle);
         
-        // For top easement: rotate around top offset center by ~90° counterclockwise
-        // At 180° transition point, rail should rotate to follow staircase direction
+        // For top easement: MANUAL POSITIONING SYSTEM (same as outer line)
+        // Use the same manual target points for consistency
         
-        // Top offset center position (1.875" from main center)
-        const topCenterX = 0;
-        const topCenterZ = -parameters.topOffset; // -1.875"
+                 // Get manual target coordinates from interactive markers or defaults
+         const { x: manualTopTargetX, y: manualTopTargetY, z: manualTopTargetZ } = getManualTargetCoordinates('top');
         
-        // Calculate the angle from top center to spiral end
-        const endAngleFromTopCenter = Math.atan2(spiralEndZ - topCenterZ, spiralEndX - topCenterX);
-        
-        // Rotate counterclockwise by ~90° (π/2 radians) as we ease out
-        const rotatedAngle = endAngleFromTopCenter + (Math.PI / 2) * easeT;
-        
-        // Calculate the radius from top center to maintain 4.625" radius
-        const radiusFromTopCenter = 4.625; // Same as main helix radius
-        
-        // Calculate position based on rotated angle around top center
-        x = topCenterX + radiusFromTopCenter * Math.cos(rotatedAngle);
-        z = topCenterZ + radiusFromTopCenter * Math.sin(rotatedAngle);
+        // Linear interpolation from spiral end to manual target
+        x = spiralEndX + (manualTopTargetX - spiralEndX) * easeT;
+        z = spiralEndZ + (manualTopTargetZ - spiralEndZ) * easeT;
         
       } else {
         // Main spiral: use main center
-        centerX = 0;
-        centerZ = 0;
-        
         // Calculate position from main center
-        x = centerX + effectiveRadius * Math.cos(angle);
-        z = centerZ + effectiveRadius * Math.sin(angle);
+        x = insideRadius * Math.cos(angle);
+        z = insideRadius * Math.sin(angle);
       }
       const y = rise;
       
@@ -415,16 +387,19 @@ export function useThreeJS(
     scene.add(debugInfo);
     sceneRef.current.debugElements.push(debugInfo);
     
-    // Add easement angle debugging
-    const addEasementDebugInfo = () => {
-      // Bottom easement debug
-      const bottomEasementAngle = (parameters.bottomLength / parameters.totalSegments) * parameters.totalDegrees;
-      const bottomDebugText = `Bottom Easement: 0° to ${bottomEasementAngle.toFixed(1)}° (Over-Ease)`;
-      
-      // Top easement debug  
-      const topEasementStart = ((parameters.totalSegments - parameters.topLength) / parameters.totalSegments) * parameters.totalDegrees;
-      const topEasementEnd = parameters.totalDegrees;
-      const topDebugText = `Top Easement: ${topEasementStart.toFixed(1)}° to ${topEasementEnd.toFixed(1)}° (Up-Ease)`;
+         // Add easement angle debugging
+     const addEasementDebugInfo = () => {
+       // Bottom easement debug
+       const bottomEasementAngle = (parameters.bottomLength / parameters.totalSegments) * parameters.totalDegrees;
+       const bottomDebugText = `Bottom Easement: 0° to ${bottomEasementAngle.toFixed(1)}° (Over-Ease)`;
+       
+       // Top easement debug  
+       const topEasementStart = ((parameters.totalSegments - parameters.topLength) / parameters.totalSegments) * parameters.totalDegrees;
+       const topEasementEnd = parameters.totalDegrees;
+       const topDebugText = `Top Easement: ${topEasementStart.toFixed(1)}° to ${topEasementEnd.toFixed(1)}° (Up-Ease)`;
+       
+       // Add interactive instructions
+       const instructionsText = `DRAG RED/GREEN SPHERES to position easements!`;
       
       // Create text sprites for easement debugging
       const createEasementTextSprite = (text: string, position: THREE.Vector3) => {
@@ -450,15 +425,18 @@ export function useThreeJS(
         return sprite;
       };
       
-      const bottomSprite = createEasementTextSprite(bottomDebugText, new THREE.Vector3(0, 12, 0));
-      const topSprite = createEasementTextSprite(topDebugText, new THREE.Vector3(0, 14, 0));
-      
-      scene.add(bottomSprite);
-      scene.add(topSprite);
-      if (sceneRef.current) {
-        sceneRef.current.debugElements.push(bottomSprite);
-        sceneRef.current.debugElements.push(topSprite);
-      }
+       const bottomSprite = createEasementTextSprite(bottomDebugText, new THREE.Vector3(0, 12, 0));
+       const topSprite = createEasementTextSprite(topDebugText, new THREE.Vector3(0, 14, 0));
+       const instructionsSprite = createEasementTextSprite(instructionsText, new THREE.Vector3(0, 16, 0));
+       
+       scene.add(bottomSprite);
+       scene.add(topSprite);
+       scene.add(instructionsSprite);
+       if (sceneRef.current) {
+         sceneRef.current.debugElements.push(bottomSprite);
+         sceneRef.current.debugElements.push(topSprite);
+         sceneRef.current.debugElements.push(instructionsSprite);
+       }
     };
     
     addEasementDebugInfo();
@@ -472,30 +450,6 @@ export function useThreeJS(
   const createDebugInfoOverlay = (params: HandrailParameters, manualData: Record<number, number>, calculatedData: Record<number, number>) => {
     const group = new THREE.Group();
     
-    // Create text sprites for debugging information
-    const createTextSprite = (text: string, position: THREE.Vector3, color: number = 0xffffff) => {
-      const canvas = document.createElement('canvas');
-      const context = canvas.getContext('2d');
-      if (!context) return new THREE.Group();
-      
-      canvas.width = 512;
-      canvas.height = 128;
-      context.fillStyle = '#000000';
-      context.fillRect(0, 0, canvas.width, canvas.height);
-      context.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
-      context.font = '24px Arial';
-      context.textAlign = 'center';
-      context.fillText(text, canvas.width / 2, canvas.height / 2);
-      
-      const texture = new THREE.CanvasTexture(canvas);
-      const material = new THREE.SpriteMaterial({ map: texture });
-      const sprite = new THREE.Sprite(material);
-      sprite.position.copy(position);
-      sprite.scale.set(5, 1.25, 1);
-      
-      return sprite;
-    };
-    
     // Add key parameter information
     const paramsText = [
       `Total Arc: ${params.totalArcDistance}"`,
@@ -508,7 +462,7 @@ export function useThreeJS(
     ];
     
     paramsText.forEach((text, index) => {
-      const sprite = createTextSprite(text, new THREE.Vector3(-25, 15 - index * 2, -25), 0x00ff00);
+      const sprite = createTextSprite(text, new THREE.Vector3(-25, 15 - index * 2, -25), 0x00ff00, 'large');
       group.add(sprite);
     });
     
@@ -516,25 +470,36 @@ export function useThreeJS(
   };
 
   // Helper function to create text sprites for the staircase framework
-  const createTextSprite = (text: string, position: THREE.Vector3, color: number = 0xffffff) => {
+  const createTextSprite = (text: string, position: THREE.Vector3, color: number = 0xffffff, size: 'small' | 'large' = 'small') => {
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
     if (!context) return new THREE.Group();
     
-    canvas.width = 256;
-    canvas.height = 64;
+    if (size === 'large') {
+      canvas.width = 512;
+      canvas.height = 128;
+      context.font = '24px Arial';
+    } else {
+      canvas.width = 256;
+      canvas.height = 64;
+      context.font = '16px Arial';
+    }
+    
     context.fillStyle = '#000000';
     context.fillRect(0, 0, canvas.width, canvas.height);
     context.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
-    context.font = '16px Arial';
     context.textAlign = 'center';
     context.fillText(text, canvas.width / 2, canvas.height / 2);
     
     const texture = new THREE.CanvasTexture(canvas);
-    const material = new THREE.SpriteMaterial({ map: texture, transparent: true, opacity: 0.8 });
+    const material = new THREE.SpriteMaterial({ 
+      map: texture, 
+      transparent: true, 
+      opacity: size === 'large' ? 1.0 : 0.8 
+    });
     const sprite = new THREE.Sprite(material);
     sprite.position.copy(position);
-    sprite.scale.set(2, 0.5, 1);
+    sprite.scale.set(size === 'large' ? 5 : 2, size === 'large' ? 1.25 : 0.5, 1);
     
     return sprite;
   };
@@ -736,19 +701,95 @@ export function useThreeJS(
       previousPosition = { x: clientX, y: clientY };
     }
     
-    const handleMouseDown = (e: MouseEvent) => {
-      isDragging = true;
-      previousPosition = { x: e.clientX, y: e.clientY };
-      e.preventDefault();
-    };
+         const handleMouseDown = (e: MouseEvent) => {
+       // Check if clicking on a target marker
+       const mouse = new THREE.Vector2();
+       mouse.x = (e.clientX / container.clientWidth) * 2 - 1;
+       mouse.y = -(e.clientY / container.clientHeight) * 2 + 1;
+       
+       const raycaster = new THREE.Raycaster();
+       raycaster.setFromCamera(mouse, camera);
+       
+       if (sceneRef.current) {
+         const targetMarkers = [sceneRef.current.bottomTargetMarker, sceneRef.current.topTargetMarker].filter((marker): marker is THREE.Mesh => marker !== null);
+         const intersects = raycaster.intersectObjects(targetMarkers);
+         
+         if (intersects.length > 0) {
+           const clickedObject = intersects[0].object;
+           if (clickedObject.userData.type === 'bottomTarget') {
+             sceneRef.current.isDraggingTarget = true;
+             sceneRef.current.draggedTarget = 'bottom';
+             // Create drag plane perpendicular to camera view
+             const cameraDirection = new THREE.Vector3();
+             camera.getWorldDirection(cameraDirection);
+             sceneRef.current.dragPlane = new THREE.Plane(cameraDirection, 0);
+           } else if (clickedObject.userData.type === 'topTarget') {
+             sceneRef.current.isDraggingTarget = true;
+             sceneRef.current.draggedTarget = 'top';
+             // Create drag plane perpendicular to camera view
+             const cameraDirection = new THREE.Vector3();
+             camera.getWorldDirection(cameraDirection);
+             sceneRef.current.dragPlane = new THREE.Plane(cameraDirection, 0);
+           }
+         } else {
+           // Regular camera rotation
+           isDragging = true;
+           previousPosition = { x: e.clientX, y: e.clientY };
+         }
+       }
+       e.preventDefault();
+     };
     
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging) return;
-      handleRotation(e.clientX, e.clientY);
-      e.preventDefault();
-    };
+         const handleMouseMove = (e: MouseEvent) => {
+       if (sceneRef.current?.isDraggingTarget && sceneRef.current.dragPlane) {
+         // Handle target marker dragging
+         const mouse = new THREE.Vector2();
+         mouse.x = (e.clientX / container.clientWidth) * 2 - 1;
+         mouse.y = -(e.clientY / container.clientHeight) * 2 + 1;
+         
+         const raycaster = new THREE.Raycaster();
+         raycaster.setFromCamera(mouse, camera);
+         
+         const intersectionPoint = new THREE.Vector3();
+         if (raycaster.ray.intersectPlane(sceneRef.current.dragPlane, intersectionPoint)) {
+           if (sceneRef.current.draggedTarget === 'bottom' && sceneRef.current.bottomTargetMarker) {
+             sceneRef.current.bottomTargetMarker.position.copy(intersectionPoint);
+             // Update the manual target coordinates for real-time preview
+             updateManualTargets();
+           } else if (sceneRef.current.draggedTarget === 'top' && sceneRef.current.topTargetMarker) {
+             sceneRef.current.topTargetMarker.position.copy(intersectionPoint);
+             // Update the manual target coordinates for real-time preview
+             updateManualTargets();
+           }
+         }
+       } else if (isDragging) {
+         // Regular camera rotation
+         handleRotation(e.clientX, e.clientY);
+       }
+       e.preventDefault();
+     };
     
-    const handleMouseUp = () => { isDragging = false; };
+         const handleMouseUp = () => { 
+       isDragging = false; 
+       if (sceneRef.current) {
+         sceneRef.current.isDraggingTarget = false;
+         sceneRef.current.draggedTarget = null;
+         sceneRef.current.dragPlane = null;
+       }
+     };
+     
+     // Function to update manual target coordinates from marker positions
+     const updateManualTargets = () => {
+       if (sceneRef.current?.bottomTargetMarker && sceneRef.current?.topTargetMarker) {
+         // Update the manual target coordinates for real-time preview
+         // This will be used in the next visualization update
+         const bottomPos = sceneRef.current.bottomTargetMarker.position;
+         const topPos = sceneRef.current.topTargetMarker.position;
+         
+                   // You can access these updated coordinates in the visualization loop
+          // by reading from the marker positions instead of hardcoded values
+       }
+     };
     
     const handleTouchStart = (e: TouchEvent) => {
       if (e.touches.length === 1) {
@@ -797,15 +838,21 @@ export function useThreeJS(
     plane.position.y = -1;
     scene.add(plane);
 
-    sceneRef.current = {
-      scene,
-      camera,
-      renderer,
-      handrailMesh: null,
-      insideLineMesh: null,
-      centerDots: [],
-      debugElements: []
-    };
+         sceneRef.current = {
+       scene,
+       camera,
+       renderer,
+       handrailMesh: null,
+       insideLineMesh: null,
+       centerDots: [],
+       debugElements: [],
+       // Initialize interactive controls
+       bottomTargetMarker: null,
+       topTargetMarker: null,
+       isDraggingTarget: false,
+       draggedTarget: null,
+       dragPlane: null
+     };
 
     // Animation loop
     function animate() {
