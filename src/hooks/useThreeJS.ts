@@ -25,22 +25,7 @@ export function useThreeJS(
     dragPlane: THREE.Plane | null;
   } | null>(null);
 
-  // Helper function to get manual target coordinates from markers or defaults
-  const getManualTargetCoordinates = (type: 'bottom' | 'top') => {
-    if (type === 'bottom') {
-      if (sceneRef.current?.bottomTargetMarker) {
-        const pos = sceneRef.current.bottomTargetMarker.position;
-        return { x: pos.x, y: pos.y, z: pos.z };
-      }
-      return { x: 0, y: -2, z: -6 };
-    } else {
-      if (sceneRef.current?.topTargetMarker) {
-        const pos = sceneRef.current.topTargetMarker.position;
-        return { x: pos.x, y: pos.y, z: pos.z };
-      }
-      return { x: 0, y: 2, z: -6 };
-    }
-  };
+
 
   const updateVisualization = useCallback(() => {
     if (!sceneRef.current) return;
@@ -191,73 +176,86 @@ export function useThreeJS(
       // Add to rise profile visualization
       riseProfilePoints.push(new THREE.Vector3(arcDistance, rise, 0));
       
-       let x: number, z: number;
+       let x: number, z: number, y: number;
        
-       if (segmentPosition <= parameters.bottomLength) {
-          // Bottom over-ease: MANUAL POSITIONING SYSTEM
-          // You can manually adjust these target points to get the right direction
+                               if (segmentPosition <= parameters.bottomLength) {
+          // Bottom over-ease: angle DOWN at -35.08° from 0° to 20°
           const easeT = segmentPosition / parameters.bottomLength;
           
-          // Calculate the spiral start position (where over-ease begins)
-          const spiralStartAngle = (parameters.bottomLength / parameters.totalSegments) * parameters.totalDegrees * Math.PI / 180;
-          const spiralStartX = outerRadius * Math.cos(spiralStartAngle);
-          const spiralStartZ = outerRadius * Math.sin(spiralStartAngle);
+          // Start at 0° with 1.0" rise (pitch block height)
+          const startAngle = 0;
+          const startX = outerRadius * Math.cos(startAngle);
+          const startZ = outerRadius * Math.sin(startAngle);
+          const startRise = 1.0; // Pitch block height
           
-                  // Get manual target coordinates from interactive markers or defaults
-         const { x: manualBottomTargetX, y: manualBottomTargetY, z: manualBottomTargetZ } = getManualTargetCoordinates('bottom');
+          // Calculate the easement end point by angling DOWN at -35.08° (vertical angle)
+          // This follows the direction of the blue flight going DOWN
+          const easementLength = 2.0; // Length of the easement section
+          const angleRad = -35.08 * Math.PI / 180; // Negative for downward angle
           
-          // Linear interpolation from spiral start to manual target
-          x = spiralStartX + (manualBottomTargetX - spiralStartX) * easeT;
-          const y = rise + (manualBottomTargetY - 0) * easeT; // Interpolate rise
-          z = spiralStartZ + (manualBottomTargetZ - spiralStartZ) * easeT;
+                    // Project the easement direction vertically DOWN from the start point
+          const easementEndX = startX; // Same X position (no horizontal movement)
+          const easementEndZ = startZ; // Same Z position (no horizontal movement)
+          const easementEndRise = startRise - easementLength * Math.sin(Math.abs(angleRad)); // Vertical drop
+          
+          // Linear interpolation from start to easement end
+          x = startX + (easementEndX - startX) * easeT;
+          z = startZ + (easementEndZ - startZ) * easeT;
+          // Rise interpolation from 1.0" down to easement end
+          const y = startRise + (easementEndRise - startRise) * easeT;
+          
+                                        // Add interactive target point marker for bottom easement
+            if (i === 0) { // Only add one marker at the start
+                 const targetMarkerGeometry = new THREE.SphereGeometry(0.3, 16, 16);
+                 const targetMarkerMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+                 const targetMarker = new THREE.Mesh(targetMarkerGeometry, targetMarkerMaterial);
+                 targetMarker.position.set(easementEndX, easementEndRise, easementEndZ);
+                 targetMarker.userData = { type: 'bottomTarget' };
+                 scene.add(targetMarker);
+                 sceneRef.current.debugElements.push(targetMarker);
+                 sceneRef.current.bottomTargetMarker = targetMarker;
+               }
         
-         // Add interactive target point marker for bottom easement
-         if (i === 0) { // Only add one marker at the start
-              const targetMarkerGeometry = new THREE.SphereGeometry(0.3, 16, 16);
-              const targetMarkerMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-              const targetMarker = new THREE.Mesh(targetMarkerGeometry, targetMarkerMaterial);
-              targetMarker.position.set(manualBottomTargetX, manualBottomTargetY, manualBottomTargetZ);
-              targetMarker.userData = { type: 'bottomTarget' };
-              scene.add(targetMarker);
-              sceneRef.current.debugElements.push(targetMarker);
-              sceneRef.current.bottomTargetMarker = targetMarker;
-            }
-        
-       } else if (segmentPosition >= parameters.totalSegments - parameters.topLength) {
-          // Top up-ease: MANUAL POSITIONING SYSTEM
-          // You can manually adjust these target points to get the right direction
+                               } else if (segmentPosition >= parameters.totalSegments - parameters.topLength) {
+          // Top up-ease: angle UP at +35.08° from 200° to 220°
           const easeT = (segmentPosition - (parameters.totalSegments - parameters.topLength)) / parameters.topLength;
           
-          // Calculate the spiral end position (where up-ease begins)
-          const spiralEndAngle = ((parameters.totalSegments - parameters.topLength) / parameters.totalSegments) * parameters.totalDegrees * Math.PI / 180;
-          const spiralEndX = outerRadius * Math.cos(spiralEndAngle);
-          const spiralEndZ = outerRadius * Math.sin(spiralEndAngle);
+          // Start at 200° (where spiral ends and easement begins)
+          const startAngle = 200 * Math.PI / 180;
+          const startX = outerRadius * Math.cos(startAngle);
+          const startZ = outerRadius * Math.sin(startAngle);
+          const startRise = rise; // Rise from spiral at 200°
           
-                              // Get manual target coordinates from interactive markers or defaults
-         const { x: manualTopTargetX, y: manualTopTargetY, z: manualTopTargetZ } = getManualTargetCoordinates('top');
+          // End at 220° with 8.375" rise
+          const endAngle = 220 * Math.PI / 180;
+          const endX = outerRadius * Math.cos(endAngle);
+          const endZ = outerRadius * Math.sin(endAngle);
+          const endRise = 8.375; // Final rise at 220°
           
-          // Linear interpolation from spiral end to manual target
-          x = spiralEndX + (manualTopTargetX - spiralEndX) * easeT;
-          const y = rise + (manualTopTargetY - 0) * easeT; // Interpolate rise
-          z = spiralEndZ + (manualTopTargetZ - spiralEndZ) * easeT;
+          // Linear interpolation from 200° to 220°
+          x = startX + (endX - startX) * easeT;
+          z = startZ + (endZ - startZ) * easeT;
+          // Rise interpolation from spiral rise to 8.375"
+          const y = startRise + (endRise - startRise) * easeT;
         
-         // Add interactive target point marker for top easement
-         if (i === steps) { // Only add one marker at the end
-              const targetMarkerGeometry = new THREE.SphereGeometry(0.3, 16, 16);
-              const targetMarkerMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-              const targetMarker = new THREE.Mesh(targetMarkerGeometry, targetMarkerMaterial);
-              targetMarker.position.set(manualTopTargetX, manualTopTargetY, manualTopTargetZ);
-              targetMarker.userData = { type: 'topTarget' };
-              scene.add(targetMarker);
-              sceneRef.current.debugElements.push(targetMarker);
-              sceneRef.current.topTargetMarker = targetMarker;
-            }
+                                       // Add interactive target point marker for top easement
+           if (i === steps) { // Only add one marker at the end
+                const targetMarkerGeometry = new THREE.SphereGeometry(0.3, 16, 16);
+                const targetMarkerMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+                const targetMarker = new THREE.Mesh(targetMarkerGeometry, targetMarkerMaterial);
+                targetMarker.position.set(endX, endRise, endZ);
+                targetMarker.userData = { type: 'topTarget' };
+                scene.add(targetMarker);
+                sceneRef.current.debugElements.push(targetMarker);
+                sceneRef.current.topTargetMarker = targetMarker;
+              }
         
       } else {
         // Main spiral: use main center
         // Calculate position from main center
         x = outerRadius * Math.cos(angle);
         z = outerRadius * Math.sin(angle);
+        y = rise; // Use the calculated rise for main spiral
         
         // Add debugging markers for main spiral every 45 degrees
         if (Math.abs(angle * 180 / Math.PI % 45) < 0.1) {
@@ -270,7 +268,6 @@ export function useThreeJS(
         }
       }
       
-      const y = rise;
       outerPoints.push(new THREE.Vector3(x, y, z));
     }
     
@@ -312,55 +309,65 @@ export function useThreeJS(
        const proportionalArcDistance = (t * 10.5); // Only 10.5" arc distance
        const rise = 1.0 + (proportionalArcDistance / 10.5) * 7.375; // Straight line from 1.0" to 8.375"
        
-       let x: number, z: number;
+               let x: number, z: number, y: number;
       
-      if (segmentPosition <= parameters.bottomLength) {
-        // Bottom over-ease: straight rail looking DOWN the staircase at -35.08°
-        // At 0° transition point, rail should be completely straight
-        const easeT = segmentPosition / parameters.bottomLength;
+                           if (segmentPosition <= parameters.bottomLength) {
+          // Bottom over-ease: straight rail looking DOWN the staircase at -35.08°
+          // At 0° transition point, rail should be completely straight
+          const easeT = segmentPosition / parameters.bottomLength;
+          
+          // Start at 0° with 1.0" rise (pitch block height)
+          const startAngle = 0;
+          const startX = insideRadius * Math.cos(startAngle);
+          const startZ = insideRadius * Math.sin(startAngle);
+          const startRise = 1.0; // Pitch block height
+          
+          // Calculate the easement end point by angling DOWN at -35.08° (vertical angle)
+          // This follows the direction of the blue flight going DOWN
+          const easementLength = 2.0; // Length of the easement section
+          const angleRad = -35.08 * Math.PI / 180; // Negative for downward angle
+          
+          // Project the easement direction vertically DOWN from the start point
+          const easementEndX = startX; // Same X position (no horizontal movement)
+          const easementEndZ = startZ; // Same Z position (no horizontal movement)
+          const easementEndRise = startRise - easementLength * Math.sin(Math.abs(angleRad)); // Vertical drop
+          
+          // Linear interpolation from start to easement end
+          x = startX + (easementEndX - startX) * easeT;
+          z = startZ + (easementEndZ - startZ) * easeT;
+          // Rise interpolation from 1.0" down to easement end
+          const y = startRise + (easementEndRise - startRise) * easeT;
         
-        // Calculate the spiral start position (where over-ease begins)
-        const spiralStartAngle = (parameters.bottomLength / parameters.totalSegments) * parameters.totalDegrees * Math.PI / 180;
-        const spiralStartX = insideRadius * Math.cos(spiralStartAngle);
-        const spiralStartZ = insideRadius * Math.sin(spiralStartAngle);
+                                                       } else if (segmentPosition >= parameters.totalSegments - parameters.topLength) {
+          // Top up-ease: straight rail looking UP the staircase at +35.08°
+          // At 200° transition point, rail should be completely straight
+          const easeT = (segmentPosition - (parameters.totalSegments - parameters.topLength)) / parameters.topLength;
+          
+          // Start at 200° (where spiral ends and easement begins)
+          const startAngle = 200 * Math.PI / 180;
+          const startX = insideRadius * Math.cos(startAngle);
+          const startZ = insideRadius * Math.sin(startAngle);
+          const startRise = rise; // Rise from spiral at 200°
+          
+          // End at 220° with 8.375" rise (total cumulative rise over 220°)
+          const endAngle = 220 * Math.PI / 180;
+          const endX = insideRadius * Math.cos(endAngle);
+          const endZ = insideRadius * Math.sin(endAngle);
+          const endRise = 8.375; // Final total rise at 220° (not just the last 20°)
+          
+          // Linear interpolation from 200° to 220°
+          x = startX + (endX - startX) * easeT;
+          z = startZ + (endZ - startZ) * easeT;
+          // Rise interpolation from spiral rise to final 8.375" total
+          const y = startRise + (endRise - startRise) * easeT;
         
-        // For bottom easement: MANUAL POSITIONING SYSTEM (same as outer line)
-        // Use the same manual target points for consistency
-        
-         // Get manual target coordinates from interactive markers or defaults
-         const { x: manualBottomTargetX, y: manualBottomTargetY, z: manualBottomTargetZ } = getManualTargetCoordinates('bottom');
-        
-        // Linear interpolation from spiral start to manual target
-        x = spiralStartX + (manualBottomTargetX - spiralStartX) * easeT;
-        z = spiralStartZ + (manualBottomTargetZ - spiralStartZ) * easeT;
-        
-      } else if (segmentPosition >= parameters.totalSegments - parameters.topLength) {
-        // Top up-ease: straight rail looking UP the staircase at +35.08°
-        // At 180° transition point, rail should be completely straight
-        const easeT = (segmentPosition - (parameters.totalSegments - parameters.topLength)) / parameters.topLength;
-        
-        // Calculate the spiral end position (where up-ease begins)
-        const spiralEndAngle = ((parameters.totalSegments - parameters.topLength) / parameters.totalSegments) * parameters.totalDegrees * Math.PI / 180;
-        const spiralEndX = insideRadius * Math.cos(spiralEndAngle);
-        const spiralEndZ = insideRadius * Math.sin(spiralEndAngle);
-        
-        // For top easement: MANUAL POSITIONING SYSTEM (same as outer line)
-        // Use the same manual target points for consistency
-        
-                 // Get manual target coordinates from interactive markers or defaults
-         const { x: manualTopTargetX, y: manualTopTargetY, z: manualTopTargetZ } = getManualTargetCoordinates('top');
-        
-        // Linear interpolation from spiral end to manual target
-        x = spiralEndX + (manualTopTargetX - spiralEndX) * easeT;
-        z = spiralEndZ + (manualTopTargetZ - spiralEndZ) * easeT;
-        
-      } else {
-        // Main spiral: use main center
-        // Calculate position from main center
-        x = insideRadius * Math.cos(angle);
-        z = insideRadius * Math.sin(angle);
-      }
-      const y = rise;
+                           } else {
+         // Main spiral: use main center
+         // Calculate position from main center
+         x = insideRadius * Math.cos(angle);
+         z = insideRadius * Math.sin(angle);
+         y = rise; // Use the calculated rise for main spiral
+       }
       
       insidePoints.push(new THREE.Vector3(x, y, z));
     }
@@ -398,8 +405,8 @@ export function useThreeJS(
        const topEasementEnd = parameters.totalDegrees;
        const topDebugText = `Top Easement: ${topEasementStart.toFixed(1)}° to ${topEasementEnd.toFixed(1)}° (Up-Ease)`;
        
-       // Add interactive instructions
-       const instructionsText = `DRAG RED/GREEN SPHERES to position easements!`;
+               // Add instructions
+        const instructionsText = `Easements angle at 35.08° - Red: Down, Green: Up`;
       
       // Create text sprites for easement debugging
       const createEasementTextSprite = (text: string, position: THREE.Vector3) => {
@@ -754,12 +761,12 @@ export function useThreeJS(
          if (raycaster.ray.intersectPlane(sceneRef.current.dragPlane, intersectionPoint)) {
            if (sceneRef.current.draggedTarget === 'bottom' && sceneRef.current.bottomTargetMarker) {
              sceneRef.current.bottomTargetMarker.position.copy(intersectionPoint);
-             // Update the manual target coordinates for real-time preview
-             updateManualTargets();
+             // Force visualization update to reflect new marker position
+             updateVisualization();
            } else if (sceneRef.current.draggedTarget === 'top' && sceneRef.current.topTargetMarker) {
              sceneRef.current.topTargetMarker.position.copy(intersectionPoint);
-             // Update the manual target coordinates for real-time preview
-             updateManualTargets();
+             // Force visualization update to reflect new marker position
+             updateVisualization();
            }
          }
        } else if (isDragging) {
@@ -778,18 +785,7 @@ export function useThreeJS(
        }
      };
      
-     // Function to update manual target coordinates from marker positions
-     const updateManualTargets = () => {
-       if (sceneRef.current?.bottomTargetMarker && sceneRef.current?.topTargetMarker) {
-         // Update the manual target coordinates for real-time preview
-         // This will be used in the next visualization update
-         const bottomPos = sceneRef.current.bottomTargetMarker.position;
-         const topPos = sceneRef.current.topTargetMarker.position;
-         
-                   // You can access these updated coordinates in the visualization loop
-          // by reading from the marker positions instead of hardcoded values
-       }
-     };
+
     
     const handleTouchStart = (e: TouchEvent) => {
       if (e.touches.length === 1) {
