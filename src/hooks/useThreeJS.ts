@@ -468,6 +468,9 @@ export function useThreeJS(
     
     addEasementDebugInfo();
     
+    // Add staircase framework
+    addStaircaseFramework(scene, parameters, debugElements);
+    
   }, [parameters, manualRiseData, calculatedRiseData]);
 
   // Function to create debugging information overlay
@@ -515,6 +518,180 @@ export function useThreeJS(
     });
     
     return group;
+  };
+
+  // Helper function to create text sprites for the staircase framework
+  const createTextSprite = (text: string, position: THREE.Vector3, color: number = 0xffffff) => {
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    if (!context) return new THREE.Group();
+    
+    canvas.width = 512;
+    canvas.height = 128;
+    context.fillStyle = '#000000';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
+    context.font = '24px Arial';
+    context.textAlign = 'center';
+    context.fillText(text, canvas.width / 2, canvas.height / 2);
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    const material = new THREE.SpriteMaterial({ map: texture });
+    const sprite = new THREE.Sprite(material);
+    sprite.position.copy(position);
+    sprite.scale.set(5, 1.25, 1);
+    
+    return sprite;
+  };
+
+  // ============================================================================
+  // STAIRCASE FRAMEWORK - Reference points for easement connections
+  // ============================================================================
+  // This shows the full staircase geometry to understand where easements connect
+  // Uses inner line's constant rise/run: 7⅜" rise over 10.5" run = 35.08° slope
+  const addStaircaseFramework = (scene: THREE.Scene, parameters: HandrailParameters, debugElements: THREE.Object3D[]) => {
+    const stepRise = 7.375 / 7; // 7⅜" total rise divided by 7 steps
+    const stepRun = 10.5 / 7;   // 10.5" total run divided by 7 steps
+    const slopeAngle = Math.atan(stepRise / stepRun) * 180 / Math.PI; // Should be ~35.08°
+    
+    // Create staircase framework points
+    const staircasePoints: THREE.Vector3[] = [];
+    
+    // 7 steps UP from main center (blue axis - Z direction)
+    for (let i = 1; i <= 7; i++) {
+      const z = i * stepRun; // Positive Z = up the staircase
+      const y = parameters.pitchBlock + (i * stepRise); // Rise from pitch block
+      const x = 0; // Centered on main center
+      
+      staircasePoints.push(new THREE.Vector3(x, y, z));
+      
+      // Add step marker
+      const stepGeometry = new THREE.BoxGeometry(0.5, 0.1, 0.5);
+      const stepMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.7 });
+      const step = new THREE.Mesh(stepGeometry, stepMaterial);
+      step.position.set(x, y - 0.05, z);
+      scene.add(step);
+      debugElements.push(step);
+      
+      // Add step label using existing createTextSprite function
+      const stepLabel = createTextSprite(`Step +${i}`, new THREE.Vector3(x + 1, y, z), 0x00ff00);
+      scene.add(stepLabel);
+      debugElements.push(stepLabel);
+    }
+    
+    // 7 steps DOWN from main center (blue axis - Z direction)
+    for (let i = 1; i <= 7; i++) {
+      const z = -i * stepRun; // Negative Z = down the staircase
+      const y = parameters.pitchBlock - (i * stepRise); // Drop from pitch block
+      const x = 0; // Centered on main center
+      
+      staircasePoints.push(new THREE.Vector3(x, y, z));
+      
+      // Add step marker
+      const stepGeometry = new THREE.BoxGeometry(0.5, 0.1, 0.5);
+      const stepMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.7 });
+      const step = new THREE.Mesh(stepGeometry, stepMaterial);
+      step.position.set(x, y - 0.05, z);
+      scene.add(step);
+      debugElements.push(step);
+      
+      // Add step label using existing createTextSprite function
+      const stepLabel = createTextSprite(`Step -${i}`, new THREE.Vector3(x + 1, y, z), 0xff0000);
+      scene.add(stepLabel);
+      debugElements.push(stepLabel);
+    }
+    
+    // Create staircase framework line
+    const staircaseGeometry = new THREE.BufferGeometry().setFromPoints(staircasePoints);
+    const staircaseMaterial = new THREE.LineBasicMaterial({ color: 0xffff00, linewidth: 4 });
+    const staircaseLine = new THREE.Line(staircaseGeometry, staircaseMaterial);
+    scene.add(staircaseLine);
+    debugElements.push(staircaseLine);
+    
+    // Add slope angle indicator using existing createTextSprite function
+    const slopeLabel = createTextSprite(
+      `Stair Slope: ${slopeAngle.toFixed(2)}° (${stepRise.toFixed(3)}" rise / ${stepRun.toFixed(3)}" run)`, 
+      new THREE.Vector3(0, parameters.pitchBlock + 8, 0), 
+      0xffff00
+    );
+    scene.add(slopeLabel);
+    debugElements.push(slopeLabel);
+    
+    // Add easement connection points
+    const addEasementConnectionPoints = () => {
+      // Bottom easement should connect to step -7 (bottom of staircase)
+      const bottomConnectionZ = -7 * stepRun;
+      const bottomConnectionY = parameters.pitchBlock - (7 * stepRise);
+      
+      // Top easement should connect to step +7 (top of staircase)
+      const topConnectionZ = 7 * stepRun;
+      const topConnectionY = parameters.pitchBlock + (7 * stepRise);
+      
+      // Create connection point markers
+      const connectionGeometry = new THREE.SphereGeometry(0.3, 16, 16);
+      
+      // Bottom connection (red)
+      const bottomConnection = new THREE.Mesh(
+        connectionGeometry, 
+        new THREE.MeshBasicMaterial({ color: 0xff0000 })
+      );
+      bottomConnection.position.set(0, bottomConnectionY, bottomConnectionZ);
+      scene.add(bottomConnection);
+      debugElements.push(bottomConnection);
+      
+      // Top connection (green)
+      const topConnection = new THREE.Mesh(
+        connectionGeometry, 
+        new THREE.MeshBasicMaterial({ color: 0x00ff00 })
+      );
+      topConnection.position.set(0, topConnectionY, topConnectionZ);
+      scene.add(topConnection);
+      debugElements.push(topConnection);
+      
+      // Add connection labels using existing createTextSprite function
+      const bottomLabel = createTextSprite(
+        `Bottom Easement\nConnection Point`, 
+        new THREE.Vector3(2, bottomConnectionY, bottomConnectionZ), 
+        0xff0000
+      );
+      scene.add(bottomLabel);
+      debugElements.push(bottomLabel);
+      
+      const topLabel = createTextSprite(
+        `Top Easement\nConnection Point`, 
+        new THREE.Vector3(2, topConnectionY, topConnectionZ), 
+        0x00ff00
+      );
+      scene.add(topLabel);
+      debugElements.push(topLabel);
+      
+      // Add target lines showing where easements should aim
+      const addTargetLines = () => {
+        // Bottom easement target line (from spiral end to bottom connection)
+        const bottomTargetGeometry = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(0, parameters.pitchBlock, 0), // Start at main center
+          new THREE.Vector3(0, bottomConnectionY, bottomConnectionZ) // End at bottom connection
+        ]);
+        const bottomTargetMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 2 });
+        const bottomTargetLine = new THREE.Line(bottomTargetGeometry, bottomTargetMaterial);
+        scene.add(bottomTargetLine);
+        debugElements.push(bottomTargetLine);
+        
+        // Top easement target line (from spiral end to top connection)
+        const topTargetGeometry = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(0, parameters.pitchBlock, 0), // Start at main center
+          new THREE.Vector3(0, topConnectionY, topConnectionZ) // End at top connection
+        ]);
+        const topTargetMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00, linewidth: 2 });
+        const topTargetLine = new THREE.Line(topTargetGeometry, topTargetMaterial);
+        scene.add(topTargetLine);
+        debugElements.push(topTargetLine);
+      };
+      
+      addTargetLines();
+    };
+    
+    addEasementConnectionPoints();
   };
 
   useEffect(() => {
