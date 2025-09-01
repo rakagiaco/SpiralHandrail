@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import * as THREE from 'three';
 import { HandrailParameters } from '../types/handrail';
 import { getCurrentRiseAtDistance } from '../utils/calculations';
@@ -17,6 +17,120 @@ export function useThreeJS(
     insideLineMesh: THREE.Mesh | null;
     centerDots: THREE.Mesh[];
   } | null>(null);
+
+  const updateVisualization = useCallback(() => {
+    if (!sceneRef.current) return;
+
+    const { scene, handrailMesh, insideLineMesh, centerDots } = sceneRef.current;
+    
+    // Remove existing meshes
+    if (handrailMesh) scene.remove(handrailMesh);
+    if (insideLineMesh) scene.remove(insideLineMesh);
+    centerDots.forEach(dot => scene.remove(dot));
+    sceneRef.current.centerDots = [];
+    
+    const outerRadius = 8;
+    const innerRadius = 4.5;
+    
+    // Add center dots
+    const dotGeometry = new THREE.SphereGeometry(0.4, 16, 16);
+    
+    // Main center (blue) at origin
+    const mainDot = new THREE.Mesh(dotGeometry, new THREE.MeshLambertMaterial({ color: 0x3b82f6 }));
+    mainDot.position.set(0, 4, 0);
+    scene.add(mainDot);
+    sceneRef.current.centerDots.push(mainDot);
+    
+    // Bottom center (orange) - offset inward on Z axis (toward staircase)
+    const bottomDot = new THREE.Mesh(dotGeometry, new THREE.MeshLambertMaterial({ color: 0xf59e0b }));
+    bottomDot.position.set(0, 2, -parameters.bottomOffset); // Same X as main center, offset inward on Z
+    scene.add(bottomDot);
+    sceneRef.current.centerDots.push(bottomDot);
+    
+    // Top center (red) - offset inward on Z axis (toward staircase)  
+    const topDot = new THREE.Mesh(dotGeometry, new THREE.MeshLambertMaterial({ color: 0xef4444 }));
+    topDot.position.set(0, 6, -parameters.topOffset); // Same X as main center, offset inward on Z
+    scene.add(topDot);
+    sceneRef.current.centerDots.push(topDot);
+    
+    // Create outside handrail points with proper easement geometry
+    const outerPoints: THREE.Vector3[] = [];
+    const steps = 100;
+    
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const arcDistance = t * parameters.totalArcDistance;
+      
+      // Stop at exactly totalArc distance
+      if (arcDistance > parameters.totalArcDistance) break;
+      
+      const segmentPosition = (arcDistance / parameters.totalArcDistance) * parameters.totalSegments;
+      const angle = (arcDistance / parameters.totalArcDistance) * parameters.totalDegrees * Math.PI / 180;
+      const rise = getCurrentRiseAtDistance(arcDistance, manualRiseData, calculatedRiseData, parameters.totalArcDistance);
+      
+      let x: number, z: number;
+      let centerX = 0;
+      let centerZ = 0;
+      let effectiveRadius = outerRadius;
+      
+      if (segmentPosition <= parameters.bottomLength) {
+        // Bottom over-ease: use offset center (inward on Z axis)
+        centerZ = -parameters.bottomOffset; // Negative Z = toward inside of staircase
+        effectiveRadius = outerRadius;
+        
+      } else if (segmentPosition >= parameters.totalSegments - parameters.topLength) {
+        // Top up-ease: use offset center (inward on Z axis)
+        centerZ = -parameters.topOffset; // Negative Z = toward inside of staircase
+        effectiveRadius = outerRadius;
+        
+      } else {
+        // Main spiral: use main center
+        centerX = 0;
+        centerZ = 0;
+        effectiveRadius = outerRadius;
+      }
+      
+      // Calculate position from appropriate center
+      x = centerX + effectiveRadius * Math.cos(angle);
+      z = centerZ + effectiveRadius * Math.sin(angle);
+      const y = rise;
+      
+      outerPoints.push(new THREE.Vector3(x, y, z));
+    }
+    
+    // Create inside reference line (constant)
+    const insidePoints: THREE.Vector3[] = [];
+    const insideArcRatio = 10.5 / 17.5; // 10.5" arc vs 17.5" outer arc
+    const insideAngle = insideArcRatio * parameters.totalDegrees;
+    
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const angle = (t * insideAngle * Math.PI) / 180;
+      const rise = 1.0 + (t * 7.375); // Pitch block + helical rise
+      
+      const x = innerRadius * Math.cos(angle);
+      const z = innerRadius * Math.sin(angle);
+      const y = rise;
+      
+      insidePoints.push(new THREE.Vector3(x, y, z));
+    }
+    
+    // Create the curve with better interpolation for smoother following of your reference points
+    const outerCurve = new THREE.CatmullRomCurve3(outerPoints);
+    outerCurve.tension = 0.1; // Lower tension for smoother curves that follow points more closely
+    const outerGeometry = new THREE.TubeGeometry(outerCurve, Math.min(steps, outerPoints.length - 1), 0.15, 8, false);
+    const newHandrailMesh = new THREE.Mesh(outerGeometry, new THREE.MeshLambertMaterial({ color: 0x3b82f6 }));
+    newHandrailMesh.castShadow = true;
+    scene.add(newHandrailMesh);
+    sceneRef.current.handrailMesh = newHandrailMesh;
+    
+    // Create inside reference line
+    const insideCurve = new THREE.CatmullRomCurve3(insidePoints);
+    const insideGeometry = new THREE.TubeGeometry(insideCurve, steps, 0.1, 6, false);
+    const newInsideLineMesh = new THREE.Mesh(insideGeometry, new THREE.MeshLambertMaterial({ color: 0x10b981 }));
+    scene.add(newInsideLineMesh);
+    sceneRef.current.insideLineMesh = newInsideLineMesh;
+  }, [parameters, manualRiseData, calculatedRiseData]);
 
   useEffect(() => {
     if (!mountRef.current) return;
@@ -177,136 +291,9 @@ export function useThreeJS(
     };
   }, []);
 
-  const updateVisualization = () => {
-    if (!sceneRef.current) return;
-
-    const { scene, handrailMesh, insideLineMesh, centerDots } = sceneRef.current;
-    
-    // Remove existing meshes
-    if (handrailMesh) scene.remove(handrailMesh);
-    if (insideLineMesh) scene.remove(insideLineMesh);
-    centerDots.forEach(dot => scene.remove(dot));
-    sceneRef.current.centerDots = [];
-    
-    const outerRadius = 8;
-    const innerRadius = 4.5;
-    
-    // Add center dots
-    const dotGeometry = new THREE.SphereGeometry(0.4, 16, 16);
-    
-    // Main center (blue) at origin
-    const mainDot = new THREE.Mesh(dotGeometry, new THREE.MeshLambertMaterial({ color: 0x3b82f6 }));
-    mainDot.position.set(0, 4, 0);
-    scene.add(mainDot);
-    sceneRef.current.centerDots.push(mainDot);
-    
-    // Bottom center (orange) - at spiral entry point
-    const startAngleDot = (parameters.bottomLength / parameters.totalSegments) * parameters.totalDegrees * Math.PI / 180;
-    const bottomDot = new THREE.Mesh(dotGeometry, new THREE.MeshLambertMaterial({ color: 0xf59e0b }));
-    bottomDot.position.set(outerRadius * Math.cos(startAngleDot), 2, outerRadius * Math.sin(startAngleDot) - parameters.bottomOffset);
-    scene.add(bottomDot);
-    sceneRef.current.centerDots.push(bottomDot);
-    
-    // Top center (red) - at spiral exit point  
-    const endAngleDot = ((parameters.totalSegments - parameters.topLength) / parameters.totalSegments) * parameters.totalDegrees * Math.PI / 180;
-    const topDot = new THREE.Mesh(dotGeometry, new THREE.MeshLambertMaterial({ color: 0xef4444 }));
-    topDot.position.set(outerRadius * Math.cos(endAngleDot), 6, outerRadius * Math.sin(endAngleDot) + parameters.topOffset);
-    scene.add(topDot);
-    sceneRef.current.centerDots.push(topDot);
-    
-    // Create outside handrail points with proper easement geometry
-    const outerPoints: THREE.Vector3[] = [];
-    const steps = 100;
-    
-    // Calculate key angles and positions
-    const startAngle = (parameters.bottomLength / parameters.totalSegments) * parameters.totalDegrees * Math.PI / 180;
-    const endAngle = ((parameters.totalSegments - parameters.topLength) / parameters.totalSegments) * parameters.totalDegrees * Math.PI / 180;
-    
-    for (let i = 0; i <= steps; i++) {
-      const t = i / steps;
-      const arcDistance = t * parameters.totalArcDistance;
-      const segmentPosition = t * parameters.totalSegments;
-      const angle = (t * parameters.totalDegrees * Math.PI) / 180;
-      const rise = getCurrentRiseAtDistance(arcDistance, manualRiseData, calculatedRiseData, parameters.totalArcDistance);
-      
-      let x: number, z: number;
-      
-      if (segmentPosition <= parameters.bottomLength) {
-        // Bottom over-ease: transition from straight tangent to spiral
-        const easeT = segmentPosition / parameters.bottomLength;
-        
-        // Start point (straight tangent)
-        const startX = outerRadius * Math.cos(startAngle);
-        const startZ = outerRadius * Math.sin(startAngle) - parameters.bottomOffset;
-        
-        // End point (spiral entry)
-        const endX = outerRadius * Math.cos(startAngle);
-        const endZ = outerRadius * Math.sin(startAngle);
-        
-        // Smooth transition using cubic interpolation
-        const smoothT = easeT * easeT * (3 - 2 * easeT);
-        x = startX + (endX - startX) * smoothT;
-        z = startZ + (endZ - startZ) * smoothT;
-        
-      } else if (segmentPosition >= parameters.totalSegments - parameters.topLength) {
-        // Top up-ease: transition from spiral to straight tangent
-        const easeT = (segmentPosition - (parameters.totalSegments - parameters.topLength)) / parameters.topLength;
-        
-        // Start point (spiral exit)
-        const startX = outerRadius * Math.cos(endAngle);
-        const startZ = outerRadius * Math.sin(endAngle);
-        
-        // End point (straight tangent)
-        const endX = outerRadius * Math.cos(endAngle);
-        const endZ = outerRadius * Math.sin(endAngle) + parameters.topOffset;
-        
-        // Smooth transition using cubic interpolation
-        const smoothT = easeT * easeT * (3 - 2 * easeT);
-        x = startX + (endX - startX) * smoothT;
-        z = startZ + (endZ - startZ) * smoothT;
-        
-      } else {
-        // Main spiral: normal circular geometry
-        x = outerRadius * Math.cos(angle);
-        z = outerRadius * Math.sin(angle);
-      }
-      
-      const y = rise;
-      outerPoints.push(new THREE.Vector3(x, y, z));
-    }
-    
-    // Create inside reference line (constant)
-    const insidePoints: THREE.Vector3[] = [];
-    const insideArcRatio = 10.5 / 17.5; // 10.5" arc vs 17.5" outer arc
-    const insideAngle = insideArcRatio * parameters.totalDegrees;
-    
-    for (let i = 0; i <= steps; i++) {
-      const t = i / steps;
-      const angle = (t * insideAngle * Math.PI) / 180;
-      const rise = 1.0 + (t * 7.375); // Pitch block + helical rise
-      
-      const x = innerRadius * Math.cos(angle);
-      const z = innerRadius * Math.sin(angle);
-      const y = rise;
-      
-      insidePoints.push(new THREE.Vector3(x, y, z));
-    }
-    
-    // Create outside handrail
-    const outerCurve = new THREE.CatmullRomCurve3(outerPoints);
-    const outerGeometry = new THREE.TubeGeometry(outerCurve, steps, 0.15, 8, false);
-    const newHandrailMesh = new THREE.Mesh(outerGeometry, new THREE.MeshLambertMaterial({ color: 0x3b82f6 }));
-    newHandrailMesh.castShadow = true;
-    scene.add(newHandrailMesh);
-    sceneRef.current.handrailMesh = newHandrailMesh;
-    
-    // Create inside reference line
-    const insideCurve = new THREE.CatmullRomCurve3(insidePoints);
-    const insideGeometry = new THREE.TubeGeometry(insideCurve, steps, 0.1, 6, false);
-    const newInsideLineMesh = new THREE.Mesh(insideGeometry, new THREE.MeshLambertMaterial({ color: 0x10b981 }));
-    scene.add(newInsideLineMesh);
-    sceneRef.current.insideLineMesh = newInsideLineMesh;
-  };
+  useEffect(() => {
+    updateVisualization();
+  }, [updateVisualization]);
 
   return { mountRef, updateVisualization };
 }

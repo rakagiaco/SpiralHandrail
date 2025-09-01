@@ -1,6 +1,7 @@
 import { RisePoint } from '../types/handrail';
 
 export function interpolateRise(targetArc: number, knownPoints: RisePoint[]): number {
+  if (knownPoints.length === 0) return 0;
   if (targetArc <= knownPoints[0].arc) return knownPoints[0].rise;
   if (targetArc >= knownPoints[knownPoints.length - 1].arc) {
     return knownPoints[knownPoints.length - 1].rise;

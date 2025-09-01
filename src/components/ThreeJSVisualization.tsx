@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useThreeJS } from '../hooks/useThreeJS';
 import { HandrailParameters } from '../types/handrail';
 
@@ -9,11 +9,7 @@ interface ThreeJSVisualizationProps {
 }
 
 export function ThreeJSVisualization({ parameters, manualRiseData, calculatedRiseData }: ThreeJSVisualizationProps) {
-  const { mountRef, updateVisualization } = useThreeJS(parameters, manualRiseData, calculatedRiseData);
-
-  useEffect(() => {
-    updateVisualization();
-  }, [parameters, manualRiseData, calculatedRiseData, updateVisualization]);
+  const { mountRef } = useThreeJS(parameters, manualRiseData, calculatedRiseData);
 
   return (
     <div className="bg-white rounded-2xl p-5 shadow-lg border-l-4 border-purple-500 h-fit">

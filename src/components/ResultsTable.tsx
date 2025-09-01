@@ -43,27 +43,27 @@ export function ResultsTable({ title, data, type }: ResultsTableProps) {
           </thead>
           <tbody>
             {data.map((row, index) => (
-              <tr key={index} className={getRowClass(row.section)}>
+              <tr key={index} className={`${getRowClass(row.section)} border-b border-gray-200`}>
                 {type === 'segments' ? (
                   <>
-                    <td className="p-2 text-center text-xs border-b border-gray-200">
+                    <td className="p-2 text-center text-xs">
                       <strong>{(row as SegmentResult).segment}</strong>
                     </td>
-                    <td className="p-2 text-center text-xs border-b border-gray-200">
+                    <td className="p-2 text-center text-xs">
                       <strong>{row.section}</strong>
                     </td>
-                    <td className="p-2 text-center text-xs border-b border-gray-200">{row.angle}°</td>
-                    <td className="p-2 text-center text-xs border-b border-gray-200">{(row as SegmentResult).arcDistance}"</td>
-                    <td className="p-2 text-center text-xs border-b border-gray-200">{row.rise}"</td>
+                    <td className="p-2 text-center text-xs">{row.angle}°</td>
+                    <td className="p-2 text-center text-xs">{(row as SegmentResult).arcDistance}"</td>
+                    <td className="p-2 text-center text-xs">{row.rise}"</td>
                   </>
                 ) : (
                   <>
-                    <td className="p-2 text-center text-xs border-b border-gray-200">{(row as ReferenceResult).arcDistance}"</td>
-                    <td className="p-2 text-center text-xs border-b border-gray-200">
+                    <td className="p-2 text-center text-xs">{(row as ReferenceResult).arcDistance}"</td>
+                    <td className="p-2 text-center text-xs">
                       <strong>{row.section}</strong>
                     </td>
-                    <td className="p-2 text-center text-xs border-b border-gray-200">{row.angle}°</td>
-                    <td className="p-2 text-center text-xs border-b border-gray-200">{row.rise}"</td>
+                    <td className="p-2 text-center text-xs">{row.angle}°</td>
+                    <td className="p-2 text-center text-xs">{row.rise}"</td>
                   </>
                 )}
               </tr>

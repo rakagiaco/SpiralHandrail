@@ -31,7 +31,7 @@ export function RiseAdjustmentSection({
               value={currentValue?.toFixed(3) || '0.000'}
               step="0.125"
               onChange={(e) => onRiseChange(arcDist, parseFloat(e.target.value))}
-              className="w-20 p-2 text-center text-sm border-2 border-gray-200 rounded-lg transition-all focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-100"
+              className="w-20 p-2 text-center text-sm border-2 border-gray-200 rounded-lg transition-all focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-100 bg-gray-50 focus:bg-white"
             />
           </div>
         );
@@ -47,7 +47,7 @@ export function RiseAdjustmentSection({
       <p className="mb-4 text-gray-600 text-sm">
         Auto-populated from your exact measurements. Adjust manually for custom interpolation.
       </p>
-      <div className="grid grid-cols-6 gap-2 mb-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-2 mb-4">
         {generateInputs()}
       </div>
       <div>
