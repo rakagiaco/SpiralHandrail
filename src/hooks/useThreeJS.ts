@@ -97,6 +97,10 @@ export function useThreeJS(
     sceneRef.current.centerDots = [];
     sceneRef.current.debugElements = [];
     
+    // Handle edge cases for zero values
+    const safePitchBlock = Math.max(0, parameters.pitchBlock || 0);
+    const safeTotalRise = Math.max(0.1, parameters.totalHelicalRise || 0.1);
+    
     // Make radii adjustable for different stair jobs
     let outerRadius = 8;
     let innerRadius = 4.5;
@@ -139,7 +143,7 @@ export function useThreeJS(
       const topLabel = createTextSprite('Top Offset', new THREE.Vector3(0, 6.5, -parameters.topOffset), 0xef4444);
       
       // Add pitch block height label
-      const pitchBlockLabel = createTextSprite(`Pitch Block (${parameters.pitchBlock.toFixed(1)}")`, new THREE.Vector3(0, Math.max(0.5, parameters.pitchBlock + 0.5), 0), 0xff0000);
+      const pitchBlockLabel = createTextSprite(`Pitch Block (${safePitchBlock.toFixed(1)}")`, new THREE.Vector3(0, Math.max(0.5, safePitchBlock + 0.5), 0), 0xff0000);
       
       scene.add(mainLabel);
       scene.add(bottomLabel);
@@ -176,13 +180,14 @@ export function useThreeJS(
         // Bottom over-ease: direct interpolation to straight rail at custom angle
         const easeT = segmentPosition / parameters.bottomLength;
         
-        // Start at 0° with pitch block height rise
+        // Start at 0° with pitch block height rise - CONNECTS TO ACTUAL PITCH BLOCK HEIGHT
         const startAngle = 0;
         const startX = outerRadius * Math.cos(startAngle);
         const startZ = outerRadius * Math.sin(startAngle);
-        const startRise = parameters.pitchBlock; // Use actual pitch block height
+        // Use the actual pitch block height, not scaled
+        const startRise = safePitchBlock;
       
-        // End point: straight rail angling DOWN at customizable angle
+        // End point: straight rail angling DOWN at customizable angle - ALSO CONNECTS TO PITCH BLOCK
         const easementLength = 2.0;
         const easementAngle = parameters.customEasementAngle || -35.08;
         const angleRad = easementAngle * Math.PI / 180;
@@ -223,15 +228,15 @@ export function useThreeJS(
         const startX = outerRadius * Math.cos(startAngle);
         const startZ = outerRadius * Math.sin(startAngle);
         
-        // Calculate the correct starting rise at 200° (end of spiral)
-        const spiralEndRise = 1.0 + (200 / 220) * 7.375;
+        // Calculate the correct starting rise at 200° (end of spiral) - SCALES WITH TOTAL RISE
+        const spiralEndRise = safePitchBlock + (200 / 220) * safeTotalRise;
         const startRise = spiralEndRise;
         
-        // End at 220° with 8.375" rise
+        // End at 220° with total rise - SCALES WITH TOTAL RISE
         const endAngle = 220 * Math.PI / 180;
         const endX = outerRadius * Math.cos(endAngle);
         const endZ = outerRadius * Math.sin(endAngle);
-        const endRise = 8.375;
+        const endRise = safePitchBlock + safeTotalRise;
         
         // Use custom easement angle if provided, otherwise default to +35.08°
         const topEasementAngle = parameters.customEasementAngle ? Math.abs(parameters.customEasementAngle) : 35.08;
@@ -281,9 +286,9 @@ export function useThreeJS(
       const segmentPosition = (arcDistance / parameters.totalArcDistance) * parameters.totalSegments;
       const angle = (t * parameters.totalDegrees * Math.PI) / 180; // Full 220° span
       
-      // Calculate rise based on the proportional arc distance (10.5" over 17.5")
+      // Calculate rise based on the proportional arc distance (10.5" over 17.5") - SCALES WITH TOTAL RISE
       const proportionalArcDistance = (t * 10.5); // Only 10.5" arc distance
-      const rise = 1.0 + (proportionalArcDistance / 10.5) * 7.375; // Straight line from 1.0" to 8.375"
+      const rise = safePitchBlock + (proportionalArcDistance / 10.5) * safeTotalRise; // Straight line from pitch block to pitch block + total rise
       
       let x: number, z: number, y: number = rise;
       
@@ -291,11 +296,11 @@ export function useThreeJS(
         // Bottom over-ease: direct interpolation to straight rail at custom angle
         const easeT = segmentPosition / parameters.bottomLength;
         
-        // Start at 0° with pitch block height rise
+        // Start at 0° with pitch block height rise - CONNECTS TO ACTUAL PITCH BLOCK HEIGHT
         const startAngle = 0;
         const startX = innerRadius * Math.cos(startAngle);
         const startZ = innerRadius * Math.sin(startAngle);
-        const startRise = parameters.pitchBlock; // Use actual pitch block height
+        const startRise = safePitchBlock; // Use actual pitch block height
         
         // Calculate the easement end point by angling DOWN at customizable angle
         const easementLength = 2.0;
@@ -322,15 +327,15 @@ export function useThreeJS(
         const startX = innerRadius * Math.cos(startAngle);
         const startZ = innerRadius * Math.sin(startAngle);
         
-        // Calculate the correct starting rise at 200° (end of spiral)
-        const spiralEndRise = 1.0 + (200 / 220) * 7.375;
+        // Calculate the correct starting rise at 200° (end of spiral) - SCALES WITH TOTAL RISE
+        const spiralEndRise = safePitchBlock + (200 / 220) * safeTotalRise;
         const startRise = spiralEndRise;
         
-        // End at 220° with 8.375" rise (total cumulative rise over 220°)
+        // End at 220° with total rise - SCALES WITH TOTAL RISE
         const endAngle = 220 * Math.PI / 180;
         const endX = innerRadius * Math.cos(endAngle);
         const endZ = innerRadius * Math.sin(endAngle);
-        const endRise = 8.375;
+        const endRise = safePitchBlock + safeTotalRise;
         
         // Use custom easement angle if provided, otherwise default to +35.08°
         const innerTopEasementAngle = parameters.customEasementAngle ? Math.abs(parameters.customEasementAngle) : 35.08;
@@ -369,19 +374,19 @@ export function useThreeJS(
     
     // Add staircase framework (only when debug mode is on)
     if (debugMode) {
-      addStaircaseFramework(scene, parameters, sceneRef.current.debugElements);
+      addStaircaseFramework(scene, parameters, sceneRef.current.debugElements, safeTotalRise);
     }
     
   }, [parameters, manualRiseData, calculatedRiseData, debugMode, showOverlay]);
 
   // Function to add staircase framework for reference
-  const addStaircaseFramework = (scene: THREE.Scene, parameters: HandrailParameters, debugElements: THREE.Object3D[]) => {
+  const addStaircaseFramework = (scene: THREE.Scene, parameters: HandrailParameters, debugElements: THREE.Object3D[], totalRise: number) => {
     // Use custom easement angle if provided, otherwise default to 35.08°
     const customAngle = parameters.customEasementAngle || 35.08;
     const angleRad = customAngle * Math.PI / 180;
     
-    // Calculate step dimensions based on custom angle
-    const stepRise = 7.375 / 7; // 7⅜" total rise divided by 7 steps
+    // Calculate step dimensions based on custom angle - SCALES WITH TOTAL RISE
+    const stepRise = totalRise / 7; // Total rise divided by 7 steps
     const stepRun = stepRise / Math.tan(angleRad); // Calculate run to match custom angle
     const slopeAngle = customAngle;
     
