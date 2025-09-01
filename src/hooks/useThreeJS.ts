@@ -73,7 +73,7 @@ export function useThreeJS(
        // Calculate key values
        const spiralEndAngle = ((params.totalSegments - params.topLength) / params.totalSegments) * params.totalDegrees;
        const spiralEndRise = safePitchBlock + (spiralEndAngle / params.totalDegrees) * safeTotalRise;
-       const targetFinalHeight = 8.375; // Fixed target height: 8 and 3/8th inches
+               const targetFinalHeight = safePitchBlock + safeTotalRise; // Scales with project parameters
        const bottomEasementStart = 0;
        const topEasementStart = spiralEndAngle;
        
@@ -121,7 +121,7 @@ export function useThreeJS(
          `Target Final Height: ${targetFinalHeight.toFixed(3)}"`,
          `Outer Line End: ${targetFinalHeight.toFixed(3)}"`,
          `Inner Line End: ${targetFinalHeight.toFixed(3)}"`,
-         `Inner Line Rise: ${(safeTotalRise * (10.5 / parameters.totalArcDistance)).toFixed(3)}" over 10.5" arc`,
+         `Inner Line Rise: ${safeTotalRise.toFixed(3)}" over 10.5" arc`,
          `Height Match: ✓ PERFECT`,
          
          // Mathematical Details
@@ -527,10 +527,8 @@ export function useThreeJS(
          
          innerKeyPoints.forEach(point => {
            const angleRad = point.angle * Math.PI / 180;
-           // Inner line has proportional rise based on arc distance ratio
-           const arcDistanceRatio = 10.5 / parameters.totalArcDistance;
-           const innerLineTotalRise = safeTotalRise * arcDistanceRatio;
-           const rise = safePitchBlock + (point.angle / 220) * innerLineTotalRise;
+           // Inner line has same rise rate as outer line for consistency
+           const rise = safePitchBlock + (point.angle / 220) * safeTotalRise;
          
          // Create marker sphere
          const markerGeometry = new THREE.SphereGeometry(0.15, 16, 16);
@@ -700,14 +698,13 @@ export function useThreeJS(
           const endX = outerRadius * Math.cos(endAngle);
           const endZ = outerRadius * Math.sin(endAngle);
           
-          // CRITICAL: Ensure both lines end at exactly 8.375" (8 and 3/8th inches)
-          // This is the target height that both lines must reach
-          const targetFinalHeight = 8.375; // Fixed target height in inches
-          const endRise = targetFinalHeight;
-          
-          // CRITICAL: Ensure both lines end at exactly the same height
-          // The final rise should be exactly 8.375" regardless of pitch block or total rise
-          const finalRise = targetFinalHeight;
+                     // CRITICAL: Both lines should end at the same height - SCALES WITH TOTAL RISE
+           // The final height should be pitch block + total rise, not hardcoded
+           const endRise = safePitchBlock + safeTotalRise;
+           
+           // CRITICAL: Ensure both lines end at exactly the same height
+           // The final rise should scale with the project parameters
+           const finalRise = safePitchBlock + safeTotalRise;
           
           // CRASH PROTECTION: Validate all calculated values
           if (isNaN(easeT) || !isFinite(easeT) || isNaN(spiralEndRise) || !isFinite(spiralEndRise)) {
@@ -735,7 +732,7 @@ export function useThreeJS(
           const markerAngle = 220 * Math.PI / 180;
           const markerX = outerRadius * Math.cos(markerAngle);
           const markerZ = outerRadius * Math.sin(markerAngle);
-          const markerRise = 8.375; // Fixed target height: 8 and 3/8th inches
+                     const markerRise = safePitchBlock + safeTotalRise; // Scales with project parameters
           targetMarker.position.set(markerX, markerRise, markerZ);
           targetMarker.userData = { type: 'topTarget' };
           scene.add(targetMarker);
@@ -779,25 +776,22 @@ export function useThreeJS(
       const segmentPosition = (arcDistance / parameters.totalArcDistance) * parameters.totalSegments;
       const angle = (t * parameters.totalDegrees * Math.PI) / 180; // Full 220° span
       
-             // CRASH PROTECTION: Safe rise calculation for inside line
-       let rise: number;
-       try {
-         // Inner line should scale proportionally with the outer line
-         // Calculate proportional rise based on the ratio of arc distances
-         const proportionalArcDistance = (t * maxArcDistance);
-         const arcDistanceRatio = maxArcDistance / parameters.totalArcDistance;
-         const innerLineTotalRise = safeTotalRise * arcDistanceRatio; // Scale proportionally
-         rise = safePitchBlock + (proportionalArcDistance / maxArcDistance) * innerLineTotalRise;
-         
-         // Validate rise value
-         if (isNaN(rise) || !isFinite(rise)) {
-           console.warn(`Invalid inside line rise at step ${i}, using fallback`);
-           rise = safePitchBlock + (t * innerLineTotalRise);
-         }
-       } catch (error) {
-         console.warn(`Error calculating inside line rise at step ${i}, using fallback:`, error);
-         rise = safePitchBlock + (t * (safeTotalRise * (10.5 / parameters.totalArcDistance)));
-       }
+                    // CRASH PROTECTION: Safe rise calculation for inside line
+        let rise: number;
+        try {
+          // Inner line should have CONSTANT RATE until top easement
+          // Use the same rise calculation as outer line for consistency
+          rise = safePitchBlock + (t * safeTotalRise);
+          
+          // Validate rise value
+          if (isNaN(rise) || !isFinite(rise)) {
+            console.warn(`Invalid inside line rise at step ${i}, using fallback`);
+            rise = safePitchBlock + (t * safeTotalRise);
+          }
+        } catch (error) {
+          console.warn(`Error calculating inside line rise at step ${i}, using fallback:`, error);
+          rise = safePitchBlock + (t * safeTotalRise);
+        }
       
       let x: number, z: number, y: number = rise;
       
@@ -859,19 +853,18 @@ export function useThreeJS(
           const spiralEndRise = safePitchBlock + (spiralEndAngle / parameters.totalDegrees) * safeTotalRise;
           const startRise = spiralEndRise;
           
-                     // End at 220° - Inner line should end at same height as outer line
-           const endAngle = 220 * Math.PI / 180;
-           const endX = innerRadius * Math.cos(endAngle);
-           const endZ = innerRadius * Math.sin(endAngle);
-           
-           // CRITICAL: Inner line must end at exactly 8.375" to match outer line
-           // But it should get there more gradually since it only travels 10.5" arc
-           const targetFinalHeight = 8.375; // Fixed target height in inches
-           const endRise = targetFinalHeight;
-           
-           // CRITICAL: Inner line should have a more gradual easement
-           // Since it only travels 10.5" arc, the rise should be smoother
-           const finalRise = targetFinalHeight;
+                                // End at 220° - Inner line should end at same height as outer line
+            const endAngle = 220 * Math.PI / 180;
+            const endX = innerRadius * Math.cos(endAngle);
+            const endZ = innerRadius * Math.sin(endAngle);
+            
+            // CRITICAL: Inner line must end at same height as outer line - SCALES WITH TOTAL RISE
+            // Both lines should end at pitch block + total rise
+            const endRise = safePitchBlock + safeTotalRise;
+            
+            // CRITICAL: Inner line should have a more gradual easement
+            // Since it only travels 10.5" arc, the rise should be smoother
+            const finalRise = safePitchBlock + safeTotalRise;
           
           // CRASH PROTECTION: Validate all calculated values for inside line
           if (isNaN(easeT) || !isFinite(easeT) || isNaN(spiralEndRise) || !isFinite(spiralEndRise)) {
@@ -948,10 +941,10 @@ export function useThreeJS(
          const titleSprite = createTextSprite('HEIGHT VERIFICATION', new THREE.Vector3(0, 1.5, 0.01), 0x00ff00, 'large');
          heightVerificationGroup.add(titleSprite);
          
-         // Add height information
-         const targetHeight = 8.375;
-         const outerHeight = targetHeight;
-         const innerHeight = targetHeight;
+                   // Add height information
+          const targetHeight = safePitchBlock + safeTotalRise;
+          const outerHeight = targetHeight;
+          const innerHeight = targetHeight;
          
          const outerLabel = createTextSprite(`Outer Line: ${outerHeight.toFixed(3)}"`, new THREE.Vector3(-2, 0.5, 0.01), 0x3b82f6);
          const innerLabel = createTextSprite(`Inner Line: ${innerHeight.toFixed(3)}"`, new THREE.Vector3(-2, 0, 0.01), 0x10b981);
