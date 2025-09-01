@@ -121,7 +121,7 @@ export function useThreeJS(
          `Target Final Height: ${targetFinalHeight.toFixed(3)}"`,
          `Outer Line End: ${targetFinalHeight.toFixed(3)}"`,
          `Inner Line End: ${targetFinalHeight.toFixed(3)}"`,
-         `Inner Line Rise: 7.375" over 10.5" arc`,
+         `Inner Line Rise: ${(safeTotalRise * (10.5 / parameters.totalArcDistance)).toFixed(3)}" over 10.5" arc`,
          `Height Match: ✓ PERFECT`,
          
          // Mathematical Details
@@ -527,8 +527,9 @@ export function useThreeJS(
          
          innerKeyPoints.forEach(point => {
            const angleRad = point.angle * Math.PI / 180;
-           // Inner line has proportional rise based on 10.5" arc distance
-           const innerLineTotalRise = 7.375; // 7 and 3/8 inches
+           // Inner line has proportional rise based on arc distance ratio
+           const arcDistanceRatio = 10.5 / parameters.totalArcDistance;
+           const innerLineTotalRise = safeTotalRise * arcDistanceRatio;
            const rise = safePitchBlock + (point.angle / 220) * innerLineTotalRise;
          
          // Create marker sphere
@@ -781,10 +782,11 @@ export function useThreeJS(
              // CRASH PROTECTION: Safe rise calculation for inside line
        let rise: number;
        try {
-         // Inner line should only rise proportionally to its actual arc distance (10.5")
-         // This creates a more gradual, realistic rise pattern
+         // Inner line should scale proportionally with the outer line
+         // Calculate proportional rise based on the ratio of arc distances
          const proportionalArcDistance = (t * maxArcDistance);
-         const innerLineTotalRise = 7.375; // 7 and 3/8 inches (without pitch block offset)
+         const arcDistanceRatio = maxArcDistance / parameters.totalArcDistance;
+         const innerLineTotalRise = safeTotalRise * arcDistanceRatio; // Scale proportionally
          rise = safePitchBlock + (proportionalArcDistance / maxArcDistance) * innerLineTotalRise;
          
          // Validate rise value
@@ -794,7 +796,7 @@ export function useThreeJS(
          }
        } catch (error) {
          console.warn(`Error calculating inside line rise at step ${i}, using fallback:`, error);
-         rise = safePitchBlock + (t * 7.375);
+         rise = safePitchBlock + (t * (safeTotalRise * (10.5 / parameters.totalArcDistance)));
        }
       
       let x: number, z: number, y: number = rise;
