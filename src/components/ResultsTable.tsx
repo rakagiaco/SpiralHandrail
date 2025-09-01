@@ -17,12 +17,10 @@ export function ResultsTable({ title, data, type }: ResultsTableProps) {
   };
 
   const getDataQualityIndicator = (row: SegmentResult | ReferenceResult) => {
-    // Add visual indicators for data quality
-    const isManual = 'segment' in row ? false : true; // Reference results are always calculated
     const riseNum = parseFloat(row.rise);
     const arcNum = parseFloat(row.arcDistance);
-    const hasValidRise = !isNaN(riseNum) && riseNum > 0 && riseNum < 20; // Reasonable rise range
-    const hasValidArc = !isNaN(arcNum) && arcNum >= 0 && arcNum < 50; // Reasonable arc range
+    const hasValidRise = !isNaN(riseNum) && riseNum > 0 && riseNum < 20;
+    const hasValidArc = !isNaN(arcNum) && arcNum >= 0 && arcNum < 50;
     
     if (!hasValidRise || !hasValidArc) {
       return <span className="inline-block w-3 h-3 bg-red-500 rounded-full mr-2" title="Data validation warning"></span>;

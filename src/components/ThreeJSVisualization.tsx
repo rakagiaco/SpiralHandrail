@@ -8,12 +8,21 @@ interface ThreeJSVisualizationProps {
   calculatedRiseData: Record<number, number>;
   debugMode: boolean;
   showOverlay: boolean;
+  onDebugModeChange: (debugMode: boolean) => void;
+  onShowOverlayChange: (showOverlay: boolean) => void;
 }
 
-export function ThreeJSVisualization({ parameters, manualRiseData, calculatedRiseData, debugMode, showOverlay }: ThreeJSVisualizationProps) {
+export function ThreeJSVisualization({ 
+  parameters, 
+  manualRiseData, 
+  calculatedRiseData, 
+  debugMode, 
+  showOverlay,
+  onDebugModeChange,
+  onShowOverlayChange
+}: ThreeJSVisualizationProps) {
   const { mountRef, updateVisualization } = useThreeJS(parameters, manualRiseData, calculatedRiseData, debugMode, showOverlay);
   
-  // Debug state
   const [showDebugOverlay, setShowDebugOverlay] = useState(false);
   const [cameraInfo, setCameraInfo] = useState({ x: 0, y: 0, z: 0, fov: 75 });
   const [sceneStats, setSceneStats] = useState({ objects: 0, vertices: 0, triangles: 0 });
@@ -27,7 +36,6 @@ export function ThreeJSVisualization({ parameters, manualRiseData, calculatedRis
     showCenterDots: true
   });
 
-  // Simulate camera position updates (in real implementation, this would come from Three.js)
   useEffect(() => {
     const interval = setInterval(() => {
       setCameraInfo(prev => ({
@@ -41,7 +49,6 @@ export function ThreeJSVisualization({ parameters, manualRiseData, calculatedRis
     return () => clearInterval(interval);
   }, []);
 
-  // Simulate scene statistics updates
   useEffect(() => {
     const interval = setInterval(() => {
       setSceneStats({
@@ -89,15 +96,39 @@ export function ThreeJSVisualization({ parameters, manualRiseData, calculatedRis
         </h3>
         <div className="flex items-center space-x-2">
           <button
-            onClick={() => setShowDebugOverlay(!showDebugOverlay)}
+            onClick={() => onDebugModeChange(!debugMode)}
             className={`px-3 py-1 text-sm rounded-lg transition-colors ${
-              showDebugOverlay 
+              debugMode 
                 ? 'bg-purple-600 text-white' 
                 : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
             }`}
           >
-            {showDebugOverlay ? '🐛 Debug ON' : '🐛 Debug OFF'}
+            {debugMode ? '🐛 Debug ON' : '🐛 Debug OFF'}
           </button>
+          {debugMode && (
+            <>
+                             <button
+                 onClick={() => setShowDebugOverlay(!showDebugOverlay)}
+                 className={`px-3 py-1 text-sm rounded-lg transition-colors ${
+                   showDebugOverlay 
+                     ? 'bg-blue-600 text-white' 
+                     : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
+                 }`}
+               >
+                 ⚙️ {showDebugOverlay ? 'Settings ON' : 'Settings'}
+               </button>
+               <button
+                 onClick={() => onShowOverlayChange(!showOverlay)}
+                 className={`px-3 py-1 text-sm rounded-lg transition-colors ${
+                   showOverlay 
+                     ? 'bg-green-600 text-white' 
+                     : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
+                 }`}
+               >
+                 📊 {showOverlay ? 'Overlay ON' : 'Overlay'}
+               </button>
+            </>
+          )}
           <button
             onClick={updateVisualization}
             className="px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"

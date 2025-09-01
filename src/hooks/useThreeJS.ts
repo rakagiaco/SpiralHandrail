@@ -178,30 +178,33 @@ export function useThreeJS(
       let x: number, z: number, y: number = rise;
       
       if (segmentPosition <= parameters.bottomLength) {
-        // Bottom over-ease: direct interpolation to straight rail at custom angle
+        // Bottom over-ease: smooth flow into 35-degree angle without fixed end point
         const easeT = segmentPosition / parameters.bottomLength;
         
-        // Start at 0° with pitch block height rise - CONNECTS TO ACTUAL PITCH BLOCK HEIGHT
+        // Start at 0° with pitch block height rise
         const startAngle = 0;
         const startX = outerRadius * Math.cos(startAngle);
         const startZ = outerRadius * Math.sin(startAngle);
-        // Use the actual pitch block height, not scaled
         const startRise = safePitchBlock;
-       
-        // End point: straight rail angling DOWN at customizable angle - ALSO CONNECTS TO PITCH BLOCK
-        const easementLength = 2.0;
+        
+        // Use custom easement angle if provided, otherwise default to -35.08°
         const easementAngle = parameters.customEasementAngle || -35.08;
         const angleRad = easementAngle * Math.PI / 180;
         
-        // Calculate the straight rail end point - FIXED: Remove Math.max to eliminate the nub
-        const easementEndX = startX;
-        const easementEndZ = startZ;
-        const easementEndRise = startRise - easementLength * Math.sin(Math.abs(angleRad));
-             
-        // Direct linear interpolation - no complex blending, no 90° angle
-        x = startX + (easementEndX - startX) * easeT;
-        z = startZ + (easementEndZ - startZ) * easeT;
-        y = startRise + (easementEndRise - startRise) * easeT;
+        // FIXED: Create smooth curve that flows into the angle without reaching a fixed end point
+        // This eliminates the "nub" by not trying to interpolate to a specific target
+        const smoothEaseT = easeT * easeT * (3 - 2 * easeT); // Smoothstep function
+        
+        // Calculate the rise based on the angle and distance, but smoothly
+        // The rail should flow into the 35-degree angle naturally
+        const angleProgress = smoothEaseT;
+        const riseChange = angleProgress * Math.sin(Math.abs(angleRad)) * 2.0; // 2.0" is the easement length
+        
+        // Position stays at the same radius (no X/Z change)
+        x = startX;
+        z = startZ;
+        // Rise smoothly decreases following the angle
+        y = startRise - riseChange;
         
         // Add interactive target point marker for bottom easement (invisible to avoid 90° angle bug)
         if (i === 0 && debugMode) {
@@ -239,17 +242,26 @@ export function useThreeJS(
         const endRise = safePitchBlock + safeTotalRise;
         
         // Use custom easement angle if provided, otherwise default to +35.08°
-        const topEasementAngle = parameters.customEasementAngle ? Math.abs(parameters.customEasementAngle) : 35.08;
+
         
-        // FIXED: Smooth out the dip by applying a gentle curve to the rise interpolation
-        // This brings up the low points around 210-215 degrees
-        const smoothEaseT = easeT * easeT * (3 - 2 * easeT); // Smoothstep function
-        const adjustedEaseT = smoothEaseT + (0.1 * Math.sin(easeT * Math.PI)); // Add slight upward curve
-        
-        // Direct linear interpolation with adjusted easing
-        x = startX + (endX - startX) * easeT;
-        z = startZ + (endZ - startZ) * easeT;
-        y = startRise + (endRise - startRise) * adjustedEaseT;
+                 // IMPROVED: Create ultra-smooth transition from spiral end to easement end
+         // Use multiple smoothing techniques for the smoothest possible curve
+         
+         // Primary smoothstep function
+         const smoothEaseT = easeT * easeT * (3 - 2 * easeT);
+         
+         // Apply additional smoothing layers for ultra-smooth transition
+         const smoothLayer1 = Math.sin(easeT * Math.PI) * 0.1; // Gentle sine wave
+         const smoothLayer2 = Math.sin(easeT * Math.PI * 2) * 0.05; // Higher frequency wave
+         const smoothLayer3 = Math.sin(easeT * Math.PI * 4) * 0.025; // Even higher frequency
+         
+         // Combine all smoothing layers
+         const finalEaseT = smoothEaseT + smoothLayer1 + smoothLayer2 + smoothLayer3;
+         
+         // Apply smoothing to all coordinates for consistent smoothness
+         x = startX + (endX - startX) * finalEaseT;
+         z = startZ + (endZ - startZ) * finalEaseT;
+         y = startRise + (endRise - startRise) * finalEaseT;
         
         // Add interactive target point marker for top easement
         if (i === steps && debugMode) {
@@ -298,30 +310,33 @@ export function useThreeJS(
       let x: number, z: number, y: number = rise;
       
       if (segmentPosition <= parameters.bottomLength) {
-        // Bottom over-ease: direct interpolation to straight rail at custom angle
+        // Bottom over-ease: smooth flow into 35-degree angle without fixed end point
         const easeT = segmentPosition / parameters.bottomLength;
         
-        // Start at 0° with pitch block height rise - CONNECTS TO ACTUAL PITCH BLOCK HEIGHT
+        // Start at 0° with pitch block height rise
         const startAngle = 0;
         const startX = innerRadius * Math.cos(startAngle);
         const startZ = innerRadius * Math.sin(startAngle);
-        const startRise = safePitchBlock; // Use actual pitch block height
+        const startRise = safePitchBlock;
         
-        // Calculate the easement end point by angling DOWN at customizable angle
-        const easementLength = 2.0;
+        // Use custom easement angle if provided, otherwise default to -35.08°
         const innerBottomEasementAngle = parameters.customEasementAngle || -35.08;
         const angleRad = innerBottomEasementAngle * Math.PI / 180;
         
-        // Project the easement direction directly DOWN at custom angle from the start point
-        const easementEndX = startX;
-        const easementEndZ = startZ;
-        // FIXED: Remove Math.max to eliminate the nub
-        const easementEndRise = startRise - easementLength * Math.sin(Math.abs(angleRad));
+        // FIXED: Create smooth curve that flows into the angle without reaching a fixed end point
+        // This eliminates the "nub" by not trying to interpolate to a specific target
+        const smoothEaseT = easeT * easeT * (3 - 2 * easeT); // Smoothstep function
         
-        // Direct linear interpolation - no complex blending, no 90° angle
-        x = startX + (easementEndX - startX) * easeT;
-        z = startZ + (easementEndZ - startZ) * easeT;
-        y = startRise + (easementEndRise - startRise) * easeT;
+        // Calculate the rise based on the angle and distance, but smoothly
+        // The rail should flow into the 35-degree angle naturally
+        const angleProgress = smoothEaseT;
+        const riseChange = angleProgress * Math.sin(Math.abs(angleRad)) * 2.0; // 2.0" is the easement length
+        
+        // Position stays at the same radius (no X/Z change)
+        x = startX;
+        z = startZ;
+        // Rise smoothly decreases following the angle
+        y = startRise - riseChange;
         
       } else if (segmentPosition >= parameters.totalSegments - parameters.topLength) {
         // Top up-ease: direct interpolation from spiral end to final position
@@ -343,16 +358,26 @@ export function useThreeJS(
         const endRise = safePitchBlock + safeTotalRise;
         
         // Use custom easement angle if provided, otherwise default to +35.08°
-        const innerTopEasementAngle = parameters.customEasementAngle ? Math.abs(parameters.customEasementAngle) : 35.08;
+
         
-        // FIXED: Apply the same smoothing to inner line
-        const smoothEaseT = easeT * easeT * (3 - 2 * easeT); // Smoothstep function
-        const adjustedEaseT = smoothEaseT + (0.1 * Math.sin(easeT * Math.PI)); // Add slight upward curve
-        
-        // Direct linear interpolation with adjusted easing
-        x = startX + (endX - startX) * easeT;
-        z = startZ + (endZ - startZ) * easeT;
-        y = startRise + (endRise - startRise) * adjustedEaseT;
+                 // IMPROVED: Apply the same ultra-smooth transition to inner line
+         // Use multiple smoothing techniques for the smoothest possible curve
+         
+         // Primary smoothstep function
+         const smoothEaseT = easeT * easeT * (3 - 2 * easeT);
+         
+         // Apply additional smoothing layers for ultra-smooth transition
+         const smoothLayer1 = Math.sin(easeT * Math.PI) * 0.1; // Gentle sine wave
+         const smoothLayer2 = Math.sin(easeT * Math.PI * 2) * 0.05; // Higher frequency wave
+         const smoothLayer3 = Math.sin(easeT * Math.PI * 4) * 0.025; // Even higher frequency
+         
+         // Combine all smoothing layers
+         const finalEaseT = smoothEaseT + smoothLayer1 + smoothLayer2 + smoothLayer3;
+         
+         // Apply smoothing to all coordinates for consistent smoothness
+         x = startX + (endX - startX) * finalEaseT;
+         z = startZ + (endZ - startZ) * finalEaseT;
+         y = startRise + (endRise - startRise) * finalEaseT;
         
       } else {
         // Main spiral: use main center
@@ -688,7 +713,7 @@ export function useThreeJS(
       }
       renderer.dispose();
     };
-  }, []);
+  }, [debugMode]);
 
   useEffect(() => {
     updateVisualization();

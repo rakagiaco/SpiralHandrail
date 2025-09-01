@@ -24,8 +24,6 @@ function App() {
   const [calculatedRiseData, setCalculatedRiseData] = useState<Record<number, number>>({});
   const [segmentResults, setSegmentResults] = useState<SegmentResult[]>([]);
   const [referenceResults, setReferenceResults] = useState<ReferenceResult[]>([]);
-
-  // Debug state
   const [debugMode, setDebugMode] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
   const [lastCalculationTime, setLastCalculationTime] = useState<number>(0);
@@ -46,7 +44,6 @@ function App() {
             parameters.pitchBlock
           );
           
-          // Validate calculated rise
           if (calculatedRise < 0 || calculatedRise > 20) {
             errors.push(`Invalid rise at ${arcDist}": ${calculatedRise}"`);
           }
@@ -59,8 +56,7 @@ function App() {
       setCalculationErrors(errors);
       setLastCalculationTime(performance.now() - startTime);
     } catch (error) {
-      errors.push(`Calculation error: ${error}`);
-      setCalculationErrors(errors);
+      setCalculationErrors([`Calculation error: ${error}`]);
     }
   }, [parameters.totalHelicalRise, parameters.totalArcDistance, parameters.pitchBlock]);
 
@@ -99,7 +95,6 @@ function App() {
           parameters.pitchBlock
         );
         
-        // Validate rise value
         if (rise < 0 || rise > 20) {
           errors.push(`Invalid rise at segment ${i}: ${rise}"`);
         }
@@ -131,8 +126,7 @@ function App() {
       setCalculationErrors(errors);
       setLastCalculationTime(performance.now() - startTime);
     } catch (error) {
-      errors.push(`Segment calculation error: ${error}`);
-      setCalculationErrors(errors);
+      setCalculationErrors([`Segment calculation error: ${error}`]);
     }
   };
 
@@ -142,7 +136,6 @@ function App() {
     const errors: string[] = [];
     
     try {
-      // Calculate reference points every 0.5" for detailed analysis
       for (let arcDist = 0; arcDist <= parameters.totalArcDistance; arcDist += 0.5) {
         const rise = getCurrentRiseAtDistance(
           arcDist, 
@@ -153,7 +146,6 @@ function App() {
           parameters.pitchBlock
         );
         
-        // Validate rise value
         if (rise < 0 || rise > 20) {
           errors.push(`Invalid reference rise at ${arcDist}": ${rise}"`);
         }
@@ -181,8 +173,7 @@ function App() {
       setCalculationErrors(errors);
       setLastCalculationTime(performance.now() - startTime);
     } catch (error) {
-      errors.push(`Reference calculation error: ${error}`);
-      setCalculationErrors(errors);
+      setCalculationErrors([`Reference calculation error: ${error}`]);
     }
   };
 
@@ -210,12 +201,11 @@ function App() {
     URL.revokeObjectURL(url);
   };
 
-  // System health monitoring
   const systemHealth = {
     parametersValid: parameters.totalDegrees > 0 && parameters.totalHelicalRise > 0 && parameters.totalArcDistance > 0,
     dataConsistency: Object.keys(manualRiseData).length === 0 || Object.keys(calculatedRiseData).length > 0,
     calculationSuccess: calculationErrors.length === 0,
-    performance: lastCalculationTime < 100, // Less than 100ms is good
+    performance: lastCalculationTime < 100,
     coverage: parameters.totalSegments > 0 && parameters.bottomLength + parameters.topLength <= parameters.totalSegments
   };
 
@@ -252,14 +242,6 @@ function App() {
               >
                 {debugMode ? '🐛 Debug ON' : '🐛 Debug OFF'}
               </button>
-              {debugMode && (
-                <button
-                  className="px-3 py-1 text-sm bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-                  title="Settings"
-                >
-                  ⚙️ Settings
-                </button>
-              )}
               {debugMode && (
                 <button
                   onClick={() => setShowOverlay(!showOverlay)}
@@ -480,6 +462,8 @@ function App() {
                 calculatedRiseData={calculatedRiseData}
                 debugMode={debugMode}
                 showOverlay={showOverlay}
+                onDebugModeChange={setDebugMode}
+                onShowOverlayChange={setShowOverlay}
               />
             </div>
           </div>

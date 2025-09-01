@@ -18,7 +18,6 @@ export function RiseAdjustmentSection({
   const generateInputs = () => {
     const inputs = [];
     
-    // Generate inputs for every 0.5" increment for more precise control
     for (let arcDist = 0; arcDist <= Math.ceil(totalArcDistance * 2) / 2; arcDist += 0.5) {
       if (arcDist <= totalArcDistance) {
         const currentValue = manualRiseData[arcDist] !== undefined ? 
@@ -27,7 +26,7 @@ export function RiseAdjustmentSection({
         const isManual = manualRiseData[arcDist] !== undefined;
         const calculatedValue = calculatedRiseData[Math.round(arcDist * 2) / 2];
         const difference = isManual && calculatedValue ? Math.abs(currentValue - calculatedValue) : 0;
-        const hasWarning = difference > 0.5; // Warning if difference > 0.5"
+        const hasWarning = difference > 0.5;
         
         inputs.push(
           <div key={arcDist} className="flex flex-col items-center">
@@ -50,18 +49,15 @@ export function RiseAdjustmentSection({
                   : 'border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-blue-100 focus:bg-white'
               }`}
             />
-            {/* Debug info below input */}
-            <div className="text-xs mt-1 text-center">
-              {isManual && calculatedValue && (
-                <div className={`${hasWarning ? 'text-orange-600' : 'text-blue-600'}`}>
-                  <div>Calc: {calculatedValue.toFixed(3)}"</div>
-                  <div>Diff: {difference.toFixed(3)}"</div>
-                  {hasWarning && (
-                    <div className="text-orange-500 font-semibold">⚠️ Large diff</div>
-                  )}
-                </div>
-              )}
-            </div>
+            {isManual && calculatedValue && (
+              <div className={`text-xs mt-1 text-center ${hasWarning ? 'text-orange-600' : 'text-blue-600'}`}>
+                <div>Calc: {calculatedValue.toFixed(3)}"</div>
+                <div>Diff: {difference.toFixed(3)}"</div>
+                {hasWarning && (
+                  <div className="text-orange-500 font-semibold">⚠️ Large diff</div>
+                )}
+              </div>
+            )}
           </div>
         );
       }
@@ -70,7 +66,6 @@ export function RiseAdjustmentSection({
     return inputs;
   };
 
-  // Calculate debugging statistics
   const manualPoints = Object.keys(manualRiseData).length;
   const calculatedPoints = Object.keys(calculatedRiseData).length;
   const totalInputs = Math.ceil(totalArcDistance * 2) + 1;
@@ -101,7 +96,7 @@ export function RiseAdjustmentSection({
         <strong>Note:</strong> The rise continues beyond {totalArcDistance}" at the same rate for the next flight of stairs.
       </p>
       
-      {/* Debug Statistics Panel */}
+      {/* Statistics Panel */}
       <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
         <h4 className="text-sm font-semibold text-blue-700 mb-2">📊 Adjustment Statistics & Validation</h4>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
@@ -152,7 +147,6 @@ export function RiseAdjustmentSection({
           Reset to Calculated Values
         </button>
         
-        {/* Debug Actions */}
         <button
           onClick={() => {
             console.log('Manual Rise Data:', manualRiseData);
@@ -170,9 +164,9 @@ export function RiseAdjustmentSection({
         </span>
       </div>
       
-      {/* Debug Footer */}
+      {/* Footer Info */}
       <div className="mt-4 p-2 bg-blue-100 rounded text-xs text-blue-700 text-center">
-        <span className="font-semibold">🔍 Debug Info:</span> 
+        <span className="font-semibold">🔍 Info:</span> 
         {manualPoints > 0 ? (
           <>
             {manualPoints} manual overrides active. 
