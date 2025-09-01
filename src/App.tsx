@@ -23,7 +23,7 @@ const defaultParameters: HandrailParameters = {
   topOffset: 1.875,         // Offset distance for top center in inches
   // Custom parameters for dynamic adjustment
   customOuterRadius: 4.625, // Custom outer radius override in inches
-  customInnerRadius: 4.625, // Custom inner radius override in inches
+  customInnerRadius: 10.5,  // Custom inner radius override in inches (diameter)
   customEasementAngle: -35.08 // Custom easement angle override in degrees
 };
 
@@ -177,31 +177,33 @@ function App() {
             <h3 className="text-lg font-semibold mb-4 text-gray-800">Custom Job Parameters</h3>
             
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Custom Outer Radius (inches)
-                </label>
-                <input
-                  type="number"
-                  step="0.001"
-                  value={parameters.customOuterRadius || 4.625}
-                  onChange={(e) => handleParameterChange('customOuterRadius', parseFloat(e.target.value) || 4.625)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Custom Inner Radius (inches)
-                </label>
-                <input
-                  type="number"
-                  step="0.001"
-                  value={parameters.customInnerRadius || 4.5}
-                  onChange={(e) => handleParameterChange('customInnerRadius', parseFloat(e.target.value) || 4.625)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+                                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Custom Outer Radius (inches)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.001"
+                      value={parameters.customOuterRadius || 4.625}
+                      onChange={(e) => handleParameterChange('customOuterRadius', parseFloat(e.target.value) || 4.625)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Default: 4.625" (standard handrail)</p>
+                  </div>
+                  
+                  <div>
+                                         <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Custom Inner Radius (inches)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.001"
+                      value={parameters.customInnerRadius || 10.5}
+                      onChange={(e) => handleParameterChange('customInnerRadius', parseFloat(e.target.value) || 10.5)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Default: 10.5" diameter (5.25" radius from center)</p>
+                  </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -214,6 +216,50 @@ function App() {
                   onChange={(e) => handleParameterChange('customEasementAngle', parseFloat(e.target.value) || -35.08)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
+                <p className="text-xs text-gray-500 mt-1">Default: -35.08° (standard stair angle)</p>
+              </div>
+              
+              <div className="pt-4 border-t border-gray-200">
+                <h4 className="text-md font-medium text-gray-700 mb-3">Global Scaling</h4>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Scale Total Rise (%)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="50"
+                      max="200"
+                      value={100}
+                      onChange={(e) => {
+                        const scale = parseFloat(e.target.value) / 100;
+                        handleParameterChange('totalHelicalRise', (defaultParameters.totalHelicalRise * scale));
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Scale the entire handrail height proportionally</p>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Scale Arc Distance (%)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="50"
+                      max="200"
+                      value={100}
+                      onChange={(e) => {
+                        const scale = parseFloat(e.target.value) / 100;
+                        handleParameterChange('totalArcDistance', (defaultParameters.totalArcDistance * scale));
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Scale the entire handrail length proportionally</p>
+                  </div>
+                </div>
               </div>
               
               <button
