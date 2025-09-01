@@ -1,6 +1,6 @@
 // ThreeJS Visualization Component for Spiral Handrail
 // This component renders the 3D visualization using Three.js and provides debug controls
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useThreeJS } from '../hooks/useThreeJS';
 import { HandrailParameters } from '../types/handrail';
 
@@ -21,12 +21,11 @@ export function ThreeJSVisualization({
   calculatedRiseData,
   debugMode,
   showOverlay,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onDebugModeChange,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onShowOverlayChange
 }: ThreeJSVisualizationProps) {
-  // Local state for debug overlay visibility (separate from parent state)
-  const [showDebugOverlay, setShowDebugOverlay] = useState(false);
-  
   // Use the custom Three.js hook for 3D scene management
   const { mountRef, updateVisualization } = useThreeJS(
     parameters,
@@ -39,7 +38,7 @@ export function ThreeJSVisualization({
   // Update the 3D visualization whenever parameters or data changes
   useEffect(() => {
     updateVisualization();
-  }, [updateVisualization]);
+  }, [updateVisualization, parameters, manualRiseData, calculatedRiseData, debugMode, showOverlay]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="bg-white rounded-2xl p-6 shadow-lg border-l-4 border-blue-500">
@@ -51,53 +50,27 @@ export function ThreeJSVisualization({
         </p>
       </div>
 
-      {/* Debug control panel - only visible when debug mode is enabled */}
+      {/* Debug status indicator - only visible when debug mode is enabled */}
       {debugMode && (
         <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-          <h4 className="text-blue-900 font-semibold mb-2">🐛 Debug Controls</h4>
-          
-          {/* Settings button - controls local debug overlay */}
-          <button
-            onClick={() => setShowDebugOverlay(!showDebugOverlay)}
-            className={`mr-2 px-3 py-1 text-sm rounded-lg transition-colors ${
-              showDebugOverlay 
-                ? 'bg-green-600 text-white' 
-                : 'bg-gray-500 text-white hover:bg-gray-600'
-            }`}
-            title="Toggle Debug Settings"
-          >
-            ⚙️ Settings
-          </button>
-          
-          {/* Overlay button - controls parent overlay state */}
-          <button
-            onClick={() => onShowOverlayChange(!showOverlay)}
-            className={`px-3 py-1 text-sm rounded-lg transition-colors ${
-              showOverlay
-                ? 'bg-green-600 text-white'
-                : 'bg-gray-500 text-white hover:bg-gray-600'
-            }`}
-            title="Toggle Debug Overlay"
-          >
-            📊 Overlay
-          </button>
+          <h4 className="text-blue-900 font-semibold mb-2">🐛 Debug Mode Active</h4>
+          <div className="text-sm text-blue-700">
+            Overlay: {showOverlay ? 'ON' : 'OFF'} | 
+            3D Debug Elements: Visible | 
+            Real-time Updates: Active
+          </div>
         </div>
       )}
 
       {/* Main 3D visualization container */}
       <div className="relative w-full h-96 md:h-[500px] lg:h-[600px]">
-        {/* Debug mode toggle button - always visible */}
-        <button
-          onClick={() => onDebugModeChange(!debugMode)}
-          className={`absolute top-2 right-2 z-10 px-3 py-2 text-sm md:text-base rounded-lg transition-colors ${
-            debugMode 
-              ? 'bg-purple-600 text-white' 
-              : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
-          }`}
-          title="Toggle Debug Mode"
-        >
-          {debugMode ? '🐛 Debug ON' : '🐛 Debug OFF'}
-        </button>
+        {/* Debug status indicator in 3D space */}
+        {debugMode && (
+          <div className="absolute top-2 right-2 z-10 bg-black bg-opacity-75 text-white px-3 py-2 text-sm rounded-lg">
+            <div className="text-green-400 font-bold">🐛 DEBUG</div>
+            <div className="text-xs text-gray-300">Overlay: {showOverlay ? 'ON' : 'OFF'}</div>
+          </div>
+        )}
         
         {/* Three.js canvas container */}
         <div 
@@ -107,8 +80,8 @@ export function ThreeJSVisualization({
         />
       </div>
 
-      {/* Debug information display - only visible when both debug mode and local overlay are enabled */}
-      {debugMode && showDebugOverlay && (
+      {/* Debug information display - only visible when debug mode and overlay are enabled */}
+      {debugMode && showOverlay && (
         <div className="mt-4 p-3 bg-gray-100 rounded-lg border border-gray-300">
           <h4 className="text-sm font-semibold text-gray-700 mb-2">🐛 Debug Information</h4>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">

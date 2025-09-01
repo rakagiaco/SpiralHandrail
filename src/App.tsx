@@ -6,7 +6,7 @@ import { HandrailParameters } from './types/handrail';
 import { ThreeJSVisualization } from './components/ThreeJSVisualization';
 import { ParametersSection } from './components/ParametersSection';
 import { RiseAdjustmentSection } from './components/RiseAdjustmentSection';
-import { ComprehensiveDebugPanel } from './components/ComprehensiveDebugPanel';
+
 import { calculateRiseAtDistance } from './utils/calculations';
 
 // Default parameters for a standard spiral handrail
@@ -142,8 +142,30 @@ function App() {
 
       {/* Main content area with all the application sections */}
       <main className="App-main">
-        {/* Top section: Parameters and Custom Job Parameters */}
-        <div className="top-section">
+        {/* Left section: Debug tools and parameters */}
+        <div className="left-section">
+          {/* Debug Controls */}
+          <div className="bg-gray-800 text-white rounded-lg p-4 mb-4">
+            <h3 className="text-lg font-bold mb-3 text-yellow-400">🐛 Debug Controls</h3>
+            <div className="space-y-3">
+              <button
+                onClick={() => handleDebugModeChange(!debugMode)}
+                className={`w-full px-4 py-2 rounded font-bold ${
+                  debugMode ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+                }`}
+              >
+                {debugMode ? 'DEBUG ON' : 'DEBUG OFF'}
+              </button>
+              <button
+                onClick={() => handleShowOverlayChange(!showOverlay)}
+                className={`w-full px-4 py-2 rounded font-bold ${
+                  showOverlay ? 'bg-blue-600 text-white' : 'bg-gray-500 text-white'
+                }`}
+              >
+                {showOverlay ? 'OVERLAY ON' : 'OVERLAY OFF'}
+              </button>
+            </div>
+          </div>
           {/* Section for adjusting handrail parameters (dimensions, angles, etc.) */}
           <ParametersSection
             parameters={parameters}
@@ -175,7 +197,7 @@ function App() {
                 <input
                   type="number"
                   step="0.001"
-                  value={parameters.customInnerRadius || 4.625}
+                  value={parameters.customInnerRadius || 4.5}
                   onChange={(e) => handleParameterChange('customInnerRadius', parseFloat(e.target.value) || 4.625)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -204,8 +226,8 @@ function App() {
           </div>
         </div>
 
-        {/* Center section: 3D visualization */}
-        <div className="center-section">
+        {/* Right section: Large 3D visualization with built-in debug info */}
+        <div className="right-section">
           <ThreeJSVisualization
             parameters={parameters}
             manualRiseData={manualRiseData}
@@ -217,21 +239,8 @@ function App() {
           />
         </div>
 
-        {/* Bottom section: Charts and data - Full width below visualizer */}
+        {/* Bottom section: Charts spread out below visualizer */}
         <div className="bottom-section">
-          {/* Comprehensive Debug Panel - Always visible when debug mode is on */}
-          {debugMode && (
-            <ComprehensiveDebugPanel
-              parameters={parameters}
-              manualRiseData={manualRiseData}
-              calculatedRiseData={calculatedRiseData}
-              debugMode={debugMode}
-              showOverlay={showOverlay}
-              onDebugModeChange={handleDebugModeChange}
-              onShowOverlayChange={handleShowOverlayChange}
-            />
-          )}
-          
           {/* Section for entering manual rise data points */}
           <RiseAdjustmentSection
             totalArcDistance={parameters.totalArcDistance}
