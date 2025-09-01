@@ -726,27 +726,34 @@ export function useThreeJS(
              const targetZ = outerRadius * Math.sin(angle);
              const targetRise = rise; // Use the already calculated rise (which includes manual data)
              
-                          // Apply custom easement angle to the bottom easement (UP/DOWN only)
-              const customEasementAngle = parameters.customEasementAngle || -35.08;
-              const easementAngleRad = customEasementAngle * Math.PI / 180;
-              
-              // FIXED: Start easement slightly lower than pitch block for smooth connection
-              // The easement should start lower and gradually rise to meet the spiral
-              const easementStartRise = safePitchBlock - (safePitchBlock * 0.1); // Start 10% lower
-              const easementTargetRise = targetRise; // End at the spiral rise
-              
-              // Debug: Log when easement angle is applied
-              if (i === 0) {
-                console.log(`🔧 Applying custom easement angle: ${customEasementAngle}° (${easementAngleRad.toFixed(3)} rad)`);
-                console.log(`📍 Easement start rise: ${easementStartRise.toFixed(3)}" (10% below pitch block)`);
-                console.log(`📍 Easement target rise: ${easementTargetRise.toFixed(3)}" (spiral rise)`);
-              }
-              
-              // Continuous interpolation creates truly smooth line
-              // X and Z follow the spiral path, Y smoothly transitions from lower start to spiral rise
-              x = startX + (targetX - startX) * smoothEaseT;
-              z = startZ + (targetZ - startZ) * smoothEaseT;
-              y = easementStartRise + (easementTargetRise - easementStartRise) * smoothEaseT;
+                                         // Apply custom easement angle to the bottom easement (UP/DOWN only)
+               const customEasementAngle = parameters.customEasementAngle || -35.08;
+               const easementAngleRad = customEasementAngle * Math.PI / 180;
+               
+               // FIXED: Start easement slightly lower than pitch block for smooth connection
+               // The easement should start lower and gradually rise to meet the spiral
+               const easementStartRise = safePitchBlock - (safePitchBlock * 0.1); // Start 10% lower
+               const easementTargetRise = targetRise; // End at the spiral rise
+               
+               // FIXED: Apply easement angle to adjust the rise curve
+               // The angle affects how steeply the easement rises/falls
+               const angleAdjustment = Math.tan(easementAngleRad) * (arcDistance * 0.1);
+               const adjustedTargetRise = easementTargetRise + angleAdjustment;
+               
+               // Debug: Log when easement angle is applied
+               if (i === 0) {
+                 console.log(`🔧 Applying custom easement angle: ${customEasementAngle}° (${easementAngleRad.toFixed(3)} rad)`);
+                 console.log(`📍 Easement start rise: ${easementStartRise.toFixed(3)}" (10% below pitch block)`);
+                 console.log(`📍 Easement target rise: ${easementTargetRise.toFixed(3)}" (spiral rise)`);
+                 console.log(`📍 Angle adjustment: ${angleAdjustment.toFixed(3)}" (${easementAngleRad.toFixed(3)} rad)`);
+                 console.log(`📍 Adjusted target rise: ${adjustedTargetRise.toFixed(3)}"`);
+               }
+               
+               // Continuous interpolation creates truly smooth line
+               // X and Z follow the spiral path, Y smoothly transitions from lower start to adjusted spiral rise
+               x = startX + (targetX - startX) * smoothEaseT;
+               z = startZ + (targetZ - startZ) * smoothEaseT;
+               y = easementStartRise + (adjustedTargetRise - easementStartRise) * smoothEaseT;
           }
          
          // Add interactive target point marker for bottom easement
@@ -800,27 +807,35 @@ export function useThreeJS(
                safePitchBlock + ((endManualRise - safePitchBlock) * (safeTotalRise / 7.375)) : 
                safePitchBlock + safeTotalRise;
             
-                                     // Apply custom easement angle to the top easement (UP/DOWN only)
-              const customEasementAngle = parameters.customEasementAngle || -35.08;
-              const easementAngleRad = customEasementAngle * Math.PI / 180;
-              
-              // FIXED: Top easement should start at spiral rise and smoothly transition to final position
-              // The easement should connect smoothly from spiral end to final height
-              const easementStartRise = startRise; // Start at spiral end rise
-              const easementEndRise = endRise; // End at final height
-              
-              // Debug: Log when easement angle is applied
-              if (i === steps) {
-                console.log(`🔧 Applying custom easement angle: ${customEasementAngle}° (${easementAngleRad.toFixed(3)} rad)`);
-                console.log(`📍 Easement start rise: ${easementStartRise.toFixed(3)}" (spiral end)`);
-                console.log(`📍 Easement end rise: ${easementEndRise.toFixed(3)}" (final height)`);
-              }
-              
-              // Continuous interpolation creates truly smooth line
-              // X and Z follow the spiral path, Y smoothly transitions from spiral end to final height
-              x = startX + (endX - startX) * smoothEaseT;
-              z = startZ + (endZ - startZ) * smoothEaseT;
-              y = easementStartRise + (easementEndRise - easementStartRise) * smoothEaseT;
+                                                    // Apply custom easement angle to the top easement (UP/DOWN only)
+               const customEasementAngle = parameters.customEasementAngle || -35.08;
+               const easementAngleRad = customEasementAngle * Math.PI / 180;
+               
+               // FIXED: Top easement should start at spiral rise and smoothly transition to final position
+               // The easement should connect smoothly from spiral end to final height
+               const easementStartRise = startRise; // Start at spiral end rise
+               const easementEndRise = endRise; // End at final height
+               
+               // FIXED: Apply easement angle to adjust the rise curve
+               // The angle affects how steeply the easement rises/falls
+               const remainingArcDistance = parameters.totalArcDistance - arcDistance;
+               const angleAdjustment = Math.tan(easementAngleRad) * (remainingArcDistance * 0.1);
+               const adjustedEndRise = easementEndRise + angleAdjustment;
+               
+               // Debug: Log when easement angle is applied
+               if (i === steps) {
+                 console.log(`🔧 Applying custom easement angle: ${customEasementAngle}° (${easementAngleRad.toFixed(3)} rad)`);
+                 console.log(`📍 Easement start rise: ${easementStartRise.toFixed(3)}" (spiral end)`);
+                 console.log(`📍 Easement end rise: ${easementEndRise.toFixed(3)}" (final height)`);
+                 console.log(`📍 Angle adjustment: ${angleAdjustment.toFixed(3)}" (${easementAngleRad.toFixed(3)} rad)`);
+                 console.log(`📍 Adjusted end rise: ${adjustedEndRise.toFixed(3)}"`);
+               }
+               
+               // Continuous interpolation creates truly smooth line
+               // X and Z follow the spiral path, Y smoothly transitions from spiral end to adjusted final height
+               x = startX + (endX - startX) * smoothEaseT;
+               z = startZ + (endZ - startZ) * smoothEaseT;
+               y = easementStartRise + (adjustedEndRise - easementStartRise) * smoothEaseT;
          }
          
          // Add interactive target point marker for top easement
@@ -964,9 +979,9 @@ export function useThreeJS(
                         // Use smooth interpolation to prevent 90-degree angles
               const smoothEaseT = easeT * easeT * (3 - 2 * easeT); // Smoothstep function
               
-              // FIXED: Inside line bottom easement should start slightly lower for smooth connection
-              const easementStartRise = insidePitchBlockOffset - (insidePitchBlockOffset * 0.1); // Start 10% lower
-              const easementTargetRise = insidePitchBlockOffset + (t * safeTotalRise); // End at spiral rise
+                             // FIXED: Inside line bottom easement should start at actual pitch block height and end at inner line start
+               const easementStartRise = safePitchBlock - (safePitchBlock * 0.1); // Start 10% below actual pitch block
+               const easementTargetRise = insidePitchBlockOffset; // End exactly at inner line start (not spiral rise)
               
               // Smoothly interpolate from start to target position to prevent sharp angles
               const targetX = innerRadius * Math.cos(angle);
