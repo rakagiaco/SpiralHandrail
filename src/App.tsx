@@ -27,6 +27,7 @@ function App() {
 
   // Debug state
   const [debugMode, setDebugMode] = useState(false);
+  const [showOverlay, setShowOverlay] = useState(false);
   const [lastCalculationTime, setLastCalculationTime] = useState<number>(0);
   const [calculationErrors, setCalculationErrors] = useState<string[]>([]);
 
@@ -259,6 +260,19 @@ function App() {
                   ⚙️ Settings
                 </button>
               )}
+              {debugMode && (
+                <button
+                  onClick={() => setShowOverlay(!showOverlay)}
+                  className={`px-3 py-1 text-sm rounded-lg transition-colors ${
+                    showOverlay
+                      ? 'bg-green-600 text-white'
+                      : 'bg-gray-500 text-white hover:bg-gray-600'
+                  }`}
+                  title="Toggle Debug Overlay"
+                >
+                  {showOverlay ? '📊 Overlay ON' : '📊 Overlay OFF'}
+                </button>
+              )}
               <button
                 onClick={exportData}
                 className="px-3 py-1 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
@@ -460,12 +474,13 @@ function App() {
             </div>
             
             <div className="xl:order-none order-first">
-              <ThreeJSVisualization
-                parameters={parameters}
-                manualRiseData={manualRiseData}
-                calculatedRiseData={calculatedRiseData}
-                debugMode={debugMode}
-              />
+                      <ThreeJSVisualization
+          parameters={parameters}
+          manualRiseData={manualRiseData}
+          calculatedRiseData={calculatedRiseData}
+          debugMode={debugMode}
+          showOverlay={showOverlay}
+        />
             </div>
           </div>
 

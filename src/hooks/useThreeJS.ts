@@ -7,7 +7,8 @@ export function useThreeJS(
   parameters: HandrailParameters,
   manualRiseData: Record<number, number>,
   calculatedRiseData: Record<number, number>,
-  debugMode: boolean
+  debugMode: boolean,
+  showOverlay: boolean
 ) {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<{
@@ -26,9 +27,7 @@ export function useThreeJS(
     dragPlane: THREE.Plane | null;
   } | null>(null);
 
-
-
-    // Helper function to create text sprites for the staircase framework
+  // Helper function to create text sprites for the staircase framework
   const createTextSprite = (text: string, position: THREE.Vector3, color: number = 0xffffff, size: 'small' | 'large' = 'small') => {
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
@@ -117,8 +116,8 @@ export function useThreeJS(
        const bottomLabel = createTextSprite('Bottom Offset', new THREE.Vector3(0, 2.5, -parameters.bottomOffset), 0xf59e0b);
        const topLabel = createTextSprite('Top Offset', new THREE.Vector3(0, 6.5, -parameters.topOffset), 0xef4444);
        
-                                                               // Add pitch block height label
-          const pitchBlockLabel = createTextSprite(`Pitch Block (${parameters.pitchBlock.toFixed(1)}")`, new THREE.Vector3(0, parameters.pitchBlock + 0.5, 0), 0xff0000);
+                                                                       // Add pitch block height label
+           const pitchBlockLabel = createTextSprite(`Pitch Block (${parameters.pitchBlock.toFixed(1)}")`, new THREE.Vector3(0, Math.max(0.5, parameters.pitchBlock + 0.5), 0), 0xff0000);
        
        scene.add(mainLabel);
        scene.add(bottomLabel);
@@ -249,22 +248,23 @@ export function useThreeJS(
               // Bottom over-ease: direct interpolation to straight rail at custom angle
               const easeT = segmentPosition / parameters.bottomLength;
               
-                                                             // Start at 0° with pitch block height rise
-                 const startAngle = 0;
-                 const startX = outerRadius * Math.cos(startAngle);
-                 const startZ = outerRadius * Math.sin(startAngle);
-                 const startRise = parameters.pitchBlock; // Use actual pitch block height
-               
-                              // End point: straight rail angling DOWN at customizable angle
-                const easementLength = 2.0; // Length of the easement section
-                const easementAngle = parameters.customEasementAngle || -35.08; // Allow custom angle, default to -35.08°
-                const angleRad = easementAngle * Math.PI / 180; // Convert to radians
-                
-                                 // Calculate the straight rail end point - end at pitch block height to account for pitch block offset
-                 // No horizontal movement - straight down from the pitch block height
-                 const easementEndX = startX; // No horizontal movement - straight down
-                 const easementEndZ = startZ; // No forward movement - straight down
-                 const easementEndRise = Math.max(parameters.pitchBlock, startRise - easementLength * Math.sin(Math.abs(angleRad))); // End at pitch block height minimum
+                                                                      // Start at 0° with pitch block height rise
+         const startAngle = 0;
+         const startX = outerRadius * Math.cos(startAngle);
+         const startZ = outerRadius * Math.sin(startAngle);
+         const startRise = parameters.pitchBlock; // Use actual pitch block height
+       
+        // End point: straight rail angling DOWN at customizable angle
+        const easementLength = 2.0; // Length of the easement section
+        const easementAngle = parameters.customEasementAngle || -35.08; // Allow custom angle, default to -35.08°
+        const angleRad = easementAngle * Math.PI / 180; // Convert to radians
+        
+         // Calculate the straight rail end point - ensure it's always visible and follows pitch block
+         // No horizontal movement - straight down from the pitch block height
+         const easementEndX = startX; // No horizontal movement - straight down
+         const easementEndZ = startZ; // No forward movement - straight down
+         // Ensure the easement is always visible by making it angle down from pitch block height
+         const easementEndRise = startRise - easementLength * Math.sin(Math.abs(angleRad));
                
                // Direct linear interpolation - no complex blending, no 90° angle
                x = startX + (easementEndX - startX) * easeT;
@@ -397,22 +397,23 @@ export function useThreeJS(
             // Bottom over-ease: direct interpolation to straight rail at custom angle
             const easeT = segmentPosition / parameters.bottomLength;
             
-                                                   // Start at 0° with pitch block height rise
-              const startAngle = 0;
-              const startX = insideRadius * Math.cos(startAngle);
-              const startZ = insideRadius * Math.sin(startAngle);
-              const startRise = parameters.pitchBlock; // Use actual pitch block height
-            
-                         // Calculate the easement end point by angling DOWN at customizable angle
-             const easementLength = 2.0; // Length of the easement section
-             const innerBottomEasementAngle = parameters.customEasementAngle || -35.08; // Allow custom angle, default to -35.08°
-             const angleRad = innerBottomEasementAngle * Math.PI / 180; // Convert to radians
+                                                                // Start at 0° with pitch block height rise
+               const startAngle = 0;
+               const startX = insideRadius * Math.cos(startAngle);
+               const startZ = insideRadius * Math.sin(startAngle);
+               const startRise = parameters.pitchBlock; // Use actual pitch block height
              
-                           // Project the easement direction directly DOWN at custom angle from the start point
-              // Connect to the upper offset dot (pitch block height) - no lower dot at 0
-              const easementEndX = startX; // No horizontal movement - straight down
-              const easementEndZ = startZ; // No forward movement - straight down
-              const easementEndRise = parameters.pitchBlock; // End at pitch block height
+                          // Calculate the easement end point by angling DOWN at customizable angle
+              const easementLength = 2.0; // Length of the easement section
+              const innerBottomEasementAngle = parameters.customEasementAngle || -35.08; // Allow custom angle, default to -35.08°
+              const angleRad = innerBottomEasementAngle * Math.PI / 180; // Convert to radians
+              
+                            // Project the easement direction directly DOWN at custom angle from the start point
+               // Connect to the upper offset dot (pitch block height) - no lower dot at 0
+               const easementEndX = startX; // No horizontal movement - straight down
+               const easementEndZ = startZ; // No forward movement - straight down
+               // Ensure the easement is always visible by making it angle down from pitch block height
+               const easementEndRise = startRise - easementLength * Math.sin(Math.abs(angleRad));
              
              // Direct linear interpolation - no complex blending, no 90° angle
              x = startX + (easementEndX - startX) * easeT;
@@ -474,11 +475,11 @@ export function useThreeJS(
     scene.add(newInsideLineMesh);
     sceneRef.current.insideLineMesh = newInsideLineMesh;
     
-         // Add debugging information overlay (only when debug mode is on)
-     if (debugMode) {
-       const debugInfo = createDebugInfoOverlay(parameters, manualRiseData, calculatedRiseData);
-       scene.add(debugInfo);
-       sceneRef.current.debugElements.push(debugInfo);
+                   // Add debugging information overlay (only when both debug mode and overlay are on)
+      if (debugMode && showOverlay) {
+        const debugInfo = createDebugInfoOverlay(parameters, manualRiseData, calculatedRiseData);
+        scene.add(debugInfo);
+        sceneRef.current.debugElements.push(debugInfo);
        
        // Add easement angle debugging
        const addEasementDebugInfo = () => {
@@ -545,7 +546,7 @@ export function useThreeJS(
       addStaircaseFramework(scene, parameters, sceneRef.current.debugElements);
     }
     
-  }, [parameters, manualRiseData, calculatedRiseData]);
+     }, [parameters, manualRiseData, calculatedRiseData, debugMode, showOverlay]);
 
   // Function to create debugging information overlay
   const createDebugInfoOverlay = (params: HandrailParameters, manualData: Record<number, number>, calculatedData: Record<number, number>) => {
