@@ -219,48 +219,7 @@ function App() {
                 <p className="text-xs text-gray-500 mt-1">Default: -35.08° (standard stair angle)</p>
               </div>
               
-              <div className="pt-4 border-t border-gray-200">
-                <h4 className="text-md font-medium text-gray-700 mb-3">Global Scaling</h4>
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Scale Total Rise (%)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      min="50"
-                      max="200"
-                      value={100}
-                      onChange={(e) => {
-                        const scale = parseFloat(e.target.value) / 100;
-                        handleParameterChange('totalHelicalRise', (defaultParameters.totalHelicalRise * scale));
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Scale the entire handrail height proportionally</p>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Scale Arc Distance (%)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      min="50"
-                      max="200"
-                      value={100}
-                      onChange={(e) => {
-                        const scale = parseFloat(e.target.value) / 100;
-                        handleParameterChange('totalArcDistance', (defaultParameters.totalArcDistance * scale));
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Scale the entire handrail length proportionally</p>
-                  </div>
-                </div>
-              </div>
+              
               
               <button
                 onClick={() => setParameters(defaultParameters)}
