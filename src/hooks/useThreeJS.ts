@@ -117,8 +117,8 @@ export function useThreeJS(
        const bottomLabel = createTextSprite('Bottom Offset', new THREE.Vector3(0, 2.5, -parameters.bottomOffset), 0xf59e0b);
        const topLabel = createTextSprite('Top Offset', new THREE.Vector3(0, 6.5, -parameters.topOffset), 0xef4444);
        
-                               // Add pitch block height label
-         const pitchBlockLabel = createTextSprite('Pitch Block (1.0")', new THREE.Vector3(0, 1.5, 0), 0xff0000);
+                                                               // Add pitch block height label
+          const pitchBlockLabel = createTextSprite(`Pitch Block (${parameters.pitchBlock.toFixed(1)}")`, new THREE.Vector3(0, parameters.pitchBlock + 0.5, 0), 0xff0000);
        
        scene.add(mainLabel);
        scene.add(bottomLabel);
@@ -249,22 +249,22 @@ export function useThreeJS(
               // Bottom over-ease: direct interpolation to straight rail at custom angle
               const easeT = segmentPosition / parameters.bottomLength;
               
-                                            // Start at 0° with 1.0" rise (pitch block height)
-                const startAngle = 0;
-                const startX = outerRadius * Math.cos(startAngle);
-                const startZ = outerRadius * Math.sin(startAngle);
-                const startRise = 1.0; // Pitch block height
+                                                             // Start at 0° with pitch block height rise
+                 const startAngle = 0;
+                 const startX = outerRadius * Math.cos(startAngle);
+                 const startZ = outerRadius * Math.sin(startAngle);
+                 const startRise = parameters.pitchBlock; // Use actual pitch block height
                
                               // End point: straight rail angling DOWN at customizable angle
                 const easementLength = 2.0; // Length of the easement section
                 const easementAngle = parameters.customEasementAngle || -35.08; // Allow custom angle, default to -35.08°
                 const angleRad = easementAngle * Math.PI / 180; // Convert to radians
                 
-                // Calculate the straight rail end point - connect to the upper offset dot (pitch block height)
-                // No horizontal movement - straight down from the pitch block height
-                const easementEndX = startX; // No horizontal movement - straight down
-                const easementEndZ = startZ; // No forward movement - straight down
-                const easementEndRise = 1.0; // End at 1" to match pitch block height
+                                 // Calculate the straight rail end point - end at pitch block height to account for pitch block offset
+                 // No horizontal movement - straight down from the pitch block height
+                 const easementEndX = startX; // No horizontal movement - straight down
+                 const easementEndZ = startZ; // No forward movement - straight down
+                 const easementEndRise = Math.max(parameters.pitchBlock, startRise - easementLength * Math.sin(Math.abs(angleRad))); // End at pitch block height minimum
                
                // Direct linear interpolation - no complex blending, no 90° angle
                x = startX + (easementEndX - startX) * easeT;
@@ -397,22 +397,22 @@ export function useThreeJS(
             // Bottom over-ease: direct interpolation to straight rail at custom angle
             const easeT = segmentPosition / parameters.bottomLength;
             
-                         // Start at 0° with 1.0" rise (pitch block height)
-             const startAngle = 0;
-             const startX = insideRadius * Math.cos(startAngle);
-             const startZ = insideRadius * Math.sin(startAngle);
-             const startRise = 1.0; // Pitch block height
+                                                   // Start at 0° with pitch block height rise
+              const startAngle = 0;
+              const startX = insideRadius * Math.cos(startAngle);
+              const startZ = insideRadius * Math.sin(startAngle);
+              const startRise = parameters.pitchBlock; // Use actual pitch block height
             
                          // Calculate the easement end point by angling DOWN at customizable angle
              const easementLength = 2.0; // Length of the easement section
              const innerBottomEasementAngle = parameters.customEasementAngle || -35.08; // Allow custom angle, default to -35.08°
              const angleRad = innerBottomEasementAngle * Math.PI / 180; // Convert to radians
              
-             // Project the easement direction directly DOWN at custom angle from the start point
-             // Connect to the upper offset dot (pitch block height) - no lower dot at 0
-             const easementEndX = startX; // No horizontal movement - straight down
-             const easementEndZ = startZ; // No forward movement - straight down
-             const easementEndRise = 1.0; // End at 1" to match pitch block height
+                           // Project the easement direction directly DOWN at custom angle from the start point
+              // Connect to the upper offset dot (pitch block height) - no lower dot at 0
+              const easementEndX = startX; // No horizontal movement - straight down
+              const easementEndZ = startZ; // No forward movement - straight down
+              const easementEndRise = parameters.pitchBlock; // End at pitch block height
              
              // Direct linear interpolation - no complex blending, no 90° angle
              x = startX + (easementEndX - startX) * easeT;
