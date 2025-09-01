@@ -597,7 +597,7 @@ export function useThreeJS(
     
               // Create outside handrail points with CONTINUOUS smooth geometry
      const outerPoints: THREE.Vector3[] = [];
-     const steps = 2000; // Much higher resolution for truly smooth curves
+           const steps = 5000; // Ultra-high resolution for truly smooth curves
      
      // CRASH PROTECTION: Validate calculation inputs
      const safeManualRiseData = (!manualRiseData || typeof manualRiseData !== 'object') ? {} : manualRiseData;
@@ -622,25 +622,39 @@ export function useThreeJS(
          // Use manual rise data if available, otherwise fall back to calculated
          const currentArcDistance = t * parameters.totalArcDistance;
          
-         // Try to find the closest manual rise point with enhanced tolerance
-         let manualRise: number | null = null;
-         if (Object.keys(safeManualRiseData).length > 0) {
-           const manualDistances = Object.keys(safeManualRiseData).map(Number).sort((a, b) => a - b);
-           const closestDistance = manualDistances.reduce((prev, curr) => 
-             Math.abs(curr - currentArcDistance) < Math.abs(prev - currentArcDistance) ? curr : prev
-           );
-           
-           // Enhanced tolerance for better manual input integration
-           if (Math.abs(closestDistance - currentArcDistance) < 0.5) { // Within 0.5" tolerance
-             manualRise = safeManualRiseData[closestDistance];
-           }
-         }
+                   // Try to find the closest manual rise point with enhanced tolerance
+          let manualRise: number | null = null;
+          if (Object.keys(safeManualRiseData).length > 0) {
+            const manualDistances = Object.keys(safeManualRiseData).map(Number).sort((a, b) => a - b);
+            
+            // Find the closest manual rise point
+            let closestDistance = manualDistances[0];
+            let minDifference = Math.abs(closestDistance - currentArcDistance);
+            
+            for (const distance of manualDistances) {
+              const difference = Math.abs(distance - currentArcDistance);
+              if (difference < minDifference) {
+                minDifference = difference;
+                closestDistance = distance;
+              }
+            }
+            
+            // Enhanced tolerance for better manual input integration
+            if (minDifference < 1.0) { // Increased tolerance to 1.0" for better connection
+              manualRise = safeManualRiseData[closestDistance];
+            }
+          }
          
                    if (manualRise !== null) {
             // Use manual rise data - this point will be part of the smooth curve
-            rise = manualRise;
-            if (i % 100 === 0) { // Log every 100th point to avoid spam
-              console.log(`📍 Using manual rise data at step ${i}: arcDistance=${currentArcDistance.toFixed(2)}", rise=${manualRise.toFixed(3)}"`);
+            // Scale the manual rise data proportionally with the current project parameters
+            const baseManualRise = manualRise - safePitchBlock; // Remove pitch block offset
+            const scaleFactor = safeTotalRise / 7.375; // Scale relative to default 7.375" rise
+            const scaledManualRise = safePitchBlock + (baseManualRise * scaleFactor);
+            rise = scaledManualRise;
+            
+            if (i % 500 === 0) { // Log every 500th point to avoid spam
+              console.log(`📍 Using scaled manual rise data at step ${i}: arcDistance=${currentArcDistance.toFixed(2)}", original=${manualRise.toFixed(3)}", scaled=${scaledManualRise.toFixed(3)}"`);
             }
           } else {
             // ENHANCED: Dynamic calculation that scales with ALL project parameters
@@ -777,13 +791,13 @@ export function useThreeJS(
      if (outerPoints.length < 2) {
        console.warn('Insufficient outer points for curve creation, skipping handrail mesh');
      } else {
-       // Create the curve with ULTRA smooth interpolation for truly continuous lines
-       const outerCurve = new THREE.CatmullRomCurve3(outerPoints);
-       outerCurve.tension = 0.9; // Maximum tension for ultra-smooth curves
-       outerCurve.closed = false; // Ensure open curve for handrail
-       
-       // Enhanced tube geometry for maximum smoothness
-       const outerGeometry = new THREE.TubeGeometry(outerCurve, Math.min(steps, outerPoints.length - 1), 0.15, 8, false);
+               // Create the curve with ULTRA smooth interpolation for truly continuous lines
+        const outerCurve = new THREE.CatmullRomCurve3(outerPoints);
+        outerCurve.tension = 1.0; // Maximum tension for ultra-smooth curves
+        outerCurve.closed = false; // Ensure open curve for handrail
+        
+        // Enhanced tube geometry for maximum smoothness - use more segments for smoother appearance
+        const outerGeometry = new THREE.TubeGeometry(outerCurve, Math.min(steps * 2, outerPoints.length - 1), 0.15, 8, false);
        const newHandrailMesh = new THREE.Mesh(outerGeometry, new THREE.MeshLambertMaterial({ color: 0x3b82f6 }));
        newHandrailMesh.castShadow = true;
        scene.add(newHandrailMesh);
@@ -945,13 +959,13 @@ export function useThreeJS(
      if (insidePoints.length < 2) {
        console.warn('Insufficient inside points for curve creation, skipping inside line mesh');
      } else {
-       // Create inside reference line with ULTRA smooth curve
-       const insideCurve = new THREE.CatmullRomCurve3(insidePoints);
-       insideCurve.tension = 0.9; // Maximum tension for ultra-smooth curves
-       insideCurve.closed = false; // Ensure open curve for reference line
-       
-       // Enhanced tube geometry for maximum smoothness
-       const insideGeometry = new THREE.TubeGeometry(insideCurve, steps, 0.1, 6, false);
+               // Create inside reference line with ULTRA smooth curve
+        const insideCurve = new THREE.CatmullRomCurve3(insidePoints);
+        insideCurve.tension = 1.0; // Maximum tension for ultra-smooth curves
+        insideCurve.closed = false; // Ensure open curve for reference line
+        
+        // Enhanced tube geometry for maximum smoothness - use more segments for smoother appearance
+        const insideGeometry = new THREE.TubeGeometry(insideCurve, steps * 2, 0.1, 6, false);
        const newInsideLineMesh = new THREE.Mesh(insideGeometry, new THREE.MeshLambertMaterial({ color: 0x10b981 }));
        scene.add(newInsideLineMesh);
        sceneRef.current.insideLineMesh = newInsideLineMesh;
