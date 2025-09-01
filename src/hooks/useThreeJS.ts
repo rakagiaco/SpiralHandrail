@@ -560,8 +560,8 @@ export function useThreeJS(
     
     // FLIGHT 1: 7 steps UP from main center (going UP at 35.08°)
     for (let i = 1; i <= 7; i++) {
-      const z = i * stepRun; // Positive Z = up the first flight
-      const y = parameters.pitchBlock + (i * stepRise); // Rise from pitch block
+      const y = i * stepRun; // Positive Y = up the first flight (VERTICAL, not horizontal)
+      const z = parameters.pitchBlock + (i * stepRise); // Rise from pitch block (Z axis for height)
       const x = 0; // Centered on main center
       
       staircasePoints.push(new THREE.Vector3(x, y, z));
@@ -582,10 +582,11 @@ export function useThreeJS(
     
     // FLIGHT 2: 7 steps UP from main center (going UP at 35.08° but rotated 180°)
     // This is the scissor stair - same direction, opposite side
+    // Flight 2 should be at a higher Z level to create the < shape
     for (let i = 1; i <= 7; i++) {
-      const z = -i * stepRun; // Negative Z = up the second flight (opposite direction)
-      const y = parameters.pitchBlock + (i * stepRise); // Same rise as first flight
-      const x = 0; // Centered on main center
+      const y = -i * stepRun; // Negative Y = up the second flight (opposite direction, VERTICAL)
+      const z = parameters.pitchBlock + (7 * stepRise) + (i * stepRise); // Start at Flight 1's end height + additional rise
+      const x = 0; // Centered on main center (NOT offset centers)
       
       staircasePoints.push(new THREE.Vector3(x, y, z));
       
@@ -631,17 +632,17 @@ export function useThreeJS(
     // Add easement connection points - CORRECTED for scissor stair
     const addEasementConnectionPoints = () => {
       // Bottom easement connects to where Flight 2 meets the landing (step 7 of flight 2)
-      const bottomConnectionZ = -7 * stepRun; // Flight 2, step 7
-      const bottomConnectionY = parameters.pitchBlock + (7 * stepRise); // Same rise as step 7
+      const bottomConnectionY = -7 * stepRun; // Flight 2, step 7 (negative Y)
+      const bottomConnectionZ = parameters.pitchBlock + (7 * stepRise) + (7 * stepRise); // Flight 1's end height + Flight 2's full rise
       
       // Top easement connects to where Flight 1 meets the landing (step 7 of flight 1)  
-      const topConnectionZ = 7 * stepRun; // Flight 1, step 7
-      const topConnectionY = parameters.pitchBlock + (7 * stepRise); // Same rise as step 7
+      const topConnectionY = 7 * stepRun; // Flight 1, step 7 (positive Y)
+      const topConnectionZ = parameters.pitchBlock + (7 * stepRise); // Flight 1's end height
       
       // Create connection point markers
       const connectionGeometry = new THREE.SphereGeometry(0.3, 16, 16);
       
-      // Bottom connection (blue - Flight 2)
+      // Bottom connection (blue - Flight 2) - HIGHER Z level
       const bottomConnection = new THREE.Mesh(
         connectionGeometry, 
         new THREE.MeshBasicMaterial({ color: 0x0088ff })
@@ -650,7 +651,7 @@ export function useThreeJS(
       scene.add(bottomConnection);
       debugElements.push(bottomConnection);
       
-      // Top connection (green - Flight 1)
+      // Top connection (green - Flight 1) - LOWER Z level
       const topConnection = new THREE.Mesh(
         connectionGeometry, 
         new THREE.MeshBasicMaterial({ color: 0x00ff00 })
@@ -676,30 +677,9 @@ export function useThreeJS(
       scene.add(topLabel);
       debugElements.push(topLabel);
       
-      // Add target lines showing where easements should aim
-      const addTargetLines = () => {
-        // Bottom easement target line (from spiral end to Flight 2 connection)
-        const bottomTargetGeometry = new THREE.BufferGeometry().setFromPoints([
-          new THREE.Vector3(0, parameters.pitchBlock, 0), // Start at main center
-          new THREE.Vector3(0, bottomConnectionY, bottomConnectionZ) // End at Flight 2, step 7
-        ]);
-        const bottomTargetMaterial = new THREE.LineBasicMaterial({ color: 0x0088ff, linewidth: 2 });
-        const bottomTargetLine = new THREE.Line(bottomTargetGeometry, bottomTargetMaterial);
-        scene.add(bottomTargetLine);
-        debugElements.push(bottomTargetLine);
-        
-        // Top easement target line (from spiral end to Flight 1 connection)
-        const topTargetGeometry = new THREE.BufferGeometry().setFromPoints([
-          new THREE.Vector3(0, parameters.pitchBlock, 0), // Start at main center
-          new THREE.Vector3(0, topConnectionY, topConnectionZ) // End at Flight 1, step 7
-        ]);
-        const topTargetMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00, linewidth: 2 });
-        const topTargetLine = new THREE.Line(topTargetGeometry, topTargetMaterial);
-        scene.add(topTargetLine);
-        debugElements.push(topTargetLine);
-      };
-      
-      addTargetLines();
+      // REMOVED: Incorrect target lines that were connecting to wrong points
+      // The easements should flow naturally from the spiral to these connection points
+      // without artificial target lines
     };
     
     addEasementConnectionPoints();
