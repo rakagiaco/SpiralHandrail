@@ -681,9 +681,9 @@ export function useThreeJS(
            baseRise = safePitchBlock + (t * safeTotalRise);
          }
          
-         // FIXED: Apply easement angle to the ENTIRE rise calculation
-         // This affects how steeply the entire handrail rises/falls
-         const angleAdjustment = Math.tan(easementAngleRad) * (arcDistance * 0.05); // Reduced multiplier for subtle effect
+                   // FIXED: Apply easement angle to the ENTIRE rise calculation
+          // This affects how steeply the entire handrail rises/falls
+          const angleAdjustment = Math.tan(easementAngleRad) * (arcDistance * 0.02); // Very small multiplier to prevent disconnection
          const adjustedBaseRise = baseRise + angleAdjustment;
          
          // Scale the adjusted rise proportionally with project parameters
@@ -749,9 +749,9 @@ export function useThreeJS(
                 const easementStartRise = safePitchBlock; // Start at pitch block height
                 const easementTargetRise = targetRise; // End at the spiral rise
                 
-                // FIXED: Apply easement angle to adjust the rise curve
-                // The angle affects how steeply the easement rises/falls
-                const angleAdjustment = Math.tan(easementAngleRad) * (arcDistance * 0.1);
+                // FIXED: Apply easement angle as a proportional adjustment that pivots around connection points
+                // The angle affects the curve shape while maintaining smooth connections
+                const angleAdjustment = Math.tan(easementAngleRad) * (arcDistance * 0.05);
                 const adjustedTargetRise = easementTargetRise + angleAdjustment;
                 
                 // Debug: Log when easement angle is applied
@@ -830,11 +830,11 @@ export function useThreeJS(
                const easementStartRise = startRise; // Start at spiral end rise
                const easementEndRise = endRise; // End at final height
                
-               // FIXED: Apply easement angle to adjust the rise curve
-               // The angle affects how steeply the easement rises/falls
-               const remainingArcDistance = parameters.totalArcDistance - arcDistance;
-               const angleAdjustment = Math.tan(easementAngleRad) * (remainingArcDistance * 0.1);
-               const adjustedEndRise = easementEndRise + angleAdjustment;
+                               // FIXED: Apply easement angle as a proportional adjustment that pivots around connection points
+                // The angle affects the curve shape while maintaining smooth connections
+                const remainingArcDistance = parameters.totalArcDistance - arcDistance;
+                const angleAdjustment = Math.tan(easementAngleRad) * (remainingArcDistance * 0.05);
+                const adjustedEndRise = easementEndRise + angleAdjustment;
                
                // Debug: Log when easement angle is applied
                if (i === steps) {
@@ -946,8 +946,8 @@ export function useThreeJS(
                  rise = lowerRise + (upperRise - lowerRise) * interpolationFactor;
                }
                
-               // FIXED: Apply easement angle to inner line rise calculation
-               const angleAdjustment = Math.tan(easementAngleRad) * (currentArcDistance * 0.05);
+                               // FIXED: Apply easement angle to inner line rise calculation
+                const angleAdjustment = Math.tan(easementAngleRad) * (currentArcDistance * 0.02);
                const adjustedRise = rise + angleAdjustment;
                
                // Scale the adjusted rise proportionally with project parameters for inside line
@@ -955,9 +955,9 @@ export function useThreeJS(
                const scaleFactor = safeTotalRise / 7.375;
                rise = insidePitchBlockOffset + (baseRise * scaleFactor);
              } else {
-               // Fallback: use simple linear rise if no manual data for inside line
-               const baseRise = insidePitchBlockOffset + (t * safeTotalRise);
-               const angleAdjustment = Math.tan(easementAngleRad) * (currentArcDistance * 0.05);
+                               // Fallback: use simple linear rise if no manual data for inside line
+                const baseRise = insidePitchBlockOffset + (t * safeTotalRise);
+                const angleAdjustment = Math.tan(easementAngleRad) * (currentArcDistance * 0.02);
                rise = baseRise + angleAdjustment;
              }
             
@@ -1007,11 +1007,11 @@ export function useThreeJS(
                const easementStartRise = insidePitchBlockOffset; // Start at inner line start height
                const easementTargetRise = rise; // End at the calculated spiral rise
                
-               // FIXED: Apply easement angle to inner line bottom easement
-               const customEasementAngle = parameters.customEasementAngle || -35.08;
-               const easementAngleRad = customEasementAngle * Math.PI / 180;
-               const angleAdjustment = Math.tan(easementAngleRad) * (arcDistance * 0.1);
-               const adjustedTargetRise = easementTargetRise + angleAdjustment;
+                               // FIXED: Apply easement angle as a proportional adjustment that pivots around connection points
+                const customEasementAngle = parameters.customEasementAngle || -35.08;
+                const easementAngleRad = customEasementAngle * Math.PI / 180;
+                const angleAdjustment = Math.tan(easementAngleRad) * (arcDistance * 0.05);
+                const adjustedTargetRise = easementTargetRise + angleAdjustment;
                
                // Smoothly interpolate from start to target position to prevent sharp angles
                const targetX = innerRadius * Math.cos(angle);
@@ -1060,12 +1060,12 @@ export function useThreeJS(
              // Both lines should end at inside pitch block offset + total rise
              const endRise = insidePitchBlockOffset + safeTotalRise;
             
-            // FIXED: Apply easement angle to inner line top easement
-            const customEasementAngle = parameters.customEasementAngle || -35.08;
-            const easementAngleRad = customEasementAngle * Math.PI / 180;
-            const remainingArcDistance = parameters.totalArcDistance - arcDistance;
-            const angleAdjustment = Math.tan(easementAngleRad) * (remainingArcDistance * 0.1);
-            const adjustedEndRise = endRise + angleAdjustment;
+                         // FIXED: Apply easement angle as a proportional adjustment that pivots around connection points
+             const customEasementAngle = parameters.customEasementAngle || -35.08;
+             const easementAngleRad = customEasementAngle * Math.PI / 180;
+             const remainingArcDistance = parameters.totalArcDistance - arcDistance;
+             const angleAdjustment = Math.tan(easementAngleRad) * (remainingArcDistance * 0.05);
+             const adjustedEndRise = endRise + angleAdjustment;
             
             // CRITICAL: Inner line should have a more gradual easement
             // Since it only travels 10.5" arc, the rise should be smoother
