@@ -561,8 +561,9 @@ export function useThreeJS(
     
     // FLIGHT 1: 7 steps UP from main center (going UP at 35.08°)
     // Top of Flight 1 (step 7) should meet the main center
+    // ROTATED 180° around Z-axis (blue axis) so F1-1 goes DOWN
     for (let i = 1; i <= 7; i++) {
-      const y = (7 - i) * stepRun; // Count DOWN from main center (step 7 = 0, step 1 = 6*stepRun)
+      const y = -(7 - i) * stepRun; // NEGATIVE Y = rotated 180° (step 7 = 0, step 1 = -6*stepRun)
       const z = (7 - i) * stepRise; // Rise DOWN from main center (step 7 = 0, step 1 = 6*stepRise)
       const x = 0; // Centered on main center
       
@@ -637,8 +638,8 @@ export function useThreeJS(
       const bottomConnectionY = -7 * stepRun; // Flight 2, step 7 (negative Y)
       const bottomConnectionZ = -7 * stepRise; // Flight 2, step 7 (negative Z - DOWN from main center)
       
-      // Top easement connects to where Flight 1 meets the landing (step 7 of flight 1)  
-      const topConnectionY = 6 * stepRun; // Flight 1, step 1 (positive Y - DOWN from main center)
+      // Top easement connects to where Flight 1 meets the landing (step 1 of flight 1)  
+      const topConnectionY = -6 * stepRun; // Flight 1, step 1 (NEGATIVE Y - rotated 180° around Z-axis)
       const topConnectionZ = 6 * stepRise; // Flight 1, step 1 (positive Z - DOWN from main center)
       
       // Create connection point markers
