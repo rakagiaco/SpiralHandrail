@@ -360,6 +360,88 @@ function App() {
                 parameters={parameters} 
                 onParameterChange={handleParameterChange} 
               />
+              
+              {/* Custom Job Parameters Section */}
+              <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
+                <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                  <span className="w-2 h-2 bg-purple-500 rounded-full mr-3"></span>
+                  Custom Job Parameters
+                </h3>
+                <p className="text-gray-600 mb-4 text-sm">
+                  Adjust these parameters for different staircase configurations. Changes are applied proportionally.
+                </p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Outer Radius Control */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Outer Radius (inches)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="4"
+                      max="20"
+                      value={parameters.customOuterRadius || 8}
+                      onChange={(e) => handleParameterChange('customOuterRadius', parseFloat(e.target.value) || 8)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="8.0"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Default: 8.0"</p>
+                  </div>
+                  
+                  {/* Inner Radius Control */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Inner Radius (inches)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="2"
+                      max="15"
+                      value={parameters.customInnerRadius || 4.5}
+                      onChange={(e) => handleParameterChange('customInnerRadius', parseFloat(e.target.value) || 4.5)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="4.5"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Default: 4.5"</p>
+                  </div>
+                  
+                  {/* Easement Angle Control */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Easement Angle (degrees)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="20"
+                      max="50"
+                      value={parameters.customEasementAngle || 35.08}
+                      onChange={(e) => handleParameterChange('customEasementAngle', parseFloat(e.target.value) || 35.08)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="35.08"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Default: 35.08°</p>
+                  </div>
+                </div>
+                
+                {/* Reset Button */}
+                <div className="mt-4 flex justify-end">
+                  <button
+                    onClick={() => {
+                      handleParameterChange('customOuterRadius', 8);
+                      handleParameterChange('customInnerRadius', 4.5);
+                      handleParameterChange('customEasementAngle', 35.08);
+                    }}
+                    className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                  >
+                    Reset to Defaults
+                  </button>
+                </div>
+              </div>
+              
               <RiseAdjustmentSection
                 totalArcDistance={parameters.totalArcDistance}
                 manualRiseData={manualRiseData}

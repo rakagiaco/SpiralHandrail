@@ -28,4 +28,8 @@ export interface HandrailParameters {
   topLength: number;
   bottomOffset: number;
   topOffset: number;
+  // Customizable parameters for different stair jobs
+  customOuterRadius?: number;
+  customInnerRadius?: number;
+  customEasementAngle?: number;
 }
