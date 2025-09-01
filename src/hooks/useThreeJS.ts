@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import * as THREE from 'three';
 import { HandrailParameters } from '../types/handrail';
-import { getCurrentRiseAtDistance } from '../utils/calculations';
+import { calculateRiseAtDistance } from '../utils/calculations';
 
 export function useThreeJS(
   parameters: HandrailParameters,
@@ -60,8 +60,6 @@ export function useThreeJS(
     
     return sprite;
   };
-
-
 
   const updateVisualization = useCallback(() => {
     if (!sceneRef.current) return;
@@ -283,14 +281,15 @@ export function useThreeJS(
       const segmentPosition = (arcDistance / parameters.totalArcDistance) * parameters.totalSegments;
       const angle = (arcDistance / parameters.totalArcDistance) * parameters.totalDegrees * Math.PI / 180;
       
-              // CRASH PROTECTION: Safe rise calculation with fallback
-        let rise: number;
-        try {
-          rise = getCurrentRiseAtDistance(
-            arcDistance, 
-            safeManualRiseData, 
-            safeCalculatedRiseData
-          );
+      // CRASH PROTECTION: Safe rise calculation with fallback
+      let rise: number;
+      try {
+        rise = calculateRiseAtDistance(
+          arcDistance, 
+          parameters.totalHelicalRise,
+          parameters.totalArcDistance,
+          parameters.pitchBlock
+        );
         
         // Validate rise value
         if (isNaN(rise) || !isFinite(rise)) {
@@ -401,6 +400,7 @@ export function useThreeJS(
             y = startRise;
           } else {
             // IMPROVED: Create ultra-smooth transition from spiral end to easement end
+            // Use the EXACT same smoothing as the inside line for perfect consistency
             const smoothEaseT = easeT * easeT * (3 - 2 * easeT);
             const smoothLayer1 = Math.sin(easeT * Math.PI) * 0.1;
             const smoothLayer2 = Math.sin(easeT * Math.PI * 2) * 0.05;
@@ -470,7 +470,12 @@ export function useThreeJS(
       let rise: number;
       try {
         const proportionalArcDistance = (t * maxArcDistance);
-        rise = safePitchBlock + (proportionalArcDistance / maxArcDistance) * safeTotalRise;
+        rise = calculateRiseAtDistance(
+          proportionalArcDistance,
+          parameters.totalHelicalRise,
+          parameters.totalArcDistance,
+          parameters.pitchBlock
+        );
         
         // Validate rise value
         if (isNaN(rise) || !isFinite(rise)) {
@@ -484,7 +489,7 @@ export function useThreeJS(
       
       let x: number, z: number, y: number = rise;
       
-                   if (segmentPosition <= parameters.bottomLength) {
+      if (segmentPosition <= parameters.bottomLength) {
         // CRASH PROTECTION: Validate bottom length for inside line
         if (parameters.bottomLength <= 0) {
           console.warn('Invalid bottom length for inside line, skipping bottom easement');
@@ -535,10 +540,10 @@ export function useThreeJS(
           const startX = innerRadius * Math.cos(startAngle);
           const startZ = innerRadius * Math.sin(startAngle);
           
-                   // FIXED: Calculate a higher starting rise at 200° (end of spiral) for smoother up-ease
-         // The spiral should end slightly higher to create a gradual, smooth transition
-         const spiralEndRise = safePitchBlock + (200 / 220) * safeTotalRise + (safeTotalRise * 0.15); // Add 15% extra rise
-         const startRise = spiralEndRise;
+          // FIXED: Calculate a higher starting rise at 200° (end of spiral) for smoother up-ease
+          // The spiral should end slightly higher to create a gradual, smooth transition
+          const spiralEndRise = safePitchBlock + (200 / 220) * safeTotalRise + (safeTotalRise * 0.15); // Add 15% extra rise
+          const startRise = spiralEndRise;
           
           // End at 220° with total rise - SCALES WITH TOTAL RISE
           const endAngle = 220 * Math.PI / 180;
@@ -605,8 +610,6 @@ export function useThreeJS(
     }
     
   }, [parameters, manualRiseData, calculatedRiseData, debugMode, showOverlay]);
-
-
 
   useEffect(() => {
     if (!mountRef.current) return;
