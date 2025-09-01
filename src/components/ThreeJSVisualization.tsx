@@ -6,10 +6,11 @@ interface ThreeJSVisualizationProps {
   parameters: HandrailParameters;
   manualRiseData: Record<number, number>;
   calculatedRiseData: Record<number, number>;
+  debugMode: boolean;
 }
 
-export function ThreeJSVisualization({ parameters, manualRiseData, calculatedRiseData }: ThreeJSVisualizationProps) {
-  const { mountRef, updateVisualization } = useThreeJS(parameters, manualRiseData, calculatedRiseData);
+export function ThreeJSVisualization({ parameters, manualRiseData, calculatedRiseData, debugMode }: ThreeJSVisualizationProps) {
+  const { mountRef, updateVisualization } = useThreeJS(parameters, manualRiseData, calculatedRiseData, debugMode);
   
   // Debug state
   const [showDebugOverlay, setShowDebugOverlay] = useState(false);

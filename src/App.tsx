@@ -251,6 +251,14 @@ function App() {
               >
                 {debugMode ? '🐛 Debug ON' : '🐛 Debug OFF'}
               </button>
+              {debugMode && (
+                <button
+                  className="px-3 py-1 text-sm bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                  title="Settings"
+                >
+                  ⚙️ Settings
+                </button>
+              )}
               <button
                 onClick={exportData}
                 className="px-3 py-1 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
@@ -456,6 +464,7 @@ function App() {
                 parameters={parameters}
                 manualRiseData={manualRiseData}
                 calculatedRiseData={calculatedRiseData}
+                debugMode={debugMode}
               />
             </div>
           </div>
