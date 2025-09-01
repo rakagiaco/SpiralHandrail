@@ -66,14 +66,20 @@ export function useThreeJS(
   const updateVisualization = useCallback(() => {
     if (!sceneRef.current) return;
     
-    // Debug: Log when visualization updates
-    console.log('🔄 Updating 3D visualization with parameters:', {
-      totalHelicalRise: parameters.totalHelicalRise,
-      totalArcDistance: parameters.totalArcDistance,
-      pitchBlock: parameters.pitchBlock,
-      customOuterRadius: parameters.customOuterRadius,
-      customInnerRadius: parameters.customInnerRadius
-    });
+         // Debug: Log when visualization updates
+     console.log('🔄 Updating 3D visualization with parameters:', {
+       totalHelicalRise: parameters.totalHelicalRise,
+       totalArcDistance: parameters.totalArcDistance,
+       pitchBlock: parameters.pitchBlock,
+       customOuterRadius: parameters.customOuterRadius,
+       customInnerRadius: parameters.customInnerRadius
+     });
+     
+     // Debug: Log offset scaling information
+     const baseScaleFactor = parameters.totalHelicalRise / 7.375;
+     console.log(`📏 Offset scaling: Base factor = ${baseScaleFactor.toFixed(3)}`);
+     console.log(`📏 Bottom offset: ${parameters.bottomOffset}" → ${(parameters.bottomOffset * baseScaleFactor).toFixed(3)}"`);
+     console.log(`📏 Top offset: ${parameters.topOffset}" → ${(parameters.topOffset * baseScaleFactor).toFixed(3)}"`);
 
     const { scene, handrailMesh, insideLineMesh, centerDots, debugElements } = sceneRef.current;
     
@@ -98,13 +104,13 @@ export function useThreeJS(
          `Total Segments: ${params.totalSegments}`,
          `Pitch Block: ${params.pitchBlock}"`,
          
-         // Easement Configuration
-         `=== EASEMENT CONFIG ===`,
-         `Bottom Length: ${params.bottomLength} segments`,
-         `Top Length: ${params.topLength} segments`,
-         `Bottom Offset: ${params.bottomOffset}"`,
-         `Top Offset: ${params.topOffset}"`,
-         `Custom Easement Angle: ${params.customEasementAngle || -35.08}°`,
+                   // Easement Configuration
+          `=== EASEMENT CONFIG ===`,
+          `Bottom Length: ${params.bottomLength} segments`,
+          `Top Length: ${params.topLength} segments`,
+          `Bottom Offset: ${params.bottomOffset}" → ${safeBottomOffset.toFixed(3)}" (scaled)`,
+          `Top Offset: ${params.topOffset}" → ${safeTopOffset.toFixed(3)}" (scaled)`,
+          `Custom Easement Angle: ${params.customEasementAngle || -35.08}°`,
          
                                        // Radius Information
            `=== RADIUS INFO ===`,
@@ -368,13 +374,18 @@ export function useThreeJS(
       console.warn('Total helical rise value out of reasonable range, using default');
     }
     
-    // Safe values with fallbacks
-    const safePitchBlock = Math.max(0.1, Math.min(100, parameters.pitchBlock || 0.1));
-    const safeTotalRise = Math.max(0.1, Math.min(1000, parameters.totalHelicalRise || 0.1));
-    
-    // CRASH PROTECTION: Validate offset values
-    const safeBottomOffset = Math.max(-10, Math.min(10, parameters.bottomOffset || 0));
-    const safeTopOffset = Math.max(-10, Math.min(10, parameters.topOffset || 0));
+         // Safe values with fallbacks
+     const safePitchBlock = Math.max(0.1, Math.min(100, parameters.pitchBlock || 0.1));
+     const safeTotalRise = Math.max(0.1, Math.min(1000, parameters.totalHelicalRise || 0.1));
+     
+     // CRASH PROTECTION: Validate offset values and scale them proportionally with total rise
+     const baseBottomOffset = Math.max(-10, Math.min(10, parameters.bottomOffset || 0));
+     const baseTopOffset = Math.max(-10, Math.min(10, parameters.topOffset || 0));
+     
+     // Scale offsets proportionally with total rise (same scaling as manual rise data)
+     const scaleFactor = safeTotalRise / 7.375; // Base scale factor for 7.375" total rise
+     const safeBottomOffset = baseBottomOffset * scaleFactor;
+     const safeTopOffset = baseTopOffset * scaleFactor;
     
                                                                          // Calculate radii with protection - use custom parameters if provided
      const customOuterRadius = parameters.customOuterRadius || 4.625;
@@ -404,22 +415,22 @@ export function useThreeJS(
       scene.add(mainDot);
       sceneRef.current.centerDots.push(mainDot);
       
-      // Bottom center (orange) - at original offset position (1.5" from main center)
-      const bottomDot = new THREE.Mesh(dotGeometry, new THREE.MeshLambertMaterial({ color: 0xf59e0b }));
-      bottomDot.position.set(0, 2, -parameters.bottomOffset);
-      scene.add(bottomDot);
-      sceneRef.current.centerDots.push(bottomDot);
+             // Bottom center (orange) - at scaled offset position
+       const bottomDot = new THREE.Mesh(dotGeometry, new THREE.MeshLambertMaterial({ color: 0xf59e0b }));
+       bottomDot.position.set(0, 2, -safeBottomOffset);
+       scene.add(bottomDot);
+       sceneRef.current.centerDots.push(bottomDot);
+       
+       // Top center (red) - at scaled offset position
+       const topDot = new THREE.Mesh(dotGeometry, new THREE.MeshLambertMaterial({ color: 0xef4444 }));
+       topDot.position.set(0, 6, -safeTopOffset);
+       scene.add(topDot);
+       sceneRef.current.centerDots.push(topDot);
       
-      // Top center (red) - at original offset position (1.875" from main center)
-      const topDot = new THREE.Mesh(dotGeometry, new THREE.MeshLambertMaterial({ color: 0xef4444 }));
-      topDot.position.set(0, 6, -parameters.topOffset);
-      scene.add(topDot);
-      sceneRef.current.centerDots.push(topDot);
-      
-      // Add labels for center dots
-      const mainLabel = createTextSprite('Main Center', new THREE.Vector3(0, 4.5, 0), 0x3b82f6);
-      const bottomLabel = createTextSprite('Bottom Offset', new THREE.Vector3(0, 2.5, -parameters.bottomOffset), 0xf59e0b);
-      const topLabel = createTextSprite('Top Offset', new THREE.Vector3(0, 6.5, -parameters.topOffset), 0xef4444);
+             // Add labels for center dots
+       const mainLabel = createTextSprite('Main Center', new THREE.Vector3(0, 4.5, 0), 0x3b82f6);
+       const bottomLabel = createTextSprite(`Bottom Offset: ${safeBottomOffset.toFixed(3)}" (Base: ${parameters.bottomOffset})`, new THREE.Vector3(0, 2.5, -safeBottomOffset), 0xf59e0b);
+       const topLabel = createTextSprite(`Top Offset: ${safeTopOffset.toFixed(3)}" (Base: ${parameters.topOffset})`, new THREE.Vector3(0, 6.5, -safeTopOffset), 0xef4444);
       
       // Add pitch block height label
       const pitchBlockLabel = createTextSprite(`Pitch Block (${safePitchBlock.toFixed(1)}")`, new THREE.Vector3(0, Math.max(0.5, safePitchBlock + 0.5), 0), 0xff0000);
@@ -597,7 +608,7 @@ export function useThreeJS(
     
               // Create outside handrail points with CONTINUOUS smooth geometry
      const outerPoints: THREE.Vector3[] = [];
-           const steps = 10000; // Maximum resolution for perfectly smooth curves
+           const steps = 2000; // Balanced resolution for smooth curves without artifacts
      
      // CRASH PROTECTION: Validate calculation inputs
      const safeManualRiseData = (!manualRiseData || typeof manualRiseData !== 'object') ? {} : manualRiseData;
@@ -616,61 +627,64 @@ export function useThreeJS(
        // Calculate continuous angle based on arc distance
        const angle = (arcDistance / parameters.totalArcDistance) * parameters.totalDegrees * Math.PI / 180;
        
-       // ENHANCED: Dynamic rise calculation that scales with ALL project parameters
-       let rise: number;
-       try {
-         // Use manual rise data if available, otherwise fall back to calculated
-         const currentArcDistance = t * parameters.totalArcDistance;
-         
-                   // Try to find the closest manual rise point with enhanced tolerance
-          let manualRise: number | null = null;
-          if (Object.keys(safeManualRiseData).length > 0) {
-            const manualDistances = Object.keys(safeManualRiseData).map(Number).sort((a, b) => a - b);
-            
-            // Find the closest manual rise point
-            let closestDistance = manualDistances[0];
-            let minDifference = Math.abs(closestDistance - currentArcDistance);
-            
-            for (const distance of manualDistances) {
-              const difference = Math.abs(distance - currentArcDistance);
-              if (difference < minDifference) {
-                minDifference = difference;
-                closestDistance = distance;
-              }
+                       // SIMPLIFIED: Use ONLY manual rise data with smooth interpolation between points
+        let rise: number;
+        
+        if (Object.keys(safeManualRiseData).length > 0) {
+          // Find the two closest manual rise points for interpolation
+          const manualDistances = Object.keys(safeManualRiseData).map(Number).sort((a, b) => a - b);
+          const currentArcDistance = t * parameters.totalArcDistance;
+          
+          // Find the two points to interpolate between
+          let lowerPoint = manualDistances[0];
+          let upperPoint = manualDistances[manualDistances.length - 1];
+          
+          for (let j = 0; j < manualDistances.length - 1; j++) {
+            if (currentArcDistance >= manualDistances[j] && currentArcDistance <= manualDistances[j + 1]) {
+              lowerPoint = manualDistances[j];
+              upperPoint = manualDistances[j + 1];
+              break;
             }
-            
-                         // Enhanced tolerance for better manual input integration
-             if (minDifference < 0.25) { // Reduced tolerance to 0.25" for tighter connection
-               manualRise = safeManualRiseData[closestDistance];
-             }
           }
-         
-                   if (manualRise !== null) {
-            // Use manual rise data - this point will be part of the smooth curve
-            // Scale the manual rise data proportionally with the current project parameters
-            const baseManualRise = manualRise - safePitchBlock; // Remove pitch block offset
-            const scaleFactor = safeTotalRise / 7.375; // Scale relative to default 7.375" rise
-            const scaledManualRise = safePitchBlock + (baseManualRise * scaleFactor);
-            rise = scaledManualRise;
-            
-            if (i % 500 === 0) { // Log every 500th point to avoid spam
-              console.log(`📍 Using scaled manual rise data at step ${i}: arcDistance=${currentArcDistance.toFixed(2)}", original=${manualRise.toFixed(3)}", scaled=${scaledManualRise.toFixed(3)}", scaleFactor=${(safeTotalRise / 7.375).toFixed(3)}`);
-            }
+          
+          // Interpolate between the two manual points
+          const lowerRise = safeManualRiseData[lowerPoint];
+          const upperRise = safeManualRiseData[upperPoint];
+          
+          if (lowerPoint === upperPoint) {
+            // Exact match - use the manual point directly
+            rise = safeManualRiseData[lowerPoint];
           } else {
-            // ENHANCED: Dynamic calculation that scales with ALL project parameters
-            // This ensures every point recalculates when rise, pitch block, or other parameters change
-            rise = safePitchBlock + (t * safeTotalRise);
+            // Interpolate between the two points
+            const interpolationFactor = (currentArcDistance - lowerPoint) / (upperPoint - lowerPoint);
+            rise = lowerRise + (upperRise - lowerRise) * interpolationFactor;
+            
+            // Scale the rise proportionally with project parameters
+            const baseRise = rise - safePitchBlock;
+            const scaleFactor = safeTotalRise / 7.375;
+            rise = safePitchBlock + (baseRise * scaleFactor);
+            
+            if (i % 500 === 0) {
+              console.log(`📍 Interpolating between manual points: ${lowerPoint}" → ${upperPoint}", factor: ${interpolationFactor.toFixed(3)}, rise: ${rise.toFixed(3)}"`);
+            }
           }
-         
-         // Validate rise value
-         if (isNaN(rise) || !isFinite(rise)) {
-           console.warn(`Invalid rise value at step ${i}, using fallback`);
-           rise = safePitchBlock + (t * safeTotalRise);
-         }
-       } catch (error) {
-         console.warn(`Error calculating rise at step ${i}, using fallback:`, error);
-         rise = safePitchBlock + (t * safeTotalRise);
-       }
+          
+          // Scale the rise proportionally with project parameters (for exact matches)
+          if (lowerPoint === upperPoint) {
+            const baseRise = rise - safePitchBlock;
+            const scaleFactor = safeTotalRise / 7.375;
+            rise = safePitchBlock + (baseRise * scaleFactor);
+          }
+        } else {
+          // Fallback: use simple linear rise if no manual data
+          rise = safePitchBlock + (t * safeTotalRise);
+        }
+        
+        // Validate rise value
+        if (isNaN(rise) || !isFinite(rise)) {
+          console.warn(`Invalid rise value at step ${i}, using fallback`);
+          rise = safePitchBlock + (t * safeTotalRise);
+        }
        
        // Calculate continuous position using mathematical functions (no discrete steps)
        let x: number, z: number, y: number = rise;
@@ -678,21 +692,21 @@ export function useThreeJS(
        // Calculate segment position for easement logic
        const segmentPosition = (arcDistance / parameters.totalArcDistance) * parameters.totalSegments;
        
-       if (segmentPosition <= parameters.bottomLength) {
-         // Bottom easement: continuous smooth transition
-         if (parameters.bottomLength <= 0) {
-           console.warn('Invalid bottom length, skipping bottom easement');
-           x = outerRadius * Math.cos(angle);
-           z = outerRadius * Math.sin(angle);
-           y = rise;
-         } else {
-           // Create continuous smooth bottom easement using mathematical functions
-           const easeT = segmentPosition / parameters.bottomLength;
-           
-           // Use continuous mathematical interpolation (no discrete steps)
-           const smoothEaseT = easeT * easeT * (3 - 2 * easeT); // Smoothstep function
-           
-                       // Start position (at 0°) - use manual rise data if available and scale it
+               if (segmentPosition <= parameters.bottomLength) {
+          // Bottom easement: continuous smooth transition with custom easement angle
+          if (parameters.bottomLength <= 0) {
+            console.warn('Invalid bottom length, skipping bottom easement');
+            x = outerRadius * Math.cos(angle);
+            z = outerRadius * Math.sin(angle);
+            y = rise;
+          } else {
+            // Create continuous smooth bottom easement using mathematical functions
+            const easeT = segmentPosition / parameters.bottomLength;
+            
+            // Use continuous mathematical interpolation (no discrete steps)
+            const smoothEaseT = easeT * easeT * (3 - 2 * easeT); // Smoothstep function
+            
+            // Start position (at 0°) - use manual rise data if available and scale it
             const startX = outerRadius * Math.cos(0);
             const startZ = outerRadius * Math.sin(0);
             const startManualRise = safeManualRiseData[0];
@@ -705,11 +719,26 @@ export function useThreeJS(
             const targetZ = outerRadius * Math.sin(angle);
             const targetRise = rise; // Use the already calculated rise (which includes manual data)
             
+            // Apply custom easement angle to the bottom easement
+            const customEasementAngle = parameters.customEasementAngle || -35.08;
+            const easementAngleRad = customEasementAngle * Math.PI / 180;
+            
+            // Adjust the target position based on the custom easement angle
+            const adjustedTargetX = targetX + (Math.sin(easementAngleRad) * 0.5);
+            const adjustedTargetZ = targetZ + (Math.cos(easementAngleRad) * 0.5);
+            
+            // Debug: Log when easement angle is applied
+            if (i === 0) {
+              console.log(`🔧 Applying custom easement angle: ${customEasementAngle}° (${easementAngleRad.toFixed(3)} rad)`);
+              console.log(`📍 Original target: (${targetX.toFixed(3)}, ${targetZ.toFixed(3)})`);
+              console.log(`📍 Adjusted target: (${adjustedTargetX.toFixed(3)}, ${adjustedTargetZ.toFixed(3)})`);
+            }
+            
             // Continuous interpolation creates truly smooth line
-            x = startX + (targetX - startX) * smoothEaseT;
-            z = startZ + (targetZ - startZ) * smoothEaseT;
+            x = startX + (adjustedTargetX - startX) * smoothEaseT;
+            z = startZ + (adjustedTargetZ - startZ) * smoothEaseT;
             y = startRise + (targetRise - startRise) * smoothEaseT;
-         }
+          }
          
          // Add interactive target point marker for bottom easement
          if (i === 0 && debugMode && parameters.bottomLength > 0) {
@@ -762,10 +791,18 @@ export function useThreeJS(
               safePitchBlock + ((endManualRise - safePitchBlock) * (safeTotalRise / 7.375)) : 
               safePitchBlock + safeTotalRise;
            
-           // Continuous interpolation creates truly smooth line
-           x = startX + (endX - startX) * smoothEaseT;
-           z = startZ + (endZ - startZ) * smoothEaseT;
-           y = startRise + (endRise - startRise) * smoothEaseT;
+                       // Apply custom easement angle to the top easement
+            const customEasementAngle = parameters.customEasementAngle || -35.08;
+            const easementAngleRad = customEasementAngle * Math.PI / 180;
+            
+            // Adjust the end position based on the custom easement angle
+            const adjustedEndX = endX + (Math.sin(easementAngleRad) * 0.5);
+            const adjustedEndZ = endZ + (Math.cos(easementAngleRad) * 0.5);
+            
+            // Continuous interpolation creates truly smooth line
+            x = startX + (adjustedEndX - startX) * smoothEaseT;
+            z = startZ + (adjustedEndZ - startZ) * smoothEaseT;
+            y = startRise + (endRise - startRise) * smoothEaseT;
          }
          
          // Add interactive target point marker for top easement
@@ -804,8 +841,8 @@ export function useThreeJS(
         outerCurve.tension = 1.0; // Maximum tension for perfectly smooth curves
         outerCurve.closed = false; // Ensure open curve for handrail
         
-                 // Enhanced tube geometry for maximum smoothness - use maximum segments for perfectly smooth appearance
-         const outerGeometry = new THREE.TubeGeometry(outerCurve, Math.min(steps * 4, outerPoints.length - 1), 0.15, 8, false);
+                          // Enhanced tube geometry for smooth appearance without artifacts
+          const outerGeometry = new THREE.TubeGeometry(outerCurve, Math.min(steps, outerPoints.length - 1), 0.15, 8, false);
        const newHandrailMesh = new THREE.Mesh(outerGeometry, new THREE.MeshLambertMaterial({ color: 0x3b82f6 }));
        newHandrailMesh.castShadow = true;
        scene.add(newHandrailMesh);
@@ -826,31 +863,44 @@ export function useThreeJS(
                                          // CRASH PROTECTION: Safe rise calculation for inside line
          let rise: number;
          try {
-           // Inner line should have CONSTANT RATE until top easement
-           // Use manual rise data if available, otherwise fall back to calculated
-           const currentArcDistance = t * parameters.totalArcDistance;
-           
-           // Try to find the closest manual rise point
-           let manualRise: number | null = null;
-           if (Object.keys(safeManualRiseData).length > 0) {
-             const manualDistances = Object.keys(safeManualRiseData).map(Number).sort((a, b) => a - b);
-             const closestDistance = manualDistances.reduce((prev, curr) => 
-               Math.abs(curr - currentArcDistance) < Math.abs(prev - currentArcDistance) ? curr : prev
-             );
-             
-             if (Math.abs(closestDistance - currentArcDistance) < 0.5) { // Within 0.5" tolerance
-               manualRise = safeManualRiseData[closestDistance];
-             }
-           }
-           
-                       if (manualRise !== null) {
-              // Scale the manual rise data proportionally with the current project parameters
-              const baseManualRise = manualRise - safePitchBlock; // Remove pitch block offset
-              const scaleFactor = safeTotalRise / 7.375; // Scale relative to default 7.375" rise
-              const scaledManualRise = safePitchBlock + (baseManualRise * scaleFactor);
-              rise = scaledManualRise;
+                       // Inner line: Use ONLY manual rise data with smooth interpolation between points
+            const currentArcDistance = t * parameters.totalArcDistance;
+            
+            if (Object.keys(safeManualRiseData).length > 0) {
+              // Find the two closest manual rise points for interpolation
+              const manualDistances = Object.keys(safeManualRiseData).map(Number).sort((a, b) => a - b);
+              
+              // Find the two points to interpolate between
+              let lowerPoint = manualDistances[0];
+              let upperPoint = manualDistances[manualDistances.length - 1];
+              
+              for (let k = 0; k < manualDistances.length - 1; k++) {
+                if (currentArcDistance >= manualDistances[k] && currentArcDistance <= manualDistances[k + 1]) {
+                  lowerPoint = manualDistances[k];
+                  upperPoint = manualDistances[k + 1];
+                  break;
+                }
+              }
+              
+              // Interpolate between the two manual points
+              const lowerRise = safeManualRiseData[lowerPoint];
+              const upperRise = safeManualRiseData[upperPoint];
+              
+              if (lowerPoint === upperPoint) {
+                // Exact match - use the manual point directly
+                rise = safeManualRiseData[lowerPoint];
+              } else {
+                // Interpolate between the two points
+                const interpolationFactor = (currentArcDistance - lowerPoint) / (upperPoint - lowerPoint);
+                rise = lowerRise + (upperRise - lowerRise) * interpolationFactor;
+              }
+              
+              // Scale the rise proportionally with project parameters
+              const baseRise = rise - safePitchBlock;
+              const scaleFactor = safeTotalRise / 7.375;
+              rise = safePitchBlock + (baseRise * scaleFactor);
             } else {
-              // Use the same rise calculation as outer line for consistency
+              // Fallback: use simple linear rise if no manual data
               rise = safePitchBlock + (t * safeTotalRise);
             }
            
@@ -983,8 +1033,8 @@ export function useThreeJS(
         insideCurve.tension = 1.0; // Maximum tension for perfectly smooth curves
         insideCurve.closed = false; // Ensure open curve for reference line
         
-                 // Enhanced tube geometry for maximum smoothness - use maximum segments for perfectly smooth appearance
-         const insideGeometry = new THREE.TubeGeometry(insideCurve, steps * 4, 0.1, 6, false);
+                          // Enhanced tube geometry for smooth appearance without artifacts
+          const insideGeometry = new THREE.TubeGeometry(insideCurve, steps, 0.1, 6, false);
        const newInsideLineMesh = new THREE.Mesh(insideGeometry, new THREE.MeshLambertMaterial({ color: 0x10b981 }));
        scene.add(newInsideLineMesh);
        sceneRef.current.insideLineMesh = newInsideLineMesh;
