@@ -28,6 +28,41 @@ export function useThreeJS(
 
 
 
+    // Helper function to create text sprites for the staircase framework
+  const createTextSprite = (text: string, position: THREE.Vector3, color: number = 0xffffff, size: 'small' | 'large' = 'small') => {
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    if (!context) return new THREE.Group();
+    
+    if (size === 'large') {
+      canvas.width = 512;
+      canvas.height = 128;
+      context.font = '24px Arial';
+    } else {
+      canvas.width = 256;
+      canvas.height = 64;
+      context.font = '16px Arial';
+    }
+    
+    context.fillStyle = '#000000';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
+    context.textAlign = 'center';
+    context.fillText(text, canvas.width / 2, canvas.height / 2);
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    const material = new THREE.SpriteMaterial({ 
+      map: texture, 
+      transparent: true, 
+      opacity: size === 'large' ? 1.0 : 0.8 
+    });
+    const sprite = new THREE.Sprite(material);
+    sprite.position.copy(position);
+    sprite.scale.set(size === 'large' ? 5 : 2, size === 'large' ? 1.25 : 0.5, 1);
+    
+    return sprite;
+  };
+
   const updateVisualization = useCallback(() => {
     if (!sceneRef.current) return;
 
@@ -54,7 +89,7 @@ export function useThreeJS(
        innerRadius = parameters.customInnerRadius;
        outerRadius = (parameters.customInnerRadius / 4.5) * 8; // Maintain proportional relationship
      }
-    
+     
          // Add center dots with enhanced debugging (only when debug mode is on)
      if (debugMode) {
        const dotGeometry = new THREE.SphereGeometry(0.4, 16, 16);
@@ -76,6 +111,23 @@ export function useThreeJS(
        topDot.position.set(0, 6, -parameters.topOffset); // Fixed offset: 1.875" from main center
        scene.add(topDot);
        sceneRef.current.centerDots.push(topDot);
+       
+       // Add labels for center dots
+       const mainLabel = createTextSprite('Main Center', new THREE.Vector3(0, 4.5, 0), 0x3b82f6);
+       const bottomLabel = createTextSprite('Bottom Offset', new THREE.Vector3(0, 2.5, -parameters.bottomOffset), 0xf59e0b);
+       const topLabel = createTextSprite('Top Offset', new THREE.Vector3(0, 6.5, -parameters.topOffset), 0xef4444);
+       
+       // Add pitch block height label
+       const pitchBlockLabel = createTextSprite('Pitch Block (1.0")', new THREE.Vector3(0, 1.5, 0), 0xff0000);
+       
+       scene.add(mainLabel);
+       scene.add(bottomLabel);
+       scene.add(topLabel);
+       scene.add(pitchBlockLabel);
+       sceneRef.current.debugElements.push(mainLabel);
+       sceneRef.current.debugElements.push(bottomLabel);
+       sceneRef.current.debugElements.push(topLabel);
+       sceneRef.current.debugElements.push(pitchBlockLabel);
      }
     
     // ============================================================================
@@ -203,20 +255,21 @@ export function useThreeJS(
                const startZ = outerRadius * Math.sin(startAngle);
                const startRise = 1.0; // Pitch block height
               
-              // End point: straight rail angling DOWN at customizable angle
-              const easementLength = 2.0; // Length of the easement section
-              const easementAngle = parameters.customEasementAngle || -35.08; // Allow custom angle, default to -35.08°
-              const angleRad = easementAngle * Math.PI / 180; // Convert to radians
-              
-              // Calculate the straight rail end point - ONLY the lower point (no upper point)
-              const easementEndX = startX; // No horizontal movement - straight down
-              const easementEndZ = startZ; // No forward movement - straight down
-              const easementEndRise = startRise - easementLength * Math.sin(Math.abs(angleRad)); // Vertical drop at custom angle
-              
-              // Direct linear interpolation - no complex blending, no 90° angle
-              x = startX + (easementEndX - startX) * easeT;
-              z = startZ + (easementEndZ - startZ) * easeT;
-              y = startRise + (easementEndRise - startRise) * easeT;
+                             // End point: straight rail angling DOWN at customizable angle
+               const easementLength = 2.0; // Length of the easement section
+               const easementAngle = parameters.customEasementAngle || -35.08; // Allow custom angle, default to -35.08°
+               const angleRad = easementAngle * Math.PI / 180; // Convert to radians
+               
+               // Calculate the straight rail end point - connect to the upper offset dot (pitch block height)
+               // No horizontal movement - straight down from the pitch block height
+               const easementEndX = startX; // No horizontal movement - straight down
+               const easementEndZ = startZ; // No forward movement - straight down
+               const easementEndRise = startRise - easementLength * Math.sin(Math.abs(angleRad)); // Vertical drop at custom angle
+               
+               // Direct linear interpolation - no complex blending, no 90° angle
+               x = startX + (easementEndX - startX) * easeT;
+               z = startZ + (easementEndZ - startZ) * easeT;
+               y = startRise + (easementEndRise - startRise) * easeT;
           
                                                                                  // Add interactive target point marker for bottom easement (invisible to avoid 90° angle bug)
              if (i === 0 && debugMode) { // Only add one marker at the start when debug mode is on
@@ -350,20 +403,21 @@ export function useThreeJS(
              const startZ = insideRadius * Math.sin(startAngle);
              const startRise = 1.0; // Pitch block height
             
-            // Calculate the easement end point by angling DOWN at customizable angle
-            const easementLength = 2.0; // Length of the easement section
-            const innerBottomEasementAngle = parameters.customEasementAngle || -35.08; // Allow custom angle, default to -35.08°
-            const angleRad = innerBottomEasementAngle * Math.PI / 180; // Convert to radians
-            
-            // Project the easement direction directly DOWN at custom angle from the start point
-            const easementEndX = startX; // No horizontal movement - straight down
-            const easementEndZ = startZ; // No forward movement - straight down
-            const easementEndRise = startRise - easementLength * Math.sin(Math.abs(angleRad)); // Vertical drop at custom angle
-            
-            // Direct linear interpolation - no complex blending, no 90° angle
-            x = startX + (easementEndX - startX) * easeT;
-            z = startZ + (easementEndZ - startZ) * easeT;
-            y = startRise + (easementEndRise - startRise) * easeT;
+                         // Calculate the easement end point by angling DOWN at customizable angle
+             const easementLength = 2.0; // Length of the easement section
+             const innerBottomEasementAngle = parameters.customEasementAngle || -35.08; // Allow custom angle, default to -35.08°
+             const angleRad = innerBottomEasementAngle * Math.PI / 180; // Convert to radians
+             
+             // Project the easement direction directly DOWN at custom angle from the start point
+             // Connect to the upper offset dot (pitch block height) - no lower dot at 0
+             const easementEndX = startX; // No horizontal movement - straight down
+             const easementEndZ = startZ; // No forward movement - straight down
+             const easementEndRise = startRise - easementLength * Math.sin(Math.abs(angleRad)); // Vertical drop at custom angle
+             
+             // Direct linear interpolation - no complex blending, no 90° angle
+             x = startX + (easementEndX - startX) * easeT;
+             z = startZ + (easementEndZ - startZ) * easeT;
+             y = startRise + (easementEndRise - startRise) * easeT;
         
                                                                                                                                                                                                                                                                                                                                                } else if (segmentPosition >= parameters.totalSegments - parameters.topLength) {
              // Top up-ease: direct interpolation from spiral end to final position
@@ -514,41 +568,6 @@ export function useThreeJS(
     });
     
     return group;
-  };
-
-  // Helper function to create text sprites for the staircase framework
-  const createTextSprite = (text: string, position: THREE.Vector3, color: number = 0xffffff, size: 'small' | 'large' = 'small') => {
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-    if (!context) return new THREE.Group();
-    
-    if (size === 'large') {
-      canvas.width = 512;
-      canvas.height = 128;
-      context.font = '24px Arial';
-    } else {
-      canvas.width = 256;
-      canvas.height = 64;
-      context.font = '16px Arial';
-    }
-    
-    context.fillStyle = '#000000';
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
-    context.textAlign = 'center';
-    context.fillText(text, canvas.width / 2, canvas.height / 2);
-    
-    const texture = new THREE.CanvasTexture(canvas);
-    const material = new THREE.SpriteMaterial({ 
-      map: texture, 
-      transparent: true, 
-      opacity: size === 'large' ? 1.0 : 0.8 
-    });
-    const sprite = new THREE.Sprite(material);
-    sprite.position.copy(position);
-    sprite.scale.set(size === 'large' ? 5 : 2, size === 'large' ? 1.25 : 0.5, 1);
-    
-    return sprite;
   };
 
      // ============================================================================
