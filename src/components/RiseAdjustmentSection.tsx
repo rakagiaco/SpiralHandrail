@@ -18,14 +18,15 @@ export function RiseAdjustmentSection({
   const generateInputs = () => {
     const inputs = [];
     
-    for (let arcDist = 0; arcDist <= Math.ceil(totalArcDistance); arcDist++) {
+    // Generate inputs for every 0.5" increment for more precise control
+    for (let arcDist = 0; arcDist <= Math.ceil(totalArcDistance * 2) / 2; arcDist += 0.5) {
       if (arcDist <= totalArcDistance) {
         const currentValue = manualRiseData[arcDist] !== undefined ? 
-          manualRiseData[arcDist] : calculatedRiseData[arcDist];
+          manualRiseData[arcDist] : calculatedRiseData[Math.round(arcDist * 2) / 2];
         
         inputs.push(
           <div key={arcDist} className="flex flex-col items-center">
-            <label className="text-xs text-gray-600 mb-1">{arcDist}" arc</label>
+            <label className="text-xs text-gray-600 mb-1">{arcDist.toFixed(1)}" arc</label>
             <input
               type="number"
               value={currentValue?.toFixed(3) || '0.000'}
@@ -45,9 +46,11 @@ export function RiseAdjustmentSection({
     <div className="bg-white rounded-2xl p-6 shadow-lg border-l-4 border-blue-500">
       <h3 className="text-blue-800 text-xl font-semibold mb-4">Manual Rise Adjustment Points</h3>
       <p className="mb-4 text-gray-600 text-sm">
-        Auto-populated from your exact measurements. Adjust manually for custom interpolation.
+        Auto-populated from your exact measurements. Adjust manually for custom interpolation. 
+        <br />
+        <strong>Note:</strong> The rise continues beyond {totalArcDistance}" at the same rate for the next flight of stairs.
       </p>
-      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-2 mb-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-12 gap-2 mb-4 max-h-96 overflow-y-auto">
         {generateInputs()}
       </div>
       <div>

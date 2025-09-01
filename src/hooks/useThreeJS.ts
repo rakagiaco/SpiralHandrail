@@ -55,7 +55,7 @@ export function useThreeJS(
     
     // Create outside handrail points with proper easement geometry
     const outerPoints: THREE.Vector3[] = [];
-    const steps = 100;
+    const steps = 200; // Increased steps for smoother curves
     
     for (let i = 0; i <= steps; i++) {
       const t = i / steps;
@@ -75,11 +75,13 @@ export function useThreeJS(
       
       if (segmentPosition <= parameters.bottomLength) {
         // Bottom over-ease: use offset center (inward on Z axis)
+        // This creates the "over-ease" effect as you walk up the stairs
         centerZ = -parameters.bottomOffset; // Negative Z = toward inside of staircase
         effectiveRadius = outerRadius;
         
       } else if (segmentPosition >= parameters.totalSegments - parameters.topLength) {
         // Top up-ease: use offset center (inward on Z axis)
+        // This creates the "up-ease" effect as you walk up the stairs
         centerZ = -parameters.topOffset; // Negative Z = toward inside of staircase
         effectiveRadius = outerRadius;
         
@@ -117,7 +119,7 @@ export function useThreeJS(
     
     // Create the curve with better interpolation for smoother following of your reference points
     const outerCurve = new THREE.CatmullRomCurve3(outerPoints);
-    outerCurve.tension = 0.1; // Lower tension for smoother curves that follow points more closely
+    outerCurve.tension = 0.0; // No tension for exact point following
     const outerGeometry = new THREE.TubeGeometry(outerCurve, Math.min(steps, outerPoints.length - 1), 0.15, 8, false);
     const newHandrailMesh = new THREE.Mesh(outerGeometry, new THREE.MeshLambertMaterial({ color: 0x3b82f6 }));
     newHandrailMesh.castShadow = true;
