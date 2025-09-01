@@ -59,14 +59,7 @@ export function ParametersSection({ parameters, onParameterChange }: ParametersS
             type="number"
             value={parameters.pitchBlock}
             step="0.125"
-            onChange={(e) => {
-              const value = e.target.value;
-              if (value === '' || isNaN(parseFloat(value))) {
-                onParameterChange('pitchBlock', 0);
-              } else {
-                onParameterChange('pitchBlock', parseFloat(value));
-              }
-            }}
+            onChange={(e) => onParameterChange('pitchBlock', parseFloat(e.target.value))}
             className="p-3 border-2 border-gray-200 rounded-lg text-base transition-all focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 bg-gray-50 focus:bg-white"
           />
         </div>
