@@ -91,27 +91,50 @@ export function useThreeJS(
       let effectiveRadius = 0; // Initialize effectiveRadius
       
       if (segmentPosition <= parameters.bottomLength) {
-        // Bottom over-ease: use offset center (inward on Z axis)
-        // This creates the "over-ease" effect as you walk up the stairs
-        centerZ = -parameters.bottomOffset; // Negative Z = toward inside of staircase
-        effectiveRadius = outerRadius;
+        // Bottom over-ease: straight rail going down stairs
+        // Use offset center position but create straight rail, not circular wrapping
+        const easeT = segmentPosition / parameters.bottomLength;
+        
+        // Calculate the spiral start position (where over-ease begins)
+        const spiralStartAngle = (parameters.bottomLength / parameters.totalSegments) * parameters.totalDegrees * Math.PI / 180;
+        const spiralStartX = outerRadius * Math.cos(spiralStartAngle);
+        const spiralStartZ = outerRadius * Math.sin(spiralStartAngle);
+        
+        // Calculate the straight rail end position at the offset center
+        const straightEndX = 0; // Same X as main center
+        const straightEndZ = -parameters.bottomOffset; // Offset inward on Z
+        
+        // Linear interpolation from spiral to straight rail
+        x = spiralStartX + (straightEndX - spiralStartX) * easeT;
+        z = spiralStartZ + (straightEndZ - spiralStartZ) * easeT;
         
       } else if (segmentPosition >= parameters.totalSegments - parameters.topLength) {
-        // Top up-ease: use offset center (inward on Z axis)
-        // This creates the "up-ease" effect as you walk up the stairs
-        centerZ = -parameters.topOffset; // Negative Z = toward inside of staircase
-        effectiveRadius = outerRadius;
+        // Top up-ease: straight rail going up stairs
+        // Use offset center position but create straight rail, not circular wrapping
+        const easeT = (segmentPosition - (parameters.totalSegments - parameters.topLength)) / parameters.topLength;
+        
+        // Calculate the spiral end position (where up-ease begins)
+        const spiralEndAngle = ((parameters.totalSegments - parameters.topLength) / parameters.totalSegments) * parameters.totalDegrees * Math.PI / 180;
+        const spiralEndX = outerRadius * Math.cos(spiralEndAngle);
+        const spiralEndZ = outerRadius * Math.sin(spiralEndAngle);
+        
+        // Calculate the straight rail end position at the offset center
+        const straightEndZ = -parameters.topOffset; // Offset inward on Z
+        
+        // Linear interpolation from spiral to straight rail
+        x = spiralEndX + (0 - spiralEndX) * easeT;
+        z = spiralEndZ + (straightEndZ - spiralEndZ) * easeT;
         
       } else {
         // Main spiral: use main center
         centerX = 0;
         centerZ = 0;
         effectiveRadius = outerRadius;
+        
+        // Calculate position from main center
+        x = centerX + effectiveRadius * Math.cos(angle);
+        z = centerZ + effectiveRadius * Math.sin(angle);
       }
-      
-      // Calculate position from appropriate center
-      x = centerX + effectiveRadius * Math.cos(angle);
-      z = centerZ + effectiveRadius * Math.sin(angle);
       
       const y = rise;
       outerPoints.push(new THREE.Vector3(x, y, z));
@@ -138,22 +161,50 @@ export function useThreeJS(
       let effectiveRadius = insideRadius;
       
       if (segmentPosition <= parameters.bottomLength) {
-        // Bottom over-ease: use offset center (inward on Z axis)
-        centerZ = -parameters.bottomOffset; // Negative Z = toward inside of staircase
+        // Bottom over-ease: straight rail going down stairs
+        // Use offset center position but create straight rail, not circular wrapping
+        const easeT = segmentPosition / parameters.bottomLength;
+        
+        // Calculate the spiral start position (where over-ease begins)
+        const spiralStartAngle = (parameters.bottomLength / parameters.totalSegments) * parameters.totalDegrees * Math.PI / 180;
+        const spiralStartX = insideRadius * Math.cos(spiralStartAngle);
+        const spiralStartZ = insideRadius * Math.sin(spiralStartAngle);
+        
+        // Calculate the straight rail end position at the offset center
+        const straightEndX = 0; // Same X as main center
+        const straightEndZ = -parameters.bottomOffset; // Offset inward on Z
+        
+        // Linear interpolation from spiral to straight rail
+        x = spiralStartX + (straightEndX - spiralStartX) * easeT;
+        z = spiralStartZ + (straightEndZ - spiralStartZ) * easeT;
         
       } else if (segmentPosition >= parameters.totalSegments - parameters.topLength) {
-        // Top up-ease: use offset center (inward on Z axis)
-        centerZ = -parameters.topOffset; // Negative Z = toward inside of staircase
+        // Top up-ease: straight rail going up stairs
+        // Use offset center position but create straight rail, not circular wrapping
+        const easeT = (segmentPosition - (parameters.totalSegments - parameters.topLength)) / parameters.topLength;
+        
+        // Calculate the spiral end position (where up-ease begins)
+        const spiralEndAngle = ((parameters.totalSegments - parameters.topLength) / parameters.totalSegments) * parameters.totalDegrees * Math.PI / 180;
+        const spiralEndX = insideRadius * Math.cos(spiralEndAngle);
+        const spiralEndZ = insideRadius * Math.sin(spiralEndAngle);
+        
+        // Calculate the straight rail end position at the offset center
+        const straightEndX = 0; // Same X as main center
+        const straightEndZ = -parameters.topOffset; // Offset inward on Z
+        
+        // Linear interpolation from spiral to straight rail
+        x = spiralEndX + (straightEndX - spiralEndX) * easeT;
+        z = spiralEndZ + (straightEndZ - spiralEndZ) * easeT;
         
       } else {
         // Main spiral: use main center
         centerX = 0;
         centerZ = 0;
+        
+        // Calculate position from main center
+        x = centerX + effectiveRadius * Math.cos(angle);
+        z = centerZ + effectiveRadius * Math.sin(angle);
       }
-      
-      // Calculate position from appropriate center
-      x = centerX + effectiveRadius * Math.cos(angle);
-      z = centerZ + effectiveRadius * Math.sin(angle);
       const y = rise;
       
       insidePoints.push(new THREE.Vector3(x, y, z));
