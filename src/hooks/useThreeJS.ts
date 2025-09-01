@@ -155,12 +155,11 @@ export function useThreeJS(
      const outerPoints: THREE.Vector3[] = [];
      const steps = 200; // Increased steps for smoother curves
     
-    for (let i = 0; i <= steps; i++) {
-      const t = i / steps;
-      const arcDistance = t * parameters.totalArcDistance;
-      
-      // Stop at exactly totalArc distance
-      if (arcDistance > parameters.totalArcDistance) break;
+         for (let i = 0; i <= steps; i++) {
+       const t = i / steps;
+       const arcDistance = t * parameters.totalArcDistance;
+       
+       // Always generate points for smooth curves, don't break early
       
       const segmentPosition = (arcDistance / parameters.totalArcDistance) * parameters.totalSegments;
       const angle = (arcDistance / parameters.totalArcDistance) * parameters.totalDegrees * Math.PI / 180;
@@ -309,7 +308,7 @@ export function useThreeJS(
        const proportionalArcDistance = (t * 10.5); // Only 10.5" arc distance
        const rise = 1.0 + (proportionalArcDistance / 10.5) * 7.375; // Straight line from 1.0" to 8.375"
        
-               let x: number, z: number, y: number;
+               let x: number, z: number, y: number = rise; // Initialize y with fallback
       
                            if (segmentPosition <= parameters.bottomLength) {
           // Bottom over-ease: straight rail looking DOWN the staircase at -35.08°
