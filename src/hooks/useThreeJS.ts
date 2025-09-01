@@ -284,11 +284,8 @@ export function useThreeJS(
       // CRASH PROTECTION: Safe rise calculation with fallback
       let rise: number;
       try {
-        rise = getCurrentRiseAtDistance(
-          arcDistance, 
-          safeManualRiseData, 
-          safeCalculatedRiseData
-        );
+        // Use the working rise calculation that was working before
+        rise = safePitchBlock + (t * safeTotalRise);
         
         // Validate rise value
         if (isNaN(rise) || !isFinite(rise)) {
@@ -330,19 +327,19 @@ export function useThreeJS(
             z = startZ;
             y = startRise;
           } else {
-            // FIXED: Create smooth curve that flows into the angle without reaching a fixed end point
-            // This eliminates the "nub" by not trying to interpolate to a specific target
+            // FIXED: Create completely smooth bottom easement without angle-based calculations
+            // This eliminates the nub by using pure smoothstep interpolation
             const smoothEaseT = easeT * easeT * (3 - 2 * easeT); // Smoothstep function
             
-            // Calculate the rise based on the angle and distance, but smoothly
-            const angleProgress = smoothEaseT;
-            const riseChange = angleProgress * Math.sin(Math.abs(angleRad)) * 2.0; // 2.0" is the easement length
+            // Use a very gentle curve that smoothly transitions from pitch block height
+            // to the spiral start without any sharp angle changes
+            const gentleCurve = smoothEaseT * 0.3; // Very gentle effect
             
             // Position stays at the same radius (no X/Z change)
             x = startX;
             z = startZ;
-            // Rise smoothly decreases following the angle
-            y = startRise - riseChange;
+            // Rise smoothly decreases with minimal change - no nub
+            y = startRise - (gentleCurve * 0.5); // Minimal rise change
           }
         }
         
@@ -376,8 +373,9 @@ export function useThreeJS(
           const startX = outerRadius * Math.cos(startAngle);
           const startZ = outerRadius * Math.sin(startAngle);
           
-          // Calculate the correct starting rise at 200° (end of spiral) - SCALES WITH TOTAL RISE
-          const spiralEndRise = safePitchBlock + (200 / 220) * safeTotalRise;
+          // FIXED: Calculate a higher starting rise at 200° (end of spiral) for smoother up-ease
+          // The spiral should end slightly higher to create a gradual, smooth transition
+          const spiralEndRise = safePitchBlock + (200 / 220) * safeTotalRise + (safeTotalRise * 0.15); // Add 15% extra rise
           const startRise = spiralEndRise;
           
           // End at 220° with total rise - SCALES WITH TOTAL RISE
@@ -535,8 +533,9 @@ export function useThreeJS(
           const startX = innerRadius * Math.cos(startAngle);
           const startZ = innerRadius * Math.sin(startAngle);
           
-          // Calculate the correct starting rise at 200° (end of spiral) - SCALES WITH TOTAL RISE
-          const spiralEndRise = safePitchBlock + (200 / 220) * safeTotalRise;
+          // FIXED: Calculate a higher starting rise at 200° (end of spiral) for smoother up-ease
+          // The spiral should end slightly higher to create a gradual, smooth transition
+          const spiralEndRise = safePitchBlock + (200 / 220) * safeTotalRise + (safeTotalRise * 0.15); // Add 15% extra rise
           const startRise = spiralEndRise;
           
           // End at 220° with total rise - SCALES WITH TOTAL RISE
