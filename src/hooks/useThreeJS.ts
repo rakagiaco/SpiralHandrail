@@ -177,32 +177,40 @@ export function useThreeJS(
       
                let x: number, z: number, y: number = rise; // Initialize y with fallback
        
-                                                               if (segmentPosition <= parameters.bottomLength) {
-           // Bottom over-ease: angle DOWN at -35.08° from 0° to 22°
-           const easeT = segmentPosition / parameters.bottomLength;
-           
-           // Start at 0° with 1.0" rise (pitch block height)
-           const startAngle = 0;
-           const startX = outerRadius * Math.cos(startAngle);
-           const startZ = outerRadius * Math.sin(startAngle);
-           const startRise = 1.0; // Pitch block height
-           
-           // Calculate the easement end point by angling DOWN at -35.08° (vertical angle)
-           // This follows the direction of the blue flight going DOWN
-           const easementLength = 2.0; // Back to original length
-           const angleRad = -35.08 * Math.PI / 180; // Back to 35.08° as specified
-          
-          // Project the easement direction gradually DOWN from the start point
-          // Move slightly outward and down to create a smooth curve
-          const easementEndX = startX + easementLength * 0.3; // Slight outward movement
-          const easementEndZ = startZ + easementLength * 0.3; // Slight forward movement
-          const easementEndRise = startRise - easementLength * Math.sin(Math.abs(angleRad)); // Vertical drop
-          
-          // Linear interpolation from start to easement end
-          x = startX + (easementEndX - startX) * easeT;
-          z = startZ + (easementEndZ - startZ) * easeT;
-          // Rise interpolation from 1.0" down to easement end
-          const y = startRise + (easementEndRise - startRise) * easeT;
+                                                                                                                               if (segmentPosition <= parameters.bottomLength) {
+            // Bottom over-ease: smooth transition from spiral to straight rail at -35.08°
+            const easeT = segmentPosition / parameters.bottomLength;
+            
+            // Start at 0° with 1.0" rise (pitch block height)
+            const startAngle = 0;
+            const startX = outerRadius * Math.cos(startAngle);
+            const startZ = outerRadius * Math.sin(startAngle);
+            const startRise = 1.0; // Pitch block height
+            
+            // End point: straight rail angling DOWN at -35.08° (following staircase direction)
+            const easementLength = 2.0; // Length of the easement section
+            const angleRad = -35.08 * Math.PI / 180; // Negative for downward angle
+            
+            // Calculate the straight rail end point
+            const easementEndX = startX; // No horizontal movement - straight down
+            const easementEndZ = startZ; // No forward movement - straight down
+            const easementEndRise = startRise - easementLength * Math.sin(Math.abs(angleRad)); // Vertical drop at 35.08°
+            
+            // Smooth interpolation: start with spiral curve, gradually transition to straight line
+            // Use easeT^2 for smoother start (stays closer to spiral initially)
+            const smoothT = easeT * easeT; // Quadratic easing for smoother transition
+            
+            // Position: gradually move from spiral to final position
+            x = startX + (easementEndX - startX) * smoothT;
+            z = startZ + (easementEndZ - startZ) * smoothT;
+            
+            // Rise: start following spiral curve, gradually transition to straight line
+            const spiralRise = startRise; // Start with current spiral rise
+            const straightRise = startRise + (easementEndRise - startRise) * easeT; // Straight line rise
+            
+            // Blend between spiral and straight: more spiral at start, more straight at end
+            const blendFactor = easeT; // 0 = all spiral, 1 = all straight
+            const y = spiralRise * (1 - blendFactor) + straightRise * blendFactor;
           
                                         // Add interactive target point marker for bottom easement
             if (i === 0) { // Only add one marker at the start
@@ -216,27 +224,37 @@ export function useThreeJS(
                  sceneRef.current.bottomTargetMarker = targetMarker;
                }
         
-                               } else if (segmentPosition >= parameters.totalSegments - parameters.topLength) {
-          // Top up-ease: angle UP at +35.08° from 200° to 220°
-          const easeT = (segmentPosition - (parameters.totalSegments - parameters.topLength)) / parameters.topLength;
-          
-          // Start at 200° (where spiral ends and easement begins)
-          const startAngle = 200 * Math.PI / 180;
-          const startX = outerRadius * Math.cos(startAngle);
-          const startZ = outerRadius * Math.sin(startAngle);
-          const startRise = rise; // Rise from spiral at 200°
-          
-          // End at 220° with 8.375" rise
-          const endAngle = 220 * Math.PI / 180;
-          const endX = outerRadius * Math.cos(endAngle);
-          const endZ = outerRadius * Math.sin(endAngle);
-          const endRise = 8.375; // Final rise at 220°
-          
-          // Linear interpolation from 200° to 220°
-          x = startX + (endX - startX) * easeT;
-          z = startZ + (endZ - startZ) * easeT;
-          // Rise interpolation from spiral rise to 8.375"
-          const y = startRise + (endRise - startRise) * easeT;
+                                                               } else if (segmentPosition >= parameters.totalSegments - parameters.topLength) {
+           // Top up-ease: smooth transition from spiral to straight rail at +35.08°
+           const easeT = (segmentPosition - (parameters.totalSegments - parameters.topLength)) / parameters.topLength;
+           
+           // Start at 200° (where spiral ends and easement begins)
+           const startAngle = 200 * Math.PI / 180;
+           const startX = outerRadius * Math.cos(startAngle);
+           const startZ = outerRadius * Math.sin(startAngle);
+           const startRise = rise; // Rise from spiral at 200°
+           
+           // End at 220° with 8.375" rise
+           const endAngle = 220 * Math.PI / 180;
+           const endX = outerRadius * Math.cos(endAngle);
+           const endZ = outerRadius * Math.sin(endAngle);
+           const endRise = 8.375; // Final rise at 220°
+           
+           // Smooth interpolation: start with spiral curve, gradually transition to straight line
+           // Use easeT^2 for smoother start (stays closer to spiral initially)
+           const smoothT = easeT * easeT; // Quadratic easing for smoother transition
+           
+           // Position: gradually move from spiral to final position
+           x = startX + (endX - startX) * smoothT;
+           z = startZ + (endZ - startZ) * smoothT;
+           
+           // Rise: start following spiral, gradually transition to straight line
+           const spiralRise = startRise + (endRise - startRise) * easeT; // Linear rise
+           const straightRise = startRise + (endRise - startRise) * easeT; // Straight line rise
+           
+           // Blend between spiral and straight: more spiral at start, more straight at end
+           const blendFactor = easeT; // 0 = all spiral, 1 = all straight
+           const y = spiralRise * (1 - blendFactor) + straightRise * blendFactor;
         
                                        // Add interactive target point marker for top easement
            if (i === steps) { // Only add one marker at the end
@@ -327,40 +345,60 @@ export function useThreeJS(
           const easementLength = 2.0; // Back to original length
           const angleRad = -35.08 * Math.PI / 180; // Back to 35.08° as specified
           
-          // Project the easement direction gradually DOWN from the start point
-          // Move slightly outward and down to create a smooth curve
-          const easementEndX = startX + easementLength * 0.3; // Slight outward movement
-          const easementEndZ = startZ + easementLength * 0.3; // Slight forward movement
-          const easementEndRise = startRise - easementLength * Math.sin(Math.abs(angleRad)); // Vertical drop
+                     // Project the easement direction directly DOWN at 35.08° from the start point
+           // This creates a straight rail angling down the staircase
+           const easementEndX = startX; // No horizontal movement - straight down
+           const easementEndZ = startZ; // No forward movement - straight down
+           const easementEndRise = startRise - easementLength * Math.sin(Math.abs(angleRad)); // Vertical drop at 35.08°
           
-          // Linear interpolation from start to easement end
-          x = startX + (easementEndX - startX) * easeT;
-          z = startZ + (easementEndZ - startZ) * easeT;
-          // Rise interpolation from 1.0" down to easement end
-          const y = startRise + (easementEndRise - startRise) * easeT;
+                     // Smooth interpolation: start with spiral curve, gradually transition to straight line
+           // Use easeT^2 for smoother start (stays closer to spiral initially)
+           const smoothT = easeT * easeT; // Quadratic easing for smoother transition
+           
+           // Position: gradually move from spiral to final position
+           x = startX + (easementEndX - startX) * smoothT;
+           z = startZ + (easementEndZ - startZ) * smoothT;
+           
+           // Rise: start following spiral curve, gradually transition to straight line
+           const spiralRise = startRise; // Start with current spiral rise
+           const straightRise = startRise + (easementEndRise - startRise) * easeT; // Straight line rise
+           
+           // Blend between spiral and straight: more spiral at start, more straight at end
+           const blendFactor = easeT; // 0 = all spiral, 1 = all straight
+           const y = spiralRise * (1 - blendFactor) + straightRise * blendFactor;
         
-                                                       } else if (segmentPosition >= parameters.totalSegments - parameters.topLength) {
-          // Top up-ease: straight rail looking UP the staircase at +35.08°
-          // At 200° transition point, rail should be completely straight
-          const easeT = (segmentPosition - (parameters.totalSegments - parameters.topLength)) / parameters.topLength;
-          
-          // Start at 200° (where spiral ends and easement begins)
-          const startAngle = 200 * Math.PI / 180;
-          const startX = insideRadius * Math.cos(startAngle);
-          const startZ = insideRadius * Math.sin(startAngle);
-          const startRise = rise; // Rise from spiral at 200°
-          
-          // End at 220° with 8.375" rise (total cumulative rise over 220°)
-          const endAngle = 220 * Math.PI / 180;
-          const endX = insideRadius * Math.cos(endAngle);
-          const endZ = insideRadius * Math.sin(endAngle);
-          const endRise = 8.375; // Final total rise at 220° (not just the last 20°)
-          
-          // Linear interpolation from 200° to 220°
-          x = startX + (endX - startX) * easeT;
-          z = startZ + (endZ - startZ) * easeT;
-          // Rise interpolation from spiral rise to final 8.375" total
-          const y = startRise + (endRise - startRise) * easeT;
+                                                                                                               } else if (segmentPosition >= parameters.totalSegments - parameters.topLength) {
+           // Top up-ease: smooth transition from spiral to straight rail at +35.08°
+           // At 200° transition point, rail should be completely straight
+           const easeT = (segmentPosition - (parameters.totalSegments - parameters.topLength)) / parameters.topLength;
+           
+           // Start at 200° (where spiral ends and easement begins)
+           const startAngle = 200 * Math.PI / 180;
+           const startX = insideRadius * Math.cos(startAngle);
+           const startZ = insideRadius * Math.sin(startAngle);
+           const startRise = rise; // Rise from spiral at 200°
+           
+           // End at 220° with 8.375" rise (total cumulative rise over 220°)
+           const endAngle = 220 * Math.PI / 180;
+           const endX = insideRadius * Math.cos(endAngle);
+           const endZ = insideRadius * Math.sin(endAngle);
+           const endRise = 8.375; // Final total rise at 220° (not just the last 20°)
+           
+           // Smooth interpolation: start with spiral curve, gradually transition to straight line
+           // Use easeT^2 for smoother start (stays closer to spiral initially)
+           const smoothT = easeT * easeT; // Quadratic easing for smoother transition
+           
+           // Position: gradually move from spiral to final position
+           x = startX + (endX - startX) * smoothT;
+           z = startZ + (endZ - startZ) * smoothT;
+           
+           // Rise: start following spiral, gradually transition to straight line
+           const spiralRise = startRise + (endRise - startRise) * easeT; // Linear rise
+           const straightRise = startRise + (endRise - startRise) * easeT; // Straight line rise
+           
+           // Blend between spiral and straight: more spiral at start, more straight at end
+           const blendFactor = easeT; // 0 = all spiral, 1 = all straight
+           const y = spiralRise * (1 - blendFactor) + straightRise * blendFactor;
         
                            } else {
          // Main spiral: use main center
