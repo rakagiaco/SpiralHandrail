@@ -65,6 +65,15 @@ export function useThreeJS(
 
   const updateVisualization = useCallback(() => {
     if (!sceneRef.current) return;
+    
+    // Debug: Log when visualization updates
+    console.log('🔄 Updating 3D visualization with parameters:', {
+      totalHelicalRise: parameters.totalHelicalRise,
+      totalArcDistance: parameters.totalArcDistance,
+      pitchBlock: parameters.pitchBlock,
+      customOuterRadius: parameters.customOuterRadius,
+      customInnerRadius: parameters.customInnerRadius
+    });
 
     const { scene, handrailMesh, insideLineMesh, centerDots, debugElements } = sceneRef.current;
     
@@ -627,14 +636,17 @@ export function useThreeJS(
            }
          }
          
-         if (manualRise !== null) {
-           // Use manual rise data - this point will be part of the smooth curve
-           rise = manualRise;
-         } else {
-           // ENHANCED: Dynamic calculation that scales with ALL project parameters
-           // This ensures every point recalculates when rise, pitch block, or other parameters change
-           rise = safePitchBlock + (t * safeTotalRise);
-         }
+                   if (manualRise !== null) {
+            // Use manual rise data - this point will be part of the smooth curve
+            rise = manualRise;
+            if (i % 100 === 0) { // Log every 100th point to avoid spam
+              console.log(`📍 Using manual rise data at step ${i}: arcDistance=${currentArcDistance.toFixed(2)}", rise=${manualRise.toFixed(3)}"`);
+            }
+          } else {
+            // ENHANCED: Dynamic calculation that scales with ALL project parameters
+            // This ensures every point recalculates when rise, pitch block, or other parameters change
+            rise = safePitchBlock + (t * safeTotalRise);
+          }
          
          // Validate rise value
          if (isNaN(rise) || !isFinite(rise)) {
@@ -666,15 +678,15 @@ export function useThreeJS(
            // Use continuous mathematical interpolation (no discrete steps)
            const smoothEaseT = easeT * easeT * (3 - 2 * easeT); // Smoothstep function
            
-           // Start position (at 0°)
+           // Start position (at 0°) - use manual rise data if available
            const startX = outerRadius * Math.cos(0);
            const startZ = outerRadius * Math.sin(0);
-           const startRise = safePitchBlock;
+           const startRise = safeManualRiseData[0] || safePitchBlock;
            
-           // Target position (where spiral would naturally be)
+           // Target position (where spiral would naturally be) - use manual rise data if available
            const targetX = outerRadius * Math.cos(angle);
            const targetZ = outerRadius * Math.sin(angle);
-           const targetRise = safePitchBlock + (t * safeTotalRise);
+           const targetRise = rise; // Use the already calculated rise (which includes manual data)
            
            // Continuous interpolation creates truly smooth line
            x = startX + (targetX - startX) * smoothEaseT;
@@ -710,19 +722,23 @@ export function useThreeJS(
            // Use continuous mathematical interpolation (no discrete steps)
            const smoothEaseT = easeT * easeT * (3 - 2 * easeT); // Smoothstep function
            
-           // Calculate spiral end point dynamically
+           // Calculate spiral end point dynamically - use manual rise data if available
            const spiralEndAngle = ((parameters.totalSegments - parameters.topLength) / parameters.totalSegments) * parameters.totalDegrees;
            const startAngle = spiralEndAngle * Math.PI / 180;
            const startX = outerRadius * Math.cos(startAngle);
            const startZ = outerRadius * Math.sin(startAngle);
-           const spiralEndRise = safePitchBlock + (spiralEndAngle / parameters.totalDegrees) * safeTotalRise;
+           
+           // Use manual rise data for spiral end if available, otherwise calculate
+           const spiralEndArcDistance = (spiralEndAngle / parameters.totalDegrees) * parameters.totalArcDistance;
+           const spiralEndRise = safeManualRiseData[spiralEndArcDistance] || 
+             safePitchBlock + (spiralEndAngle / parameters.totalDegrees) * safeTotalRise;
            const startRise = spiralEndRise;
            
-           // End position (at 220°)
+           // End position (at 220°) - use manual rise data if available
            const endAngle = 220 * Math.PI / 180;
            const endX = outerRadius * Math.cos(endAngle);
            const endZ = outerRadius * Math.sin(endAngle);
-           const endRise = safePitchBlock + safeTotalRise;
+           const endRise = safeManualRiseData[parameters.totalArcDistance] || safePitchBlock + safeTotalRise;
            
            // Continuous interpolation creates truly smooth line
            x = startX + (endX - startX) * smoothEaseT;
@@ -1265,13 +1281,27 @@ export function useThreeJS(
   }, [debugMode]);
 
   // Call updateVisualization whenever parameters change
-  // Note: We don't include updateVisualization in dependencies to prevent infinite loops
-  // since updateVisualization doesn't modify any state or parameters
+  // This ensures the 3D model updates when rise, pitch block, or other parameters change
   useEffect(() => {
     if (sceneRef.current) {
       updateVisualization();
     }
-  });
+  }, [
+    parameters.totalArcDistance,
+    parameters.totalHelicalRise,
+    parameters.pitchBlock,
+    parameters.bottomLength,
+    parameters.topLength,
+    parameters.bottomOffset,
+    parameters.topOffset,
+    parameters.customEasementAngle,
+    parameters.customOuterRadius,
+    parameters.customInnerRadius,
+    manualRiseData,
+    calculatedRiseData,
+    debugMode,
+    showOverlay
+  ]);
 
   return { mountRef, updateVisualization };
 }
