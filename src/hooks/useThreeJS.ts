@@ -101,19 +101,9 @@ export function useThreeJS(
     const safePitchBlock = Math.max(0, parameters.pitchBlock || 0);
     const safeTotalRise = Math.max(0.1, parameters.totalHelicalRise || 0.1);
     
-    // Make radii adjustable for different stair jobs
-    let outerRadius = 8;
-    let innerRadius = 4.5;
-    
-    // Allow proportional scaling of both radii
-    if (parameters.customOuterRadius) {
-      outerRadius = parameters.customOuterRadius;
-      innerRadius = (parameters.customOuterRadius / 8) * 4.5;
-    }
-    if (parameters.customInnerRadius) {
-      innerRadius = parameters.customInnerRadius;
-      outerRadius = (parameters.customInnerRadius / 4.5) * 8;
-    }
+    // Calculate radii
+    const outerRadius = 4.625 + (parameters.bottomOffset || 0);
+    const innerRadius = 4.625 - (parameters.topOffset || 0);
     
     // Add center dots with enhanced debugging (only when debug mode is on)
     if (debugMode) {
@@ -145,14 +135,25 @@ export function useThreeJS(
       // Add pitch block height label
       const pitchBlockLabel = createTextSprite(`Pitch Block (${safePitchBlock.toFixed(1)}")`, new THREE.Vector3(0, Math.max(0.5, safePitchBlock + 0.5), 0), 0xff0000);
       
+      // Add radius information labels
+      const outerRadiusLabel = createTextSprite(`Outer Radius: ${outerRadius.toFixed(1)}"`, new THREE.Vector3(0, 8, 0), 0x3b82f6);
+      const innerRadiusLabel = createTextSprite(`Inner Radius: ${innerRadius.toFixed(1)}"`, new THREE.Vector3(0, 7, 0), 0x10b981);
+      const easementAngleLabel = createTextSprite(`Easement Angle: ${(parameters.customEasementAngle || -35.08).toFixed(1)}°`, new THREE.Vector3(0, 6, 0), 0xf59e0b);
+      
       scene.add(mainLabel);
       scene.add(bottomLabel);
       scene.add(topLabel);
       scene.add(pitchBlockLabel);
+      scene.add(outerRadiusLabel);
+      scene.add(innerRadiusLabel);
+      scene.add(easementAngleLabel);
       sceneRef.current.debugElements.push(mainLabel);
       sceneRef.current.debugElements.push(bottomLabel);
       sceneRef.current.debugElements.push(topLabel);
       sceneRef.current.debugElements.push(pitchBlockLabel);
+      sceneRef.current.debugElements.push(outerRadiusLabel);
+      sceneRef.current.debugElements.push(innerRadiusLabel);
+      sceneRef.current.debugElements.push(easementAngleLabel);
     }
     
     // Create outside handrail points with proper easement geometry
@@ -186,17 +187,16 @@ export function useThreeJS(
         const startZ = outerRadius * Math.sin(startAngle);
         // Use the actual pitch block height, not scaled
         const startRise = safePitchBlock;
-      
+       
         // End point: straight rail angling DOWN at customizable angle - ALSO CONNECTS TO PITCH BLOCK
         const easementLength = 2.0;
         const easementAngle = parameters.customEasementAngle || -35.08;
         const angleRad = easementAngle * Math.PI / 180;
         
-        // Calculate the straight rail end point - ensure it's always visible and follows pitch block
+        // Calculate the straight rail end point - FIXED: Remove Math.max to eliminate the nub
         const easementEndX = startX;
         const easementEndZ = startZ;
-        // Use Math.max to ensure it's at least 0.5" above floor for visibility
-        const easementEndRise = Math.max(0.5, startRise - easementLength * Math.sin(Math.abs(angleRad)));
+        const easementEndRise = startRise - easementLength * Math.sin(Math.abs(angleRad));
              
         // Direct linear interpolation - no complex blending, no 90° angle
         x = startX + (easementEndX - startX) * easeT;
@@ -241,10 +241,15 @@ export function useThreeJS(
         // Use custom easement angle if provided, otherwise default to +35.08°
         const topEasementAngle = parameters.customEasementAngle ? Math.abs(parameters.customEasementAngle) : 35.08;
         
-        // Direct linear interpolation - no bump, no complex blending
+        // FIXED: Smooth out the dip by applying a gentle curve to the rise interpolation
+        // This brings up the low points around 210-215 degrees
+        const smoothEaseT = easeT * easeT * (3 - 2 * easeT); // Smoothstep function
+        const adjustedEaseT = smoothEaseT + (0.1 * Math.sin(easeT * Math.PI)); // Add slight upward curve
+        
+        // Direct linear interpolation with adjusted easing
         x = startX + (endX - startX) * easeT;
         z = startZ + (endZ - startZ) * easeT;
-        y = startRise + (endRise - startRise) * easeT;
+        y = startRise + (endRise - startRise) * adjustedEaseT;
         
         // Add interactive target point marker for top easement
         if (i === steps && debugMode) {
@@ -310,8 +315,8 @@ export function useThreeJS(
         // Project the easement direction directly DOWN at custom angle from the start point
         const easementEndX = startX;
         const easementEndZ = startZ;
-        // Use Math.max to ensure it's at least 0.5" above floor for visibility
-        const easementEndRise = Math.max(0.5, startRise - easementLength * Math.sin(Math.abs(angleRad)));
+        // FIXED: Remove Math.max to eliminate the nub
+        const easementEndRise = startRise - easementLength * Math.sin(Math.abs(angleRad));
         
         // Direct linear interpolation - no complex blending, no 90° angle
         x = startX + (easementEndX - startX) * easeT;
@@ -340,10 +345,14 @@ export function useThreeJS(
         // Use custom easement angle if provided, otherwise default to +35.08°
         const innerTopEasementAngle = parameters.customEasementAngle ? Math.abs(parameters.customEasementAngle) : 35.08;
         
-        // Direct linear interpolation - no bump, no complex blending
+        // FIXED: Apply the same smoothing to inner line
+        const smoothEaseT = easeT * easeT * (3 - 2 * easeT); // Smoothstep function
+        const adjustedEaseT = smoothEaseT + (0.1 * Math.sin(easeT * Math.PI)); // Add slight upward curve
+        
+        // Direct linear interpolation with adjusted easing
         x = startX + (endX - startX) * easeT;
         z = startZ + (endZ - startZ) * easeT;
-        y = startRise + (endRise - startRise) * easeT;
+        y = startRise + (endRise - startRise) * adjustedEaseT;
         
       } else {
         // Main spiral: use main center

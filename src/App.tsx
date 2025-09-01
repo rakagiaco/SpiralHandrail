@@ -158,11 +158,11 @@ function App() {
           errors.push(`Invalid reference rise at ${arcDist}": ${rise}"`);
         }
         
-        let sectionName: string;
+        let sectionName: 'Over-Ease' | 'Main Spiral' | 'Up-Ease';
         if (arcDist <= parameters.bottomLength) {
-          sectionName = 'Bottom Over-Ease';
+          sectionName = 'Over-Ease';
         } else if (arcDist >= parameters.totalArcDistance - parameters.topLength) {
-          sectionName = 'Top Up-Ease';
+          sectionName = 'Up-Ease';
         } else {
           sectionName = 'Main Spiral';
         }
@@ -474,13 +474,13 @@ function App() {
             </div>
             
             <div className="xl:order-none order-first">
-                      <ThreeJSVisualization
-          parameters={parameters}
-          manualRiseData={manualRiseData}
-          calculatedRiseData={calculatedRiseData}
-          debugMode={debugMode}
-          showOverlay={showOverlay}
-        />
+              <ThreeJSVisualization
+                parameters={parameters}
+                manualRiseData={manualRiseData}
+                calculatedRiseData={calculatedRiseData}
+                debugMode={debugMode}
+                showOverlay={showOverlay}
+              />
             </div>
           </div>
 
