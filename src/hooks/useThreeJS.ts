@@ -561,10 +561,10 @@ export function useThreeJS(
     
     // FLIGHT 1: 7 steps UP from main center (going UP at 35.08°)
     // Top of Flight 1 (step 7) should meet the main center
-    // ROTATED 180° around Z-axis (blue axis) so F1-1 goes DOWN
+    // ROTATED 180° around X-axis (red axis) so F1-1 goes UP in opposite direction
     for (let i = 1; i <= 7; i++) {
-      const y = -(7 - i) * stepRun; // NEGATIVE Y = rotated 180° (step 7 = 0, step 1 = -6*stepRun)
-      const z = (7 - i) * stepRise; // Rise DOWN from main center (step 7 = 0, step 1 = 6*stepRise)
+      const y = (7 - i) * stepRun; // Positive Y = up from main center (step 7 = 0, step 1 = 6*stepRun)
+      const z = -(7 - i) * stepRise; // NEGATIVE Z = rotated 180° around X-axis (step 7 = 0, step 1 = -6*stepRise)
       const x = 0; // Centered on main center
       
       staircasePoints.push(new THREE.Vector3(x, y, z));
@@ -639,8 +639,8 @@ export function useThreeJS(
       const bottomConnectionZ = -7 * stepRise; // Flight 2, step 7 (negative Z - DOWN from main center)
       
       // Top easement connects to where Flight 1 meets the landing (step 1 of flight 1)  
-      const topConnectionY = -6 * stepRun; // Flight 1, step 1 (NEGATIVE Y - rotated 180° around Z-axis)
-      const topConnectionZ = 6 * stepRise; // Flight 1, step 1 (positive Z - DOWN from main center)
+      const topConnectionY = 6 * stepRun; // Flight 1, step 1 (positive Y - UP from main center)
+      const topConnectionZ = -6 * stepRise; // Flight 1, step 1 (NEGATIVE Z - rotated 180° around X-axis)
       
       // Create connection point markers
       const connectionGeometry = new THREE.SphereGeometry(0.3, 16, 16);
