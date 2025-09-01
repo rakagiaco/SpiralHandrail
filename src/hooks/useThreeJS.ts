@@ -117,8 +117,8 @@ export function useThreeJS(
        const bottomLabel = createTextSprite('Bottom Offset', new THREE.Vector3(0, 2.5, -parameters.bottomOffset), 0xf59e0b);
        const topLabel = createTextSprite('Top Offset', new THREE.Vector3(0, 6.5, -parameters.topOffset), 0xef4444);
        
-       // Add pitch block height label
-       const pitchBlockLabel = createTextSprite('Pitch Block (1.0")', new THREE.Vector3(0, 1.5, 0), 0xff0000);
+               // Add pitch block height label
+        const pitchBlockLabel = createTextSprite(`Pitch Block (${parameters.pitchBlock.toFixed(1)}")`, new THREE.Vector3(0, parameters.pitchBlock + 0.5, 0), 0xff0000);
        
        scene.add(mainLabel);
        scene.add(bottomLabel);
@@ -249,22 +249,22 @@ export function useThreeJS(
               // Bottom over-ease: direct interpolation to straight rail at custom angle
               const easeT = segmentPosition / parameters.bottomLength;
               
-                             // Start at 0° with 1.0" rise (pitch block height)
+                             // Start at 0° with pitch block height rise
                const startAngle = 0;
                const startX = outerRadius * Math.cos(startAngle);
                const startZ = outerRadius * Math.sin(startAngle);
-               const startRise = 1.0; // Pitch block height
+               const startRise = parameters.pitchBlock; // Use actual pitch block height
               
                              // End point: straight rail angling DOWN at customizable angle
                const easementLength = 2.0; // Length of the easement section
                const easementAngle = parameters.customEasementAngle || -35.08; // Allow custom angle, default to -35.08°
                const angleRad = easementAngle * Math.PI / 180; // Convert to radians
                
-               // Calculate the straight rail end point - connect to the upper offset dot (pitch block height)
+               // Calculate the straight rail end point - end 1 inch above floor to account for pitch block offset
                // No horizontal movement - straight down from the pitch block height
                const easementEndX = startX; // No horizontal movement - straight down
                const easementEndZ = startZ; // No forward movement - straight down
-               const easementEndRise = startRise - easementLength * Math.sin(Math.abs(angleRad)); // Vertical drop at custom angle
+               const easementEndRise = Math.max(1.0, startRise - easementLength * Math.sin(Math.abs(angleRad))); // End 1" above floor minimum
                
                // Direct linear interpolation - no complex blending, no 90° angle
                x = startX + (easementEndX - startX) * easeT;
@@ -297,8 +297,8 @@ export function useThreeJS(
             const startX = outerRadius * Math.cos(startAngle);
             const startZ = outerRadius * Math.sin(startAngle);
             
-            // Calculate the correct starting rise at 200° (end of spiral)
-            const spiralEndRise = 1.0 + (200 / 220) * 7.375; // Proportional rise at 200°
+                          // Calculate the correct starting rise at 200° (end of spiral)
+              const spiralEndRise = parameters.pitchBlock + (200 / 220) * 7.375; // Proportional rise at 200°
             const startRise = spiralEndRise;
             
             // End at 220° with 8.375" rise
@@ -384,9 +384,9 @@ export function useThreeJS(
        const segmentPosition = (arcDistance / parameters.totalArcDistance) * parameters.totalSegments;
        const angle = (t * parameters.totalDegrees * Math.PI) / 180; // Full 220° span
        
-       // Calculate rise based on the proportional arc distance (10.5" over 17.5")
-       const proportionalArcDistance = (t * 10.5); // Only 10.5" arc distance
-       const rise = 1.0 + (proportionalArcDistance / 10.5) * 7.375; // Straight line from 1.0" to 8.375"
+               // Calculate rise based on the proportional arc distance (10.5" over 17.5")
+        const proportionalArcDistance = (t * 10.5); // Only 10.5" arc distance
+        const rise = parameters.pitchBlock + (proportionalArcDistance / 10.5) * 7.375; // Straight line from pitch block height to 8.375"
        
        // Add to rise profile visualization for inner line (always populate, but only display when debug mode is on)
        riseProfilePoints.push(new THREE.Vector3(proportionalArcDistance, rise, 0));
@@ -397,11 +397,11 @@ export function useThreeJS(
             // Bottom over-ease: direct interpolation to straight rail at custom angle
             const easeT = segmentPosition / parameters.bottomLength;
             
-                         // Start at 0° with 1.0" rise (pitch block height)
+                         // Start at 0° with pitch block height rise
              const startAngle = 0;
              const startX = insideRadius * Math.cos(startAngle);
              const startZ = insideRadius * Math.sin(startAngle);
-             const startRise = 1.0; // Pitch block height
+             const startRise = parameters.pitchBlock; // Use actual pitch block height
             
                          // Calculate the easement end point by angling DOWN at customizable angle
              const easementLength = 2.0; // Length of the easement section
@@ -409,10 +409,10 @@ export function useThreeJS(
              const angleRad = innerBottomEasementAngle * Math.PI / 180; // Convert to radians
              
              // Project the easement direction directly DOWN at custom angle from the start point
-             // Connect to the upper offset dot (pitch block height) - no lower dot at 0
+             // End 1 inch above floor to account for pitch block offset
              const easementEndX = startX; // No horizontal movement - straight down
              const easementEndZ = startZ; // No forward movement - straight down
-             const easementEndRise = startRise - easementLength * Math.sin(Math.abs(angleRad)); // Vertical drop at custom angle
+             const easementEndRise = Math.max(1.0, startRise - easementLength * Math.sin(Math.abs(angleRad))); // End 1" above floor minimum
              
              // Direct linear interpolation - no complex blending, no 90° angle
              x = startX + (easementEndX - startX) * easeT;
@@ -429,7 +429,7 @@ export function useThreeJS(
              const startZ = insideRadius * Math.sin(startAngle);
              
              // Calculate the correct starting rise at 200° (end of spiral)
-             const spiralEndRise = 1.0 + (200 / 220) * 7.375; // Proportional rise at 200°
+             const spiralEndRise = parameters.pitchBlock + (200 / 220) * 7.375; // Proportional rise at 200°
              const startRise = spiralEndRise;
              
              // End at 220° with 8.375" rise (total cumulative rise over 220°)
