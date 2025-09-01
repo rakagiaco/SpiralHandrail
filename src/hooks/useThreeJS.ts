@@ -390,7 +390,7 @@ export function useThreeJS(
      
            // Create inside pitch block offset that's always 1 less than the actual pitch block
       // This ensures the inner line starts at a consistent offset from the main pitch block
-      const insidePitchBlockOffset = Math.max(0, safePitchBlock - 1);
+      const insidePitchBlockOffset = safePitchBlock - 1;
       
       // Debug: Log inside pitch block offset information
       console.log(`📏 Inside pitch block offset: ${insidePitchBlockOffset.toFixed(3)}" (${safePitchBlock.toFixed(3)}" - 1)`);
