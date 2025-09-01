@@ -654,7 +654,7 @@ export function useThreeJS(
             rise = scaledManualRise;
             
             if (i % 500 === 0) { // Log every 500th point to avoid spam
-              console.log(`📍 Using scaled manual rise data at step ${i}: arcDistance=${currentArcDistance.toFixed(2)}", original=${manualRise.toFixed(3)}", scaled=${scaledManualRise.toFixed(3)}"`);
+              console.log(`📍 Using scaled manual rise data at step ${i}: arcDistance=${currentArcDistance.toFixed(2)}", original=${manualRise.toFixed(3)}", scaled=${scaledManualRise.toFixed(3)}", scaleFactor=${(safeTotalRise / 7.375).toFixed(3)}`);
             }
           } else {
             // ENHANCED: Dynamic calculation that scales with ALL project parameters
@@ -692,20 +692,23 @@ export function useThreeJS(
            // Use continuous mathematical interpolation (no discrete steps)
            const smoothEaseT = easeT * easeT * (3 - 2 * easeT); // Smoothstep function
            
-           // Start position (at 0°) - use manual rise data if available
-           const startX = outerRadius * Math.cos(0);
-           const startZ = outerRadius * Math.sin(0);
-           const startRise = safeManualRiseData[0] || safePitchBlock;
-           
-           // Target position (where spiral would naturally be) - use manual rise data if available
-           const targetX = outerRadius * Math.cos(angle);
-           const targetZ = outerRadius * Math.sin(angle);
-           const targetRise = rise; // Use the already calculated rise (which includes manual data)
-           
-           // Continuous interpolation creates truly smooth line
-           x = startX + (targetX - startX) * smoothEaseT;
-           z = startZ + (targetZ - startZ) * smoothEaseT;
-           y = startRise + (targetRise - startRise) * smoothEaseT;
+                       // Start position (at 0°) - use manual rise data if available and scale it
+            const startX = outerRadius * Math.cos(0);
+            const startZ = outerRadius * Math.sin(0);
+            const startManualRise = safeManualRiseData[0];
+            const startRise = startManualRise ? 
+              safePitchBlock + ((startManualRise - safePitchBlock) * (safeTotalRise / 7.375)) : 
+              safePitchBlock;
+            
+            // Target position (where spiral would naturally be) - use manual rise data if available
+            const targetX = outerRadius * Math.cos(angle);
+            const targetZ = outerRadius * Math.sin(angle);
+            const targetRise = rise; // Use the already calculated rise (which includes manual data)
+            
+            // Continuous interpolation creates truly smooth line
+            x = startX + (targetX - startX) * smoothEaseT;
+            z = startZ + (targetZ - startZ) * smoothEaseT;
+            y = startRise + (targetRise - startRise) * smoothEaseT;
          }
          
          // Add interactive target point marker for bottom easement
@@ -742,17 +745,22 @@ export function useThreeJS(
            const startX = outerRadius * Math.cos(startAngle);
            const startZ = outerRadius * Math.sin(startAngle);
            
-           // Use manual rise data for spiral end if available, otherwise calculate
-           const spiralEndArcDistance = (spiralEndAngle / parameters.totalDegrees) * parameters.totalArcDistance;
-           const spiralEndRise = safeManualRiseData[spiralEndArcDistance] || 
-             safePitchBlock + (spiralEndAngle / parameters.totalDegrees) * safeTotalRise;
-           const startRise = spiralEndRise;
-           
-           // End position (at 220°) - use manual rise data if available
-           const endAngle = 220 * Math.PI / 180;
-           const endX = outerRadius * Math.cos(endAngle);
-           const endZ = outerRadius * Math.sin(endAngle);
-           const endRise = safeManualRiseData[parameters.totalArcDistance] || safePitchBlock + safeTotalRise;
+                       // Use manual rise data for spiral end if available, otherwise calculate
+            const spiralEndArcDistance = (spiralEndAngle / parameters.totalDegrees) * parameters.totalArcDistance;
+            const spiralEndManualRise = safeManualRiseData[spiralEndArcDistance];
+            const spiralEndRise = spiralEndManualRise ? 
+              safePitchBlock + ((spiralEndManualRise - safePitchBlock) * (safeTotalRise / 7.375)) : 
+              safePitchBlock + (spiralEndAngle / parameters.totalDegrees) * safeTotalRise;
+            const startRise = spiralEndRise;
+            
+            // End position (at 220°) - use manual rise data if available and scale it
+            const endAngle = 220 * Math.PI / 180;
+            const endX = outerRadius * Math.cos(endAngle);
+            const endZ = outerRadius * Math.sin(endAngle);
+            const endManualRise = safeManualRiseData[parameters.totalArcDistance];
+            const endRise = endManualRise ? 
+              safePitchBlock + ((endManualRise - safePitchBlock) * (safeTotalRise / 7.375)) : 
+              safePitchBlock + safeTotalRise;
            
            // Continuous interpolation creates truly smooth line
            x = startX + (endX - startX) * smoothEaseT;
@@ -835,12 +843,16 @@ export function useThreeJS(
              }
            }
            
-           if (manualRise !== null) {
-             rise = manualRise;
-           } else {
-             // Use the same rise calculation as outer line for consistency
-             rise = safePitchBlock + (t * safeTotalRise);
-           }
+                       if (manualRise !== null) {
+              // Scale the manual rise data proportionally with the current project parameters
+              const baseManualRise = manualRise - safePitchBlock; // Remove pitch block offset
+              const scaleFactor = safeTotalRise / 7.375; // Scale relative to default 7.375" rise
+              const scaledManualRise = safePitchBlock + (baseManualRise * scaleFactor);
+              rise = scaledManualRise;
+            } else {
+              // Use the same rise calculation as outer line for consistency
+              rise = safePitchBlock + (t * safeTotalRise);
+            }
            
            // Validate rise value
            if (isNaN(rise) || !isFinite(rise)) {
@@ -862,11 +874,14 @@ export function useThreeJS(
           z = innerRadius * Math.sin(angle);
           y = rise;
         } else {
-          // Bottom over-ease: INSIDE LINE - constant rate, practically invisible
-          const startAngle = 0;
-          const startX = innerRadius * Math.cos(startAngle);
-          const startZ = innerRadius * Math.sin(startAngle);
-          const startRise = safePitchBlock;
+                     // Bottom over-ease: INSIDE LINE - constant rate, practically invisible
+           const startAngle = 0;
+           const startX = innerRadius * Math.cos(startAngle);
+           const startZ = innerRadius * Math.sin(startAngle);
+           const startManualRise = safeManualRiseData[0];
+           const startRise = startManualRise ? 
+             safePitchBlock + ((startManualRise - safePitchBlock) * (safeTotalRise / 7.375)) : 
+             safePitchBlock;
           
           // For inside line, use minimal easement effect - practically invisible
           const easeT = segmentPosition / parameters.bottomLength;
@@ -904,17 +919,21 @@ export function useThreeJS(
           // Top up-ease: direct interpolation from spiral end to final position
           const easeT = (segmentPosition - (parameters.totalSegments - parameters.topLength)) / parameters.topLength;
           
-          // Start at the actual spiral end point (not hardcoded 200°)
-          // Calculate where the spiral naturally ends based on the current parameters
-          const spiralEndAngle = ((parameters.totalSegments - parameters.topLength) / parameters.totalSegments) * parameters.totalDegrees;
-          const startAngle = spiralEndAngle * Math.PI / 180;
-          const startX = innerRadius * Math.cos(startAngle);
-          const startZ = innerRadius * Math.sin(startAngle);
+                     // Start at the actual spiral end point (not hardcoded 200°)
+           // Calculate where the spiral naturally ends based on the current parameters
+           const spiralEndAngle = ((parameters.totalSegments - parameters.topLength) / parameters.totalSegments) * parameters.totalDegrees;
+           const spiralEndArcDistance = (spiralEndAngle / parameters.totalDegrees) * parameters.totalArcDistance;
+           const startAngle = spiralEndAngle * Math.PI / 180;
+           const startX = innerRadius * Math.cos(startAngle);
+           const startZ = innerRadius * Math.sin(startAngle);
           
-          // Calculate the rise at the spiral end point for smooth transition
-          // Use the actual spiral rise calculation, not a hardcoded value
-          const spiralEndRise = safePitchBlock + (spiralEndAngle / parameters.totalDegrees) * safeTotalRise;
-          const startRise = spiralEndRise;
+                     // Calculate the rise at the spiral end point for smooth transition
+           // Use the actual spiral rise calculation, not a hardcoded value
+           const spiralEndManualRise = safeManualRiseData[spiralEndArcDistance];
+           const spiralEndRise = spiralEndManualRise ? 
+             safePitchBlock + ((spiralEndManualRise - safePitchBlock) * (safeTotalRise / 7.375)) : 
+             safePitchBlock + (spiralEndAngle / parameters.totalDegrees) * safeTotalRise;
+           const startRise = spiralEndRise;
           
                                 // End at 220° - Inner line should end at same height as outer line
             const endAngle = 220 * Math.PI / 180;
