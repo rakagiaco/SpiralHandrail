@@ -1,7 +1,6 @@
 // Main App component for the Spiral Handrail 3D Visualizer
 // This component manages the global state and renders all sub-components
 import React, { useState, useCallback } from 'react';
-import './App.css';
 import { HandrailParameters } from './types/handrail';
 import { ThreeJSVisualization } from './components/ThreeJSVisualization';
 import { ParametersSection } from './components/ParametersSection';
