@@ -976,10 +976,11 @@ export function useThreeJS(
            const easeT = segmentPosition / parameters.bottomLength;
            const smoothEaseT = easeT * easeT * (3 - 2 * easeT); // Smoothstep function
            
-                       // Start at inner line start height, end at spiral rise
+                       // FIXED: Start at inner line start height (insidePitchBlockOffset) for proper connection
+            // The easement should start exactly where the inner line starts and smoothly angle up
             const startX = innerRadius * Math.cos(0);
             const startZ = innerRadius * Math.sin(0);
-            const startRise = insidePitchBlockOffset;
+            const startRise = insidePitchBlockOffset; // Start at inner line start height
             
             const targetX = innerRadius * Math.cos(angle);
             const targetZ = innerRadius * Math.sin(angle);
