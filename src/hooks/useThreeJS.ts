@@ -383,10 +383,10 @@ export function useThreeJS(
      const baseBottomOffset = Math.max(-10, Math.min(10, parameters.bottomOffset || 0));
      const baseTopOffset = Math.max(-10, Math.min(10, parameters.topOffset || 0));
      
-     // Scale offsets proportionally with total rise (same scaling as manual rise data)
-     const scaleFactor = safeTotalRise / 7.375; // Base scale factor for 7.375" total rise
-     const safeBottomOffset = baseBottomOffset * scaleFactor;
-     const safeTopOffset = baseTopOffset * scaleFactor;
+           // FIXED: Offsets should NOT scale with rise - they should be fixed values
+      // The rise should only affect the Y-coordinate (height), not the radius
+      const safeBottomOffset = baseBottomOffset;
+      const safeTopOffset = baseTopOffset;
      
            // Create inside pitch block offset that correlates with the actual pitch block
       // This ensures the inner line starts at a consistent offset from the main pitch block
@@ -403,10 +403,10 @@ export function useThreeJS(
      // Convert custom inner radius from diameter to radius if needed
      const customInnerRadiusValue = customInnerRadius <= 2.5 ? customInnerRadius : customInnerRadius / 2; // 10.5" diameter = 5.25" radius
          
-         // Apply custom radius values directly - no interpolation needed
-         // The custom values should directly control the 3D model
-         const outerRadius = Math.max(0.1, customOuterRadius + safeBottomOffset);
-         let innerRadius = Math.max(0.1, customInnerRadiusValue - safeTopOffset);
+                   // FIXED: Radius should NOT be affected by rise or offsets
+          // The radius is purely geometric and should remain constant
+          const outerRadius = Math.max(0.1, customOuterRadius);
+          let innerRadius = Math.max(0.1, customInnerRadiusValue);
          
                   // CRASH PROTECTION: Ensure inner radius is smaller than outer radius
          if (innerRadius >= outerRadius) {
@@ -646,47 +646,48 @@ export function useThreeJS(
         // Only apply angle adjustments during easement transitions, not the main spiral
         // This ensures the spiral maintains its proper mathematical shape
         
-                 // SIMPLIFIED: Use manual reference points as the literal line
-         // The manual reference points ARE the line, no complex calculations needed
-         let rise: number;
-         
-         if (Object.keys(safeManualRiseData).length > 0) {
-           // Find the two closest manual rise points for interpolation
-           const manualDistances = Object.keys(safeManualRiseData).map(Number).sort((a, b) => a - b);
-           const currentArcDistance = t * parameters.totalArcDistance;
-           
-           // Find the two points to interpolate between
-           let lowerPoint = manualDistances[0];
-           let upperPoint = manualDistances[manualDistances.length - 1];
-           
-           for (let j = 0; j < manualDistances.length - 1; j++) {
-             if (currentArcDistance >= manualDistances[j] && currentArcDistance <= manualDistances[j + 1]) {
-               lowerPoint = manualDistances[j];
-               upperPoint = manualDistances[j + 1];
-               break;
-             }
-           }
-           
-           // Interpolate between the two manual points - this IS the line
-           const lowerRise = safeManualRiseData[lowerPoint];
-           const upperRise = safeManualRiseData[upperPoint];
-           
-           if (lowerPoint === upperPoint) {
-             // Exact match - use the manual point directly
-             rise = safeManualRiseData[lowerPoint];
-           } else {
-             // Interpolate between the two points - this creates the smooth line
-             const interpolationFactor = (currentArcDistance - lowerPoint) / (upperPoint - lowerPoint);
-             rise = lowerRise + (upperRise - lowerRise) * interpolationFactor;
-             
-             if (i % 500 === 0) {
-               console.log(`📍 Manual reference line: ${lowerPoint}" → ${upperPoint}", factor: ${interpolationFactor.toFixed(3)}, rise: ${rise.toFixed(3)}"`);
-             }
-           }
-         } else {
-           // Fallback: use simple linear rise if no manual data
-           rise = safePitchBlock + (t * safeTotalRise);
-         }
+                           // FIXED: Pitch block height should move the WHOLE piece up and down
+          // The rise should be relative to the pitch block height
+          let rise: number;
+          
+          if (Object.keys(safeManualRiseData).length > 0) {
+            // Find the two closest manual rise points for interpolation
+            const manualDistances = Object.keys(safeManualRiseData).map(Number).sort((a, b) => a - b);
+            const currentArcDistance = t * parameters.totalArcDistance;
+            
+            // Find the two points to interpolate between
+            let lowerPoint = manualDistances[0];
+            let upperPoint = manualDistances[manualDistances.length - 1];
+            
+            for (let j = 0; j < manualDistances.length - 1; j++) {
+              if (currentArcDistance >= manualDistances[j] && currentArcDistance <= manualDistances[j + 1]) {
+                lowerPoint = manualDistances[j];
+                upperPoint = manualDistances[j + 1];
+                break;
+              }
+            }
+            
+            // Interpolate between the two manual points - this IS the line
+            const lowerRise = safeManualRiseData[lowerPoint];
+            const upperRise = safeManualRiseData[upperPoint];
+            
+            if (lowerPoint === upperPoint) {
+              // Exact match - use the manual point directly
+              rise = safePitchBlock + lowerRise; // Add pitch block height to move whole piece
+            } else {
+              // Interpolate between the two points - this creates the smooth line
+              const interpolationFactor = (currentArcDistance - lowerPoint) / (upperPoint - lowerPoint);
+              const interpolatedRise = lowerRise + (upperRise - lowerRise) * interpolationFactor;
+              rise = safePitchBlock + interpolatedRise; // Add pitch block height to move whole piece
+              
+              if (i % 500 === 0) {
+                console.log(`📍 Manual reference line: ${lowerPoint}" → ${upperPoint}", factor: ${interpolationFactor.toFixed(3)}, rise: ${rise.toFixed(3)}"`);
+              }
+            }
+          } else {
+            // Fallback: use simple linear rise if no manual data
+            rise = safePitchBlock + (t * safeTotalRise);
+          }
         
                  // Debug logging for spiral calculation
          if (i % 1000 === 0) {
@@ -784,10 +785,11 @@ export function useThreeJS(
             const lastManualDistance = manualDistances[manualDistances.length - 1];
             const endRise = safeManualRiseData[lastManualDistance] || (safePitchBlock + safeTotalRise);
             
-            // Simple straight line interpolation from spiral to final position
-            x = startX + (endX - startX) * smoothEaseT;
-            z = startZ + (endZ - startZ) * smoothEaseT;
-            y = startRise + (endRise - startRise) * smoothEaseT;
+                         // STRAIGHT LINE: Top easement should be a straight line that eases UP into the next rail
+             // No arcing - just a straight line from spiral end to final position
+             x = startX + (endX - startX) * easementProgress; // Use linear interpolation, not smooth
+             z = startZ + (endZ - startZ) * easementProgress; // Use linear interpolation, not smooth
+             y = startRise + (endRise - startRise) * easementProgress; // Use linear interpolation, not smooth
             
             if (i === steps) {
               console.log(`🔧 Top easement: Smooth transition from spiral to final position`);
@@ -849,43 +851,44 @@ export function useThreeJS(
        const segmentPosition = (arcDistance / parameters.totalArcDistance) * parameters.totalSegments;
        const angle = (t * parameters.totalDegrees * Math.PI) / 180; // Full 220° span
        
-               // SIMPLIFIED: Inner line uses manual reference points as the literal line
-        // Same as outer line - the manual reference points ARE the line
-        let rise: number;
-        
-        if (Object.keys(safeManualRiseData).length > 0) {
-          // Use manual rise data with interpolation (same as outer line)
-          const currentArcDistance = t * parameters.totalArcDistance;
-          const manualDistances = Object.keys(safeManualRiseData).map(Number).sort((a, b) => a - b);
-          
-          // Find the two points to interpolate between
-          let lowerPoint = manualDistances[0];
-          let upperPoint = manualDistances[manualDistances.length - 1];
-          
-          for (let k = 0; k < manualDistances.length - 1; k++) {
-            if (currentArcDistance >= manualDistances[k] && currentArcDistance <= manualDistances[k + 1]) {
-              lowerPoint = manualDistances[k];
-              upperPoint = manualDistances[k + 1];
-              break;
-            }
-          }
-          
-          // Interpolate between the two manual points - this IS the line
-          const lowerRise = safeManualRiseData[lowerPoint];
-          const upperRise = safeManualRiseData[upperPoint];
-          
-          if (lowerPoint === upperPoint) {
-            // Exact match - use the manual point directly
-            rise = safeManualRiseData[lowerPoint];
-          } else {
-            // Interpolate between the two points - this creates the smooth line
-            const interpolationFactor = (currentArcDistance - lowerPoint) / (upperPoint - lowerPoint);
-            rise = lowerRise + (upperRise - lowerRise) * interpolationFactor;
-          }
-        } else {
-          // Fallback: use simple linear rise if no manual data
-          rise = insidePitchBlockOffset + (t * safeTotalRise);
-        }
+                        // FIXED: Inner line should also respect pitch block height for consistent movement
+         // The rise should be relative to the pitch block height, not the inner offset
+         let rise: number;
+         
+         if (Object.keys(safeManualRiseData).length > 0) {
+           // Use manual rise data with interpolation (same as outer line)
+           const currentArcDistance = t * parameters.totalArcDistance;
+           const manualDistances = Object.keys(safeManualRiseData).map(Number).sort((a, b) => a - b);
+           
+           // Find the two points to interpolate between
+           let lowerPoint = manualDistances[0];
+           let upperPoint = manualDistances[manualDistances.length - 1];
+           
+           for (let k = 0; k < manualDistances.length - 1; k++) {
+             if (currentArcDistance >= manualDistances[k] && currentArcDistance <= manualDistances[k + 1]) {
+               lowerPoint = manualDistances[k];
+               upperPoint = manualDistances[k + 1];
+               break;
+             }
+           }
+           
+           // Interpolate between the two manual points - this IS the line
+           const lowerRise = safeManualRiseData[lowerPoint];
+           const upperRise = safeManualRiseData[upperPoint];
+           
+           if (lowerPoint === upperPoint) {
+             // Exact match - use the manual point directly
+             rise = safePitchBlock + lowerRise; // Add pitch block height to move whole piece
+           } else {
+             // Interpolate between the two points - this creates the smooth line
+             const interpolationFactor = (currentArcDistance - lowerPoint) / (upperPoint - lowerPoint);
+             const interpolatedRise = lowerRise + (upperRise - lowerRise) * interpolationFactor;
+             rise = safePitchBlock + interpolatedRise; // Add pitch block height to move whole piece
+           }
+         } else {
+           // Fallback: use simple linear rise if no manual data
+           rise = safePitchBlock + (t * safeTotalRise);
+         }
        
        // Validate rise value
        if (isNaN(rise) || !isFinite(rise)) {
