@@ -683,24 +683,20 @@ export function useThreeJS(
             baseRise = safePitchBlock + (t * safeTotalRise);
           }
           
-                     // FIXED: Easement angle SHOULD affect the spiral calculation to change steepness
-           // But it should NOT visually rotate the handrail - only change the mathematical rise rate
-           // Apply easement angle as a mathematical adjustment to the rise calculation
-           const easementAngleAdjustment = Math.tan(easementAngleRad) * (arcDistance * 0.1);
-           const adjustedBaseRise = baseRise + easementAngleAdjustment;
+                     // FIXED: Easement angle should NOT affect the main spiral calculation
+           // Only apply angle adjustments during easement transitions, not the main spiral
+           // This ensures the spiral maintains its proper mathematical shape
            
-           // Scale the adjusted rise proportionally with project parameters
-           const scaledRise = adjustedBaseRise - safePitchBlock;
+           // Scale the rise proportionally with project parameters
+           const scaledRise = baseRise - safePitchBlock;
            const scaleFactor = safeTotalRise / 7.375;
            rise = safePitchBlock + (scaledRise * scaleFactor);
          
                               // Debug logging for angle effect
            if (i % 1000 === 0) {
-             console.log(`🔧 Easement angle ${customEasementAngle}° affecting spiral steepness:`);
+             console.log(`🔧 Easement angle ${customEasementAngle}° affecting easement transitions only:`);
              console.log(`📍 Arc distance: ${arcDistance.toFixed(3)}"`);
              console.log(`📍 Base rise: ${baseRise.toFixed(3)}"`);
-             console.log(`📍 Angle adjustment: ${easementAngleAdjustment.toFixed(3)}"`);
-             console.log(`📍 Adjusted base rise: ${adjustedBaseRise.toFixed(3)}"`);
              console.log(`📍 Final scaled rise: ${rise.toFixed(3)}"`);
            }
         
@@ -810,14 +806,10 @@ export function useThreeJS(
                const startX = outerRadius * Math.cos(startAngle);
                const startZ = outerRadius * Math.sin(startAngle);
                
-                          // FIXED: Spiral should end at proper height for smooth easement transition
-               // The spiral needs to end high enough to smoothly connect to the top easement
-               // Calculate the height the spiral should naturally reach at this angle
-               const naturalSpiralEndRise = safePitchBlock + (spiralEndAngle / parameters.totalDegrees) * safeTotalRise;
-               
-               // The spiral should end at its natural height, not artificially lowered
-               // This ensures smooth connection to the top easement
-               const spiralEndRise = naturalSpiralEndRise;
+                                                     // FIXED: Spiral should end at proper height for smooth easement transition
+                // Use debug positions as reference for proper heights
+                // The spiral needs to end at the correct height to smoothly connect to the top easement
+                const spiralEndRise = safePitchBlock + (spiralEndAngle / parameters.totalDegrees) * safeTotalRise;
                
                const startRise = spiralEndRise;
              
@@ -1013,9 +1005,10 @@ export function useThreeJS(
             const startZ = innerRadius * Math.sin(startAngle);
             
             // FIXED: Inner line spiral end should match the outer line height for consistency
+            // Use debug positions as reference for proper heights
             // Calculate the natural spiral end height (same as outer line)
-            const naturalSpiralEndRise = insidePitchBlockOffset + (spiralEndAngle / parameters.totalDegrees) * safeTotalRise;
-            const startRise = naturalSpiralEndRise;
+            const spiralEndRise = insidePitchBlockOffset + (spiralEndAngle / parameters.totalDegrees) * safeTotalRise;
+            const startRise = spiralEndRise;
            
            const endAngle = 220 * Math.PI / 180;
            const endX = innerRadius * Math.cos(endAngle);
