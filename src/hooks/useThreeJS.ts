@@ -659,13 +659,13 @@ export function useThreeJS(
         // Only apply angle adjustments during easement transitions, not the main spiral
         // This ensures the spiral maintains its proper mathematical shape
         
-                                     // FIXED: Use manual references EXACTLY as the baseline, then move the whole piece with pitch block
-           // Your manual points ARE the line - no modification to their values
+                                     // FIXED: Use manual references as the baseline, then scale proportionally and move with pitch block
+           // Your manual points ARE the line - but they need to scale with project parameters
            let rise: number;
            
-                       if (Object.keys(validatedManualRiseData).length > 0) {
-              // Find the two closest manual rise points for interpolation
-              const manualDistances = Object.keys(validatedManualRiseData).map(Number).sort((a, b) => a - b);
+           if (Object.keys(validatedManualRiseData).length > 0) {
+             // Find the two closest manual rise points for interpolation
+             const manualDistances = Object.keys(validatedManualRiseData).map(Number).sort((a, b) => a - b);
              const currentArcDistance = t * parameters.totalArcDistance;
              
              // Find the two points to interpolate between
@@ -696,6 +696,11 @@ export function useThreeJS(
                  console.log(`📍 Manual reference line: ${lowerPoint}" → ${upperPoint}", factor: ${interpolationFactor.toFixed(3)}, baseline: ${rise.toFixed(3)}"`);
                }
              }
+             
+             // SCALE the baseline proportionally with project parameters
+             // This ensures the shape scales when you change rise or other parameters
+             const scaleFactor = safeTotalRise / 7.375; // Scale based on your reference rise
+             rise = rise * scaleFactor;
            } else {
              // Fallback: use simple linear rise if no manual data
              rise = t * safeTotalRise;
@@ -791,15 +796,17 @@ export function useThreeJS(
               const startZ = outerRadius * Math.sin(spiralEndAngleRad);
               const startRise = rise; // This is the manual reference line height at spiral end
               
-              // End: final position (at 220°) - use the last manual reference point EXACTLY as entered
+              // End: final position (at 220°) - scale the last manual reference point proportionally
               const endAngle = 220 * Math.PI / 180;
               const endX = outerRadius * Math.cos(endAngle);
               const endZ = outerRadius * Math.sin(endAngle);
               
-              // Get the last manual reference position (highest arc distance) - use EXACTLY as entered
+              // Get the last manual reference position (highest arc distance) - scale proportionally with project parameters
               const manualDistances = Object.keys(validatedManualRiseData).map(Number).sort((a, b) => a - b);
               const lastManualDistance = manualDistances[manualDistances.length - 1];
-              const endRise = validatedManualRiseData[lastManualDistance] + safePitchBlock; // Your exact point + pitch block
+              const baseEndRise = validatedManualRiseData[lastManualDistance]; // Your exact point
+              const scaleFactor = safeTotalRise / 7.375; // Scale based on your reference rise
+              const endRise = (baseEndRise * scaleFactor) + safePitchBlock; // Scaled point + pitch block
               
               // PERFECTLY STRAIGHT LINE: Simple linear interpolation - no arcing, no smoothstep
               x = startX + (endX - startX) * easementProgress;
@@ -819,7 +826,9 @@ export function useThreeJS(
             const markerAngle = 220 * Math.PI / 180;
             const markerX = outerRadius * Math.cos(markerAngle);
             const markerZ = outerRadius * Math.sin(markerAngle);
-            const markerRise = safePitchBlock + safeTotalRise; // Scales with project parameters
+            // Scale the marker proportionally with project parameters
+            const scaleFactor = safeTotalRise / 7.375; // Scale based on your reference rise
+            const markerRise = safePitchBlock + (7.375 * scaleFactor); // Scales proportionally
             targetMarker.position.set(markerX, markerRise, markerZ);
             targetMarker.userData = { type: 'topTarget' };
             scene.add(targetMarker);
@@ -900,8 +909,8 @@ export function useThreeJS(
        const segmentPosition = (arcDistance / parameters.totalArcDistance) * parameters.totalSegments;
        const angle = (t * parameters.totalDegrees * Math.PI) / 180; // Full 220° span
        
-                                 // FIXED: Inner line should also use manual references EXACTLY as the baseline
-          // The rise should use your exact points, then move with pitch block height
+                                 // FIXED: Inner line should also use manual references as the baseline, then scale proportionally
+          // The rise should use your exact points, then scale with project parameters and move with pitch block height
           let rise: number;
           
           if (Object.keys(safeManualRiseData).length > 0) {
@@ -933,6 +942,10 @@ export function useThreeJS(
               const interpolationFactor = (currentArcDistance - lowerPoint) / (upperPoint - lowerPoint);
               rise = lowerRise + (upperRise - lowerRise) * interpolationFactor; // Your baseline line
             }
+            
+            // SCALE the baseline proportionally with project parameters (same as outer line)
+            const scaleFactor = safeTotalRise / 7.375; // Scale based on your reference rise
+            rise = rise * scaleFactor;
           } else {
             // Fallback: use simple linear rise if no manual data
             rise = t * safeTotalRise;
@@ -1000,15 +1013,17 @@ export function useThreeJS(
               const startZ = innerRadius * Math.sin(spiralEndAngleRad);
               const startRise = rise; // This is the manual reference line height at spiral end
               
-              // End: final position (at 220°) - use the last manual reference point EXACTLY as entered
+              // End: final position (at 220°) - scale the last manual reference point proportionally
               const endAngle = 220 * Math.PI / 180;
               const endX = innerRadius * Math.cos(endAngle);
               const endZ = innerRadius * Math.sin(endAngle);
               
-              // Get the last manual reference position (highest arc distance) - use EXACTLY as entered
+              // Get the last manual reference position (highest arc distance) - scale proportionally with project parameters
               const manualDistances = Object.keys(validatedManualRiseData).map(Number).sort((a, b) => a - b);
               const lastManualDistance = manualDistances[manualDistances.length - 1];
-              const endRise = validatedManualRiseData[lastManualDistance] + safePitchBlock; // Your exact point + pitch block
+              const baseEndRise = validatedManualRiseData[lastManualDistance]; // Your exact point
+              const scaleFactor = safeTotalRise / 7.375; // Scale based on your reference rise
+              const endRise = (baseEndRise * scaleFactor) + safePitchBlock; // Scaled point + pitch block
               
               // PERFECTLY STRAIGHT LINE: Simple linear interpolation - no arcing, no smoothstep
               x = startX + (endX - startX) * easementProgress;
