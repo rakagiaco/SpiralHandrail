@@ -783,9 +783,49 @@ export function useThreeJS(
             const startX = outerRadius * Math.cos(spiralEndAngleRad);
             const startZ = outerRadius * Math.sin(spiralEndAngleRad);
             
-            // FIXED: Use the actual calculated rise at this position, not a simplified calculation
-            // This ensures the spiral and easement connect at the same height
-            const spiralEndRise = safePitchBlock + (spiralEndAngle / parameters.totalDegrees) * safeTotalRise;
+            // FIXED: Use the EXACT same rise calculation that the main spiral uses
+            // This ensures perfect connection between spiral and easement
+            const spiralEndArcDistance = (spiralEndAngle / parameters.totalDegrees) * parameters.totalArcDistance;
+            const spiralEndT = spiralEndArcDistance / parameters.totalArcDistance;
+            
+            let spiralEndRise: number;
+            
+            if (Object.keys(safeManualRiseData).length > 0) {
+              // Use EXACTLY the same logic as the main spiral
+              const manualDistances = Object.keys(safeManualRiseData).map(Number).sort((a, b) => a - b);
+              
+              // Find the two points to interpolate between
+              let lowerPoint = manualDistances[0];
+              let upperPoint = manualDistances[manualDistances.length - 1];
+              
+              for (let j = 0; j < manualDistances.length - 1; j++) {
+                if (spiralEndArcDistance >= manualDistances[j] && spiralEndArcDistance <= manualDistances[j + 1]) {
+                  lowerPoint = manualDistances[j];
+                  upperPoint = manualDistances[j + 1];
+                  break;
+                }
+              }
+              
+              // Interpolate between the two manual points (same as main spiral)
+              const lowerRise = safeManualRiseData[lowerPoint];
+              const upperRise = safeManualRiseData[upperPoint];
+              
+              if (lowerPoint === upperPoint) {
+                spiralEndRise = safeManualRiseData[lowerPoint];
+              } else {
+                const interpolationFactor = (spiralEndArcDistance - lowerPoint) / (upperPoint - lowerPoint);
+                const baseRise = lowerRise + (upperRise - lowerRise) * interpolationFactor;
+                
+                // Scale the rise proportionally with project parameters (SAME as main spiral)
+                const scaledRise = baseRise - safePitchBlock;
+                const scaleFactor = safeTotalRise / 7.375;
+                spiralEndRise = safePitchBlock + (scaledRise * scaleFactor);
+              }
+            } else {
+              // Fallback: use simple linear rise if no manual data (SAME as main spiral)
+              spiralEndRise = safePitchBlock + (spiralEndT * safeTotalRise);
+            }
+            
             const startRise = spiralEndRise;
             
             // End: final position (at 220°)
@@ -968,9 +1008,49 @@ export function useThreeJS(
             const startX = innerRadius * Math.cos(spiralEndAngleRad);
             const startZ = innerRadius * Math.sin(spiralEndAngleRad);
             
-            // FIXED: Use the actual calculated rise at this position for inner line
-            // This ensures the inner spiral and easement connect at the same height
-            const spiralEndRise = insidePitchBlockOffset + (spiralEndAngle / parameters.totalDegrees) * safeTotalRise;
+            // FIXED: Use the EXACT same rise calculation that the inner line main spiral uses
+            // This ensures perfect connection between inner spiral and easement
+            const spiralEndArcDistance = (spiralEndAngle / parameters.totalDegrees) * parameters.totalArcDistance;
+            const spiralEndT = spiralEndArcDistance / parameters.totalArcDistance;
+            
+            let spiralEndRise: number;
+            
+            if (Object.keys(safeManualRiseData).length > 0) {
+              // Use EXACTLY the same logic as the inner line main spiral
+              const manualDistances = Object.keys(safeManualRiseData).map(Number).sort((a, b) => a - b);
+              
+              // Find the two points to interpolate between
+              let lowerPoint = manualDistances[0];
+              let upperPoint = manualDistances[manualDistances.length - 1];
+              
+              for (let j = 0; j < manualDistances.length - 1; j++) {
+                if (spiralEndArcDistance >= manualDistances[j] && spiralEndArcDistance <= manualDistances[j + 1]) {
+                  lowerPoint = manualDistances[j];
+                  upperPoint = manualDistances[j + 1];
+                  break;
+                }
+              }
+              
+              // Interpolate between the two manual points (same as inner line main spiral)
+              const lowerRise = safeManualRiseData[lowerPoint];
+              const upperRise = safeManualRiseData[upperPoint];
+              
+              if (lowerPoint === upperPoint) {
+                spiralEndRise = safeManualRiseData[lowerPoint];
+              } else {
+                const interpolationFactor = (spiralEndArcDistance - lowerPoint) / (upperPoint - lowerPoint);
+                const baseRise = lowerRise + (upperRise - lowerRise) * interpolationFactor;
+                
+                // Scale the rise proportionally with project parameters (SAME as inner line main spiral)
+                const baseRiseScaled = baseRise - insidePitchBlockOffset;
+                const scaleFactor = safeTotalRise / 7.375;
+                spiralEndRise = insidePitchBlockOffset + (baseRiseScaled * scaleFactor);
+              }
+            } else {
+              // Fallback: use simple linear rise if no manual data (SAME as inner line main spiral)
+              spiralEndRise = insidePitchBlockOffset + (spiralEndT * safeTotalRise);
+            }
+            
             const startRise = spiralEndRise;
             
             // End: final position (at 220°)
