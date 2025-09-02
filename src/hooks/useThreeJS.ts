@@ -470,11 +470,12 @@ export function useThreeJS(
         const spiralEndX = outerRadius * Math.cos(spiralEndAngleRad);
         const spiralEndZ = outerRadius * Math.sin(spiralEndAngleRad);
         
-        // FIXED: Spiral end height should be LOWER than final height
-        // The spiral ends before the easements, so it needs to account for easement rise
+        // FIXED: Spiral end height should be slightly lower than final height
+        // The spiral ends before the easements, but not too low to avoid 90-degree turns
         // Total height = 8.375" = pitch block + rise + easement contribution
-        const easementContribution = (parameters.topLength / parameters.totalSegments) * safeTotalRise;
-        const spiralEndRise = safePitchBlock + (spiralEndAngle / parameters.totalDegrees) * safeTotalRise - easementContribution;
+        // Use a smaller adjustment factor to keep spiral higher
+        const easementAdjustment = (parameters.topLength / parameters.totalSegments) * safeTotalRise * 0.3; // Only 30% of full easement contribution
+        const spiralEndRise = safePitchBlock + (spiralEndAngle / parameters.totalDegrees) * safeTotalRise - easementAdjustment;
        
        const spiralEndMarkerGeometry = new THREE.SphereGeometry(0.3, 16, 16);
        const spiralEndMarkerMaterial = new THREE.MeshBasicMaterial({ color: 0xff00ff });
@@ -832,14 +833,14 @@ export function useThreeJS(
                  const scaledRise = baseRise - safePitchBlock;
                  const scaleFactor = safeTotalRise / 7.375;
                  
-                 // FIXED: Subtract easement contribution to get proper spiral end height
-                 const easementContribution = (parameters.topLength / parameters.totalSegments) * safeTotalRise;
-                 spiralEndRise = safePitchBlock + (scaledRise * scaleFactor) - easementContribution;
+                 // FIXED: Use smaller adjustment to keep spiral higher and avoid 90-degree turns
+                 const easementAdjustment = (parameters.topLength / parameters.totalSegments) * safeTotalRise * 0.3; // Only 30% of full easement contribution
+                 spiralEndRise = safePitchBlock + (scaledRise * scaleFactor) - easementAdjustment;
                }
              } else {
                // Fallback: use simple linear rise but account for easement contribution
-               const easementContribution = (parameters.topLength / parameters.totalSegments) * safeTotalRise;
-               spiralEndRise = safePitchBlock + (spiralEndT * safeTotalRise) - easementContribution;
+               const easementAdjustment = (parameters.topLength / parameters.totalSegments) * safeTotalRise * 0.3; // Only 30% of full easement contribution
+               spiralEndRise = safePitchBlock + (spiralEndT * safeTotalRise) - easementAdjustment;
              }
             
             const startRise = spiralEndRise;
@@ -1068,14 +1069,14 @@ export function useThreeJS(
                  const scaledRise = baseRise - insidePitchBlockOffset;
                  const scaleFactor = safeTotalRise / 7.375;
                  
-                 // FIXED: Subtract easement contribution to get proper inner spiral end height
-                 const easementContribution = (parameters.topLength / parameters.totalSegments) * safeTotalRise;
-                 spiralEndRise = insidePitchBlockOffset + (scaledRise * scaleFactor) - easementContribution;
+                 // FIXED: Use smaller adjustment to keep inner spiral higher and avoid 90-degree turns
+                 const easementAdjustment = (parameters.topLength / parameters.totalSegments) * safeTotalRise * 0.3; // Only 30% of full easement contribution
+                 spiralEndRise = insidePitchBlockOffset + (scaledRise * scaleFactor) - easementAdjustment;
                }
              } else {
                // Fallback: use simple linear rise but account for easement contribution
-               const easementContribution = (parameters.topLength / parameters.totalSegments) * safeTotalRise;
-               spiralEndRise = insidePitchBlockOffset + (spiralEndT * safeTotalRise) - easementContribution;
+               const easementAdjustment = (parameters.topLength / parameters.totalSegments) * safeTotalRise * 0.3; // Only 30% of full easement contribution
+               spiralEndRise = insidePitchBlockOffset + (spiralEndT * safeTotalRise) - easementAdjustment;
              }
             
             const startRise = spiralEndRise;
