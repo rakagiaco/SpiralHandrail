@@ -646,67 +646,54 @@ export function useThreeJS(
         // Only apply angle adjustments during easement transitions, not the main spiral
         // This ensures the spiral maintains its proper mathematical shape
         
-        // Calculate base rise with manual data interpolation
-        let baseRise: number;
-        let rise: number;
+                 // SIMPLIFIED: Use manual reference points as the literal line
+         // The manual reference points ARE the line, no complex calculations needed
+         let rise: number;
+         
+         if (Object.keys(safeManualRiseData).length > 0) {
+           // Find the two closest manual rise points for interpolation
+           const manualDistances = Object.keys(safeManualRiseData).map(Number).sort((a, b) => a - b);
+           const currentArcDistance = t * parameters.totalArcDistance;
+           
+           // Find the two points to interpolate between
+           let lowerPoint = manualDistances[0];
+           let upperPoint = manualDistances[manualDistances.length - 1];
+           
+           for (let j = 0; j < manualDistances.length - 1; j++) {
+             if (currentArcDistance >= manualDistances[j] && currentArcDistance <= manualDistances[j + 1]) {
+               lowerPoint = manualDistances[j];
+               upperPoint = manualDistances[j + 1];
+               break;
+             }
+           }
+           
+           // Interpolate between the two manual points - this IS the line
+           const lowerRise = safeManualRiseData[lowerPoint];
+           const upperRise = safeManualRiseData[upperPoint];
+           
+           if (lowerPoint === upperPoint) {
+             // Exact match - use the manual point directly
+             rise = safeManualRiseData[lowerPoint];
+           } else {
+             // Interpolate between the two points - this creates the smooth line
+             const interpolationFactor = (currentArcDistance - lowerPoint) / (upperPoint - lowerPoint);
+             rise = lowerRise + (upperRise - lowerRise) * interpolationFactor;
+             
+             if (i % 500 === 0) {
+               console.log(`📍 Manual reference line: ${lowerPoint}" → ${upperPoint}", factor: ${interpolationFactor.toFixed(3)}, rise: ${rise.toFixed(3)}"`);
+             }
+           }
+         } else {
+           // Fallback: use simple linear rise if no manual data
+           rise = safePitchBlock + (t * safeTotalRise);
+         }
         
-        if (Object.keys(safeManualRiseData).length > 0) {
-          // Find the two closest manual rise points for interpolation
-          const manualDistances = Object.keys(safeManualRiseData).map(Number).sort((a, b) => a - b);
-          const currentArcDistance = t * parameters.totalArcDistance;
-          
-          // Find the two points to interpolate between
-          let lowerPoint = manualDistances[0];
-          let upperPoint = manualDistances[manualDistances.length - 1];
-          
-          for (let j = 0; j < manualDistances.length - 1; j++) {
-            if (currentArcDistance >= manualDistances[j] && currentArcDistance <= manualDistances[j + 1]) {
-              lowerPoint = manualDistances[j];
-              upperPoint = manualDistances[j + 1];
-              break;
-            }
-          }
-          
-          // Interpolate between the two manual points
-          const lowerRise = safeManualRiseData[lowerPoint];
-          const upperRise = safeManualRiseData[upperPoint];
-          
-          if (lowerPoint === upperPoint) {
-            // Exact match - use the manual point directly
-            baseRise = safeManualRiseData[lowerPoint];
-          } else {
-            // Interpolate between the two points
-            const interpolationFactor = (currentArcDistance - lowerPoint) / (upperPoint - lowerPoint);
-            baseRise = lowerRise + (upperRise - lowerRise) * interpolationFactor;
-            
-            if (i % 500 === 0) {
-              console.log(`📍 Interpolating between manual points: ${lowerPoint}" → ${upperPoint}", factor: ${interpolationFactor.toFixed(3)}, base rise: ${baseRise.toFixed(3)}"`);
-            }
-          }
-        } else {
-          // Fallback: use simple linear rise if no manual data
-          baseRise = safePitchBlock + (t * safeTotalRise);
-        }
-        
-        // FIXED: Easement angle should NOT affect the main spiral calculation
-        // Only apply angle adjustments during easement transitions, not the main spiral
-        // This ensures the spiral maintains its proper mathematical shape
-        
-                 // Scale the rise proportionally with project parameters
-         const scaledRise = baseRise - safePitchBlock;
-         const scaleFactor = safeTotalRise / 7.375;
-         // FIXED: Spiral rise should NOT include pitch block offset
-         // The spiral should end at exactly safePitchBlock + safeTotalRise (8.375")
-         rise = safePitchBlock + (scaledRise * scaleFactor);
-         // Pitch block offset only affects radius (X,Z), not rise (Y)
-        
-        // Debug logging for spiral calculation
-        if (i % 1000 === 0) {
-          console.log(`🔧 Main spiral calculation (easement angle does not affect main spiral):`);
-          console.log(`📍 Arc distance: ${arcDistance.toFixed(3)}"`);
-          console.log(`📍 Base rise: ${baseRise.toFixed(3)}"`);
-          console.log(`📍 Final scaled rise: ${rise.toFixed(3)}"`);
-        }
+                 // Debug logging for spiral calculation
+         if (i % 1000 === 0) {
+           console.log(`🔧 Manual reference line calculation:`);
+           console.log(`📍 Arc distance: ${arcDistance.toFixed(3)}"`);
+           console.log(`📍 Manual reference rise: ${rise.toFixed(3)}"`);
+         }
         
         // Validate rise value
         if (isNaN(rise) || !isFinite(rise)) {
@@ -728,30 +715,24 @@ export function useThreeJS(
             z = outerRadius * Math.sin(angle);
             y = rise;
           } else {
-            // Simple, smooth easement from pitch block to spiral
-            const easeT = segmentPosition / parameters.bottomLength;
-            const smoothEaseT = easeT * easeT * (3 - 2 * easeT); // Smoothstep function
-            
-            // Start position (at 0°) - pitch block height
-            const startX = outerRadius * Math.cos(0);
-            const startZ = outerRadius * Math.sin(0);
-            const startRise = safePitchBlock;
-            
-            // Target position (where spiral would naturally be)
-            const targetX = outerRadius * Math.cos(angle);
-            const targetZ = outerRadius * Math.sin(angle);
-            const targetRise = rise;
-            
-            // Apply custom easement angle
-            const customEasementAngle = parameters.customEasementAngle || -35.08;
-            const easementAngleRad = customEasementAngle * Math.PI / 180;
-            const angleAdjustment = Math.tan(easementAngleRad) * (arcDistance * 0.05);
-            const adjustedTargetRise = targetRise + angleAdjustment;
-            
-            // Smooth interpolation from start to target
-            x = startX + (targetX - startX) * smoothEaseT;
-            z = startZ + (targetZ - startZ) * smoothEaseT;
-            y = startRise + (adjustedTargetRise - startRise) * smoothEaseT;
+                       // SIMPLIFIED: Bottom easement just connects pitch block to spiral
+           const easeT = segmentPosition / parameters.bottomLength;
+           const smoothEaseT = easeT * easeT * (3 - 2 * easeT); // Smoothstep function
+           
+           // Start position (at 0°) - pitch block height
+           const startX = outerRadius * Math.cos(0);
+           const startZ = outerRadius * Math.sin(0);
+           const startRise = safePitchBlock;
+           
+           // Target position (where spiral is) - use the manual reference line
+           const targetX = outerRadius * Math.cos(angle);
+           const targetZ = outerRadius * Math.sin(angle);
+           const targetRise = rise; // This is the manual reference line height
+           
+           // Simple smooth interpolation from pitch block to spiral
+           x = startX + (targetX - startX) * smoothEaseT;
+           z = startZ + (targetZ - startZ) * smoothEaseT;
+           y = startRise + (targetRise - startRise) * smoothEaseT;
             
             if (i === 0) {
               console.log(`🔧 Bottom easement: Smooth transition from pitch block to spiral`);
@@ -784,87 +765,29 @@ export function useThreeJS(
             const easementProgress = (segmentPosition - (parameters.totalSegments - parameters.topLength)) / parameters.topLength;
             const smoothEaseT = easementProgress * easementProgress * (3 - 2 * easementProgress);
             
-            // FIXED: Calculate spiral end position that matches where easement should start
+            // SIMPLIFIED: Top easement just draws straight line to last manual reference position
             const spiralEndAngle = ((parameters.totalSegments - parameters.topLength) / parameters.totalSegments) * parameters.totalDegrees;
             const spiralEndAngleRad = spiralEndAngle * Math.PI / 180;
             
-            // Start: spiral end position - this should match the main spiral height
+            // Start: spiral end position - use the manual reference line height
             const startX = outerRadius * Math.cos(spiralEndAngleRad);
             const startZ = outerRadius * Math.sin(spiralEndAngleRad);
+            const startRise = rise; // This is the manual reference line height at spiral end
             
-                         // FIXED: Spiral end height should be LOWER than final height
-             // The spiral ends before the easements, so it needs to account for easement rise
-             // This ensures the spiral and easement connect properly to reach 8.375" total
-             const spiralEndArcDistance = (spiralEndAngle / parameters.totalDegrees) * parameters.totalArcDistance;
-             const spiralEndT = spiralEndArcDistance / parameters.totalArcDistance;
-             
-             let spiralEndRise: number;
-             
-             if (Object.keys(safeManualRiseData).length > 0) {
-               // Use manual data interpolation but account for easement contribution
-               const manualDistances = Object.keys(safeManualRiseData).map(Number).sort((a, b) => a - b);
-               
-               // Find the two points to interpolate between
-               let lowerPoint = manualDistances[0];
-               let upperPoint = manualDistances[manualDistances.length - 1];
-               
-               for (let j = 0; j < manualDistances.length - 1; j++) {
-                 if (spiralEndArcDistance >= manualDistances[j] && spiralEndArcDistance <= manualDistances[j + 1]) {
-                   lowerPoint = manualDistances[j];
-                   upperPoint = manualDistances[j + 1];
-                   break;
-                 }
-               }
-               
-               // Interpolate between the two manual points
-               const lowerRise = safeManualRiseData[lowerPoint];
-               const upperRise = safeManualRiseData[upperPoint];
-               
-               if (lowerPoint === upperPoint) {
-                 const baseRise = safeManualRiseData[lowerPoint];
-                 const scaledRise = baseRise - safePitchBlock;
-                 const scaleFactor = safeTotalRise / 7.375;
-                 spiralEndRise = safePitchBlock + (scaledRise * scaleFactor);
-               } else {
-                 const interpolationFactor = (spiralEndArcDistance - lowerPoint) / (upperPoint - lowerPoint);
-                 const baseRise = lowerRise + (upperRise - lowerRise) * interpolationFactor;
-                 
-                 // Scale the rise proportionally with project parameters
-                 const scaledRise = baseRise - safePitchBlock;
-                 const scaleFactor = safeTotalRise / 7.375;
-                 
-                 // FIXED: Use smaller adjustment to keep spiral higher and avoid 90-degree turns
-                 const easementAdjustment = (parameters.topLength / parameters.totalSegments) * safeTotalRise * 0.3; // Only 30% of full easement contribution
-                 spiralEndRise = safePitchBlock + (scaledRise * scaleFactor) - easementAdjustment;
-               }
-             } else {
-               // Fallback: use simple linear rise but account for easement contribution
-               const easementAdjustment = (parameters.topLength / parameters.totalSegments) * safeTotalRise * 0.3; // Only 30% of full easement contribution
-               spiralEndRise = safePitchBlock + (spiralEndT * safeTotalRise) - easementAdjustment;
-             }
-            
-            const startRise = spiralEndRise;
-            
-            // End: final position (at 220°)
+            // End: final position (at 220°) - use the last manual reference point
             const endAngle = 220 * Math.PI / 180;
             const endX = outerRadius * Math.cos(endAngle);
             const endZ = outerRadius * Math.sin(endAngle);
-            const endManualRise = safeManualRiseData[parameters.totalArcDistance];
-            const endRise = endManualRise ? 
-              safePitchBlock + ((endManualRise - safePitchBlock) * (safeTotalRise / 7.375)) : 
-              safePitchBlock + safeTotalRise;
             
-            // Apply custom easement angle
-            const customEasementAngle = parameters.customEasementAngle || -35.08;
-            const easementAngleRad = customEasementAngle * Math.PI / 180;
-            const remainingArcDistance = parameters.totalArcDistance - arcDistance;
-            const angleAdjustment = Math.tan(easementAngleRad) * (remainingArcDistance * 0.05);
-            const adjustedEndRise = endRise + angleAdjustment;
+            // Get the last manual reference position (highest arc distance)
+            const manualDistances = Object.keys(safeManualRiseData).map(Number).sort((a, b) => a - b);
+            const lastManualDistance = manualDistances[manualDistances.length - 1];
+            const endRise = safeManualRiseData[lastManualDistance] || (safePitchBlock + safeTotalRise);
             
-            // Smooth interpolation from spiral to final position
+            // Simple straight line interpolation from spiral to final position
             x = startX + (endX - startX) * smoothEaseT;
             z = startZ + (endZ - startZ) * smoothEaseT;
-            y = startRise + (adjustedEndRise - startRise) * smoothEaseT;
+            y = startRise + (endRise - startRise) * smoothEaseT;
             
             if (i === steps) {
               console.log(`🔧 Top easement: Smooth transition from spiral to final position`);
@@ -926,50 +849,43 @@ export function useThreeJS(
        const segmentPosition = (arcDistance / parameters.totalArcDistance) * parameters.totalSegments;
        const angle = (t * parameters.totalDegrees * Math.PI) / 180; // Full 220° span
        
-       // Inner line: Simple, consistent rise calculation that matches the outer line behavior
-       let rise: number;
-       
-       if (Object.keys(safeManualRiseData).length > 0) {
-         // Use manual rise data with interpolation (same as outer line)
-         const currentArcDistance = t * parameters.totalArcDistance;
-         const manualDistances = Object.keys(safeManualRiseData).map(Number).sort((a, b) => a - b);
-         
-         // Find the two points to interpolate between
-         let lowerPoint = manualDistances[0];
-         let upperPoint = manualDistances[manualDistances.length - 1];
-         
-         for (let k = 0; k < manualDistances.length - 1; k++) {
-           if (currentArcDistance >= manualDistances[k] && currentArcDistance <= manualDistances[k + 1]) {
-             lowerPoint = manualDistances[k];
-             upperPoint = manualDistances[k + 1];
-             break;
-           }
-         }
-         
-         // Interpolate between the two manual points
-         const lowerRise = safeManualRiseData[lowerPoint];
-         const upperRise = safeManualRiseData[upperPoint];
-         
-         if (lowerPoint === upperPoint) {
-           // Exact match - use the manual point directly
-           rise = safeManualRiseData[lowerPoint];
-         } else {
-           // Interpolate between the two points
-           const interpolationFactor = (currentArcDistance - lowerPoint) / (upperPoint - lowerPoint);
-           rise = lowerRise + (upperRise - lowerRise) * interpolationFactor;
-         }
-         
-                   // Scale the rise proportionally with project parameters for inside line
-          const baseRise = rise - insidePitchBlockOffset;
-          const scaleFactor = safeTotalRise / 7.375;
-          // FIXED: Inner spiral rise should NOT include pitch block offset
-          // The inner spiral should end at exactly insidePitchBlockOffset + safeTotalRise
-          rise = insidePitchBlockOffset + (baseRise * scaleFactor);
-          // Pitch block offset only affects radius (X,Z), not rise (Y)
-       } else {
-         // Fallback: use simple linear rise if no manual data
-         rise = insidePitchBlockOffset + (t * safeTotalRise);
-       }
+               // SIMPLIFIED: Inner line uses manual reference points as the literal line
+        // Same as outer line - the manual reference points ARE the line
+        let rise: number;
+        
+        if (Object.keys(safeManualRiseData).length > 0) {
+          // Use manual rise data with interpolation (same as outer line)
+          const currentArcDistance = t * parameters.totalArcDistance;
+          const manualDistances = Object.keys(safeManualRiseData).map(Number).sort((a, b) => a - b);
+          
+          // Find the two points to interpolate between
+          let lowerPoint = manualDistances[0];
+          let upperPoint = manualDistances[manualDistances.length - 1];
+          
+          for (let k = 0; k < manualDistances.length - 1; k++) {
+            if (currentArcDistance >= manualDistances[k] && currentArcDistance <= manualDistances[k + 1]) {
+              lowerPoint = manualDistances[k];
+              upperPoint = manualDistances[k + 1];
+              break;
+            }
+          }
+          
+          // Interpolate between the two manual points - this IS the line
+          const lowerRise = safeManualRiseData[lowerPoint];
+          const upperRise = safeManualRiseData[upperPoint];
+          
+          if (lowerPoint === upperPoint) {
+            // Exact match - use the manual point directly
+            rise = safeManualRiseData[lowerPoint];
+          } else {
+            // Interpolate between the two points - this creates the smooth line
+            const interpolationFactor = (currentArcDistance - lowerPoint) / (upperPoint - lowerPoint);
+            rise = lowerRise + (upperRise - lowerRise) * interpolationFactor;
+          }
+        } else {
+          // Fallback: use simple linear rise if no manual data
+          rise = insidePitchBlockOffset + (t * safeTotalRise);
+        }
        
        // Validate rise value
        if (isNaN(rise) || !isFinite(rise)) {
@@ -1079,13 +995,16 @@ export function useThreeJS(
                spiralEndRise = insidePitchBlockOffset + (spiralEndT * safeTotalRise) - easementAdjustment;
              }
             
-            const startRise = spiralEndRise;
+            const startRise = rise; // This is the manual reference line height at spiral end
             
             // End: final position (at 220°)
             const endAngle = 220 * Math.PI / 180;
             const endX = innerRadius * Math.cos(endAngle);
             const endZ = innerRadius * Math.sin(endAngle);
-            const endRise = insidePitchBlockOffset + safeTotalRise;
+            // Get the last manual reference position (highest arc distance)
+            const manualDistances = Object.keys(safeManualRiseData).map(Number).sort((a, b) => a - b);
+            const lastManualDistance = manualDistances[manualDistances.length - 1];
+            const endRise = safeManualRiseData[lastManualDistance] || (insidePitchBlockOffset + safeTotalRise);
             
             // Smooth interpolation from spiral to final position
             x = startX + (endX - startX) * smoothEaseT;
