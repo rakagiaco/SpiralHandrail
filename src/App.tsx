@@ -34,29 +34,8 @@ function App() {
   const [parameters, setParameters] = useState<HandrailParameters>(defaultParameters);
   
   // Manual rise data entered by the user (overrides calculated values)
-  // Initialize with your exact reference measurements
-  const [manualRiseData, setManualRiseData] = useState<Record<number, number>>({
-    // Your exact reference measurements at each inch mark
-    0: 1.0,      // Start at pitch block height
-    1: 1.5,      // 1" arc distance
-    2: 2.0,      // 2" arc distance
-    3: 2.5,      // 3" arc distance
-    4: 2.875,    // 4" arc distance
-    5: 3.3125,   // 5" arc distance
-    6: 3.625,    // 6" arc distance
-    7: 4.0,      // 7" arc distance
-    8: 4.375,    // 8" arc distance
-    9: 4.626,    // 9" arc distance
-    10: 4.9,     // 10" arc distance
-    11: 5.25,    // 11" arc distance
-    12: 5.5625,  // 12" arc distance
-    13: 5.875,   // 13" arc distance
-    14: 6.25,    // 14" arc distance
-    15: 6.625,   // 15" arc distance
-    16: 7.125,   // 16" arc distance
-    17: 7.5625,  // 17" arc distance
-    17.5: 8.375  // 17.5" arc distance (end of spiral)
-  });
+  // Initialize empty to use calculated values by default (same as "Reset to Calculated Values")
+  const [manualRiseData, setManualRiseData] = useState<Record<number, number>>({});
   
   // Calculated rise data based on mathematical formulas
   const [calculatedRiseData, setCalculatedRiseData] = useState<Record<number, number>>({});
