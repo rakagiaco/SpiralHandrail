@@ -646,8 +646,8 @@ export function useThreeJS(
         // Only apply angle adjustments during easement transitions, not the main spiral
         // This ensures the spiral maintains its proper mathematical shape
         
-                                     // FIXED: Use manual references as base line AND make everything scalable
-           // The rise should scale proportionally with project parameters
+                                     // FIXED: Use manual references EXACTLY as the baseline, then move the whole piece with pitch block
+           // Your manual points ARE the line - no modification to their values
            let rise: number;
            
            if (Object.keys(safeManualRiseData).length > 0) {
@@ -667,32 +667,29 @@ export function useThreeJS(
                }
              }
              
-             // Interpolate between the two manual points - this IS the base line
+             // Interpolate between the two manual points - this IS the baseline (your exact points)
              const lowerRise = safeManualRiseData[lowerPoint];
              const upperRise = safeManualRiseData[upperPoint];
              
              if (lowerPoint === upperPoint) {
-               // Exact match - use the manual point directly, but scale it
-               const baseRise = lowerRise;
-               const scaleFactor = safeTotalRise / 7.375; // Scale with project parameters
-               rise = safePitchBlock + (baseRise * scaleFactor);
+               // Exact match - use the manual point directly as the baseline
+               rise = lowerRise; // Use your point exactly as entered
              } else {
                // Interpolate between the two points - this creates the smooth line
                const interpolationFactor = (currentArcDistance - lowerPoint) / (upperPoint - lowerPoint);
-               const baseRise = lowerRise + (upperRise - lowerRise) * interpolationFactor;
-               
-               // Scale the rise proportionally with project parameters
-               const scaleFactor = safeTotalRise / 7.375;
-               rise = safePitchBlock + (baseRise * scaleFactor);
+               rise = lowerRise + (upperRise - lowerRise) * interpolationFactor; // Your baseline line
                
                if (i % 500 === 0) {
-                 console.log(`📍 Manual reference line: ${lowerPoint}" → ${upperPoint}", factor: ${interpolationFactor.toFixed(3)}, base: ${baseRise.toFixed(3)}", scaled: ${rise.toFixed(3)}"`);
+                 console.log(`📍 Manual reference line: ${lowerPoint}" → ${upperPoint}", factor: ${interpolationFactor.toFixed(3)}, baseline: ${rise.toFixed(3)}"`);
                }
              }
            } else {
              // Fallback: use simple linear rise if no manual data
-             rise = safePitchBlock + (t * safeTotalRise);
+             rise = t * safeTotalRise;
            }
+           
+           // Move the entire piece up/down with pitch block height (after calculating baseline)
+           rise = rise + safePitchBlock;
         
                  // Debug logging for spiral calculation
          if (i % 1000 === 0) {
@@ -781,31 +778,20 @@ export function useThreeJS(
               const startZ = outerRadius * Math.sin(spiralEndAngleRad);
               const startRise = rise; // This is the manual reference line height at spiral end
               
-              // End: final position (at 220°) - use the last manual reference point
+              // End: final position (at 220°) - use the last manual reference point EXACTLY as entered
               const endAngle = 220 * Math.PI / 180;
               const endX = outerRadius * Math.cos(endAngle);
               const endZ = outerRadius * Math.sin(endAngle);
               
-              // Get the last manual reference position (highest arc distance) and scale it
+              // Get the last manual reference position (highest arc distance) - use EXACTLY as entered
               const manualDistances = Object.keys(safeManualRiseData).map(Number).sort((a, b) => a - b);
               const lastManualDistance = manualDistances[manualDistances.length - 1];
-              const baseEndRise = safeManualRiseData[lastManualDistance] || 7.375; // Base rise from manual data
-              const scaleFactor = safeTotalRise / 7.375; // Scale with project parameters
-              const endRise = safePitchBlock + (baseEndRise * scaleFactor); // Scale the end rise
+              const endRise = safeManualRiseData[lastManualDistance] + safePitchBlock; // Your exact point + pitch block
               
-              // FIXED: Increase stair rise to meet smoothly with easement - no upward arc
-              // Calculate the angle needed for a smooth transition
-              const riseDifference = endRise - startRise;
-              const arcDistance = (220 - spiralEndAngle) * Math.PI / 180 * outerRadius;
-              const requiredAngle = Math.atan2(riseDifference, arcDistance) * 180 / Math.PI;
-              
-              // Apply the required angle to create a smooth, straight line
-              const adjustedEndRise = startRise + (riseDifference * easementProgress);
-              
-              // PERFECTLY STRAIGHT LINE: Use linear interpolation, no smoothstep, no arcing
+              // PERFECTLY STRAIGHT LINE: Simple linear interpolation - no arcing, no smoothstep
               x = startX + (endX - startX) * easementProgress;
               z = startZ + (endZ - startZ) * easementProgress;
-              y = adjustedEndRise; // Use adjusted rise for smooth transition
+              y = startRise + (endRise - startRise) * easementProgress; // Straight line interpolation
             
             if (i === steps) {
               console.log(`🔧 Top easement: Smooth transition from spiral to final position`);
@@ -867,8 +853,8 @@ export function useThreeJS(
        const segmentPosition = (arcDistance / parameters.totalArcDistance) * parameters.totalSegments;
        const angle = (t * parameters.totalDegrees * Math.PI) / 180; // Full 220° span
        
-                                 // FIXED: Inner line should also use scalable manual references AND be proportional to pitch block
-          // The rise should scale proportionally with project parameters and move with pitch block height
+                                 // FIXED: Inner line should also use manual references EXACTLY as the baseline
+          // The rise should use your exact points, then move with pitch block height
           let rise: number;
           
           if (Object.keys(safeManualRiseData).length > 0) {
@@ -888,30 +874,25 @@ export function useThreeJS(
               }
             }
             
-            // Interpolate between the two manual points - this IS the base line
+            // Interpolate between the two manual points - this IS the baseline (your exact points)
             const lowerRise = safeManualRiseData[lowerPoint];
             const upperRise = safeManualRiseData[upperPoint];
             
             if (lowerPoint === upperPoint) {
-              // Exact match - use the manual point directly, but scale it
-              const baseRise = lowerRise;
-              const scaleFactor = safeTotalRise / 7.375; // Scale with project parameters
-              // FIXED: Make inner line proportional to pitch block height like outer line
-              rise = safePitchBlock + (baseRise * scaleFactor);
+              // Exact match - use the manual point directly as the baseline
+              rise = lowerRise; // Use your point exactly as entered
             } else {
               // Interpolate between the two points - this creates the smooth line
               const interpolationFactor = (currentArcDistance - lowerPoint) / (upperPoint - lowerPoint);
-              const baseRise = lowerRise + (upperRise - lowerRise) * interpolationFactor;
-              
-              // Scale the rise proportionally with project parameters
-              const scaleFactor = safeTotalRise / 7.375;
-              // FIXED: Make inner line proportional to pitch block height like outer line
-              rise = safePitchBlock + (baseRise * scaleFactor);
+              rise = lowerRise + (upperRise - lowerRise) * interpolationFactor; // Your baseline line
             }
           } else {
             // Fallback: use simple linear rise if no manual data
-            rise = safePitchBlock + (t * safeTotalRise);
+            rise = t * safeTotalRise;
           }
+          
+          // Move the entire piece up/down with pitch block height (after calculating baseline)
+          rise = rise + safePitchBlock;
        
        // Validate rise value
        if (isNaN(rise) || !isFinite(rise)) {
@@ -972,31 +953,20 @@ export function useThreeJS(
               const startZ = innerRadius * Math.sin(spiralEndAngleRad);
               const startRise = rise; // This is the manual reference line height at spiral end
               
-              // End: final position (at 220°) - use the last manual reference point and scale it
+              // End: final position (at 220°) - use the last manual reference point EXACTLY as entered
               const endAngle = 220 * Math.PI / 180;
               const endX = innerRadius * Math.cos(endAngle);
               const endZ = innerRadius * Math.sin(endAngle);
               
-              // Get the last manual reference position (highest arc distance) and scale it
+              // Get the last manual reference position (highest arc distance) - use EXACTLY as entered
               const manualDistances = Object.keys(safeManualRiseData).map(Number).sort((a, b) => a - b);
               const lastManualDistance = manualDistances[manualDistances.length - 1];
-              const baseEndRise = safeManualRiseData[lastManualDistance] || 7.375; // Base rise from manual data
-              const scaleFactor = safeTotalRise / 7.375; // Scale with project parameters
-              const endRise = insidePitchBlockOffset + (baseEndRise * scaleFactor); // Scale the end rise
+              const endRise = safeManualRiseData[lastManualDistance] + safePitchBlock; // Your exact point + pitch block
               
-              // FIXED: Increase stair rise to meet smoothly with easement - no upward arc
-              // Calculate the angle needed for a smooth transition
-              const riseDifference = endRise - startRise;
-              const arcDistance = (220 - spiralEndAngle) * Math.PI / 180 * innerRadius;
-              const requiredAngle = Math.atan2(riseDifference, arcDistance) * 180 / Math.PI;
-              
-              // Apply the required angle to create a smooth, straight line
-              const adjustedEndRise = startRise + (riseDifference * easementProgress);
-              
-              // PERFECTLY STRAIGHT LINE: Use linear interpolation, no smoothstep, no arcing
+              // PERFECTLY STRAIGHT LINE: Simple linear interpolation - no arcing, no smoothstep
               x = startX + (endX - startX) * easementProgress;
               z = startZ + (endZ - startZ) * easementProgress;
-              y = adjustedEndRise; // Use adjusted rise for smooth transition
+              y = startRise + (endRise - startRise) * easementProgress; // Straight line interpolation
             
                          if (i === steps) {
                console.log(`🔧 Inner line top easement: Smooth transition from spiral to final position`);
