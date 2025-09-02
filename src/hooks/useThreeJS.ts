@@ -625,13 +625,26 @@ export function useThreeJS(
      const outerPoints: THREE.Vector3[] = [];
            const steps = 2000; // Balanced resolution for smooth curves without artifacts
      
-     // CRASH PROTECTION: Validate calculation inputs
-     const safeManualRiseData = (!manualRiseData || typeof manualRiseData !== 'object') ? {} : manualRiseData;
-     const safeCalculatedRiseData = (!calculatedRiseData || typeof calculatedRiseData !== 'object') ? {} : calculatedRiseData;
-     
-     if (!manualRiseData || !calculatedRiseData || typeof manualRiseData !== 'object' || typeof calculatedRiseData !== 'object') {
-       console.warn('Invalid rise data, using fallback calculations');
-     }
+           // CRASH PROTECTION: Validate calculation inputs
+      const safeManualRiseData = (!manualRiseData || typeof manualRiseData !== 'object') ? {} : manualRiseData;
+      const safeCalculatedRiseData = (!calculatedRiseData || typeof calculatedRiseData !== 'object') ? {} : calculatedRiseData;
+      
+      // Additional validation: ensure manual rise data values are valid numbers
+      const validatedManualRiseData: Record<number, number> = {};
+      if (Object.keys(safeManualRiseData).length > 0) {
+        Object.entries(safeManualRiseData).forEach(([key, value]) => {
+          const numKey = Number(key);
+          if (!isNaN(numKey) && typeof value === 'number' && isFinite(value)) {
+            validatedManualRiseData[numKey] = value;
+          } else {
+            console.warn(`Invalid manual rise data: key=${key}, value=${value}, skipping`);
+          }
+        });
+      }
+      
+      if (Object.keys(validatedManualRiseData).length === 0) {
+        console.warn('No valid manual rise data found, using fallback calculations');
+      }
      
            // Create a PERFECTLY continuous mathematical function for the entire handrail
       // This ensures ALL points recalculate smoothly when parameters change with maximum smoothness
@@ -650,9 +663,9 @@ export function useThreeJS(
            // Your manual points ARE the line - no modification to their values
            let rise: number;
            
-           if (Object.keys(safeManualRiseData).length > 0) {
-             // Find the two closest manual rise points for interpolation
-             const manualDistances = Object.keys(safeManualRiseData).map(Number).sort((a, b) => a - b);
+                       if (Object.keys(validatedManualRiseData).length > 0) {
+              // Find the two closest manual rise points for interpolation
+              const manualDistances = Object.keys(validatedManualRiseData).map(Number).sort((a, b) => a - b);
              const currentArcDistance = t * parameters.totalArcDistance;
              
              // Find the two points to interpolate between
@@ -668,8 +681,8 @@ export function useThreeJS(
              }
              
              // Interpolate between the two manual points - this IS the baseline (your exact points)
-             const lowerRise = safeManualRiseData[lowerPoint];
-             const upperRise = safeManualRiseData[upperPoint];
+             const lowerRise = validatedManualRiseData[lowerPoint];
+             const upperRise = validatedManualRiseData[upperPoint];
              
              if (lowerPoint === upperPoint) {
                // Exact match - use the manual point directly as the baseline
@@ -784,9 +797,9 @@ export function useThreeJS(
               const endZ = outerRadius * Math.sin(endAngle);
               
               // Get the last manual reference position (highest arc distance) - use EXACTLY as entered
-              const manualDistances = Object.keys(safeManualRiseData).map(Number).sort((a, b) => a - b);
+              const manualDistances = Object.keys(validatedManualRiseData).map(Number).sort((a, b) => a - b);
               const lastManualDistance = manualDistances[manualDistances.length - 1];
-              const endRise = safeManualRiseData[lastManualDistance] + safePitchBlock; // Your exact point + pitch block
+              const endRise = validatedManualRiseData[lastManualDistance] + safePitchBlock; // Your exact point + pitch block
               
               // PERFECTLY STRAIGHT LINE: Simple linear interpolation - no arcing, no smoothstep
               x = startX + (endX - startX) * easementProgress;
@@ -821,26 +834,60 @@ export function useThreeJS(
           y = rise;
         }
         
-        // Add point to create truly continuous curve
-        outerPoints.push(new THREE.Vector3(x, y, z));
-      }
-    
-         // CRASH PROTECTION: Validate points before creating curves
-     if (outerPoints.length < 2) {
-       console.warn('Insufficient outer points for curve creation, skipping handrail mesh');
-     } else {
-               // Create the curve with PERFECT smooth interpolation for truly continuous lines
-        const outerCurve = new THREE.CatmullRomCurve3(outerPoints);
-        outerCurve.tension = 1.0; // Maximum tension for perfectly smooth curves
-        outerCurve.closed = false; // Ensure open curve for handrail
-        
-                          // Enhanced tube geometry for smooth appearance without artifacts
-          const outerGeometry = new THREE.TubeGeometry(outerCurve, Math.min(steps, outerPoints.length - 1), 0.15, 8, false);
-       const newHandrailMesh = new THREE.Mesh(outerGeometry, new THREE.MeshLambertMaterial({ color: 0x3b82f6 }));
-       newHandrailMesh.castShadow = true;
-       scene.add(newHandrailMesh);
-       sceneRef.current.handrailMesh = newHandrailMesh;
-     }
+                 // Validate point values before adding to array
+         if (isNaN(x) || isNaN(y) || isNaN(z) || !isFinite(x) || !isFinite(y) || !isFinite(z)) {
+           console.warn(`Invalid point at step ${i}: x=${x}, y=${y}, z=${z}, using fallback`);
+           // Use fallback values
+           x = outerRadius * Math.cos(angle);
+           z = outerRadius * Math.sin(angle);
+           y = safePitchBlock + (t * safeTotalRise);
+         }
+         
+                   // Validate point values before adding to array
+          if (isNaN(x) || isNaN(y) || isNaN(z) || !isFinite(x) || !isFinite(y) || !isFinite(z)) {
+            console.warn(`Invalid point at step ${i}: x=${x}, y=${y}, z=${z}, skipping`);
+            continue; // Skip this point instead of adding invalid data
+          }
+          
+          // Add point to create truly continuous curve
+          outerPoints.push(new THREE.Vector3(x, y, z));
+       }
+     
+                     // CRASH PROTECTION: Validate points before creating curves
+       if (outerPoints.length < 2) {
+         console.warn('Insufficient outer points for curve creation, skipping handrail mesh');
+       } else {
+         // Additional validation: ensure all points are valid
+         const validPoints = outerPoints.filter(point => 
+           point && 
+           typeof point.x === 'number' && typeof point.y === 'number' && typeof point.z === 'number' &&
+           !isNaN(point.x) && !isNaN(point.y) && !isNaN(point.z) &&
+           isFinite(point.x) && isFinite(point.y) && isFinite(point.z)
+         );
+         
+         if (validPoints.length < 2) {
+           console.warn('No valid points after filtering, skipping handrail mesh');
+         } else {
+           console.log(`Creating handrail with ${validPoints.length} valid points out of ${outerPoints.length} total`);
+           
+           try {
+             // Create the curve with PERFECT smooth interpolation for truly continuous lines
+             const outerCurve = new THREE.CatmullRomCurve3(validPoints);
+             outerCurve.tension = 1.0; // Maximum tension for perfectly smooth curves
+             outerCurve.closed = false; // Ensure open curve for handrail
+             
+             // Enhanced tube geometry for smooth appearance without artifacts
+             const outerGeometry = new THREE.TubeGeometry(outerCurve, Math.min(steps, validPoints.length - 1), 0.15, 8, false);
+             const newHandrailMesh = new THREE.Mesh(outerGeometry, new THREE.MeshLambertMaterial({ color: 0x3b82f6 }));
+             newHandrailMesh.castShadow = true;
+             scene.add(newHandrailMesh);
+             sceneRef.current.handrailMesh = newHandrailMesh;
+           } catch (error) {
+             console.error('Error creating handrail mesh:', error);
+             console.log('Valid points that caused error:', validPoints);
+           }
+         }
+       }
     
          // Create inside reference line: covers full 220° span but only 10.5" arc distance
      const insidePoints: THREE.Vector3[] = [];
@@ -875,8 +922,8 @@ export function useThreeJS(
             }
             
             // Interpolate between the two manual points - this IS the baseline (your exact points)
-            const lowerRise = safeManualRiseData[lowerPoint];
-            const upperRise = safeManualRiseData[upperPoint];
+            const lowerRise = validatedManualRiseData[lowerPoint];
+            const upperRise = validatedManualRiseData[upperPoint];
             
             if (lowerPoint === upperPoint) {
               // Exact match - use the manual point directly as the baseline
@@ -959,9 +1006,9 @@ export function useThreeJS(
               const endZ = innerRadius * Math.sin(endAngle);
               
               // Get the last manual reference position (highest arc distance) - use EXACTLY as entered
-              const manualDistances = Object.keys(safeManualRiseData).map(Number).sort((a, b) => a - b);
+              const manualDistances = Object.keys(validatedManualRiseData).map(Number).sort((a, b) => a - b);
               const lastManualDistance = manualDistances[manualDistances.length - 1];
-              const endRise = safeManualRiseData[lastManualDistance] + safePitchBlock; // Your exact point + pitch block
+              const endRise = validatedManualRiseData[lastManualDistance] + safePitchBlock; // Your exact point + pitch block
               
               // PERFECTLY STRAIGHT LINE: Simple linear interpolation - no arcing, no smoothstep
               x = startX + (endX - startX) * easementProgress;
@@ -982,28 +1029,51 @@ export function useThreeJS(
           y = rise;
         }
         
-        insidePoints.push(new THREE.Vector3(x, y, z));
+                 // Validate point values before adding to array
+         if (isNaN(x) || isNaN(y) || isNaN(z) || !isFinite(x) || !isFinite(y) || !isFinite(z)) {
+           console.warn(`Invalid inside point at step ${i}: x=${x}, y=${y}, z=${z}, skipping`);
+           continue; // Skip this point instead of adding invalid data
+         }
+         
+         insidePoints.push(new THREE.Vector3(x, y, z));
       }
     
-         // CRASH PROTECTION: Validate inside points before creating curve
-     if (insidePoints.length < 2) {
-       console.warn('Insufficient inside points for curve creation, skipping inside line mesh');
-     } else {
-               // Create inside reference line with PERFECT smooth curve
-        const insideCurve = new THREE.CatmullRomCurve3(insidePoints);
-        insideCurve.tension = 1.0; // Maximum tension for perfectly smooth curves
-        insideCurve.closed = false; // Ensure open curve for reference line
+                   // CRASH PROTECTION: Validate inside points before creating curve
+      if (insidePoints.length < 2) {
+        console.warn('Insufficient inside points for curve creation, skipping inside line mesh');
+      } else {
+        // Additional validation: ensure all points are valid
+        const validInsidePoints = insidePoints.filter(point => 
+          point && 
+          typeof point.x === 'number' && typeof point.y === 'number' && typeof point.z === 'number' &&
+          !isNaN(point.x) && !isNaN(point.y) && !isNaN(point.z) &&
+          isFinite(point.x) && isFinite(point.y) && isFinite(point.z)
+        );
         
-                          // Enhanced tube geometry for smooth appearance without artifacts
-          const insideGeometry = new THREE.TubeGeometry(insideCurve, steps, 0.1, 6, false);
-       const newInsideLineMesh = new THREE.Mesh(insideGeometry, new THREE.MeshLambertMaterial({ color: 0x10b981 }));
-       scene.add(newInsideLineMesh);
-       sceneRef.current.insideLineMesh = newInsideLineMesh;
-     }
+        if (validInsidePoints.length < 2) {
+          console.warn('No valid inside points after filtering, skipping inside line mesh');
+        } else {
+          try {
+            // Create inside reference line with PERFECT smooth curve
+            const insideCurve = new THREE.CatmullRomCurve3(validInsidePoints);
+            insideCurve.tension = 1.0; // Maximum tension for perfectly smooth curves
+            insideCurve.closed = false; // Ensure open curve for reference line
+            
+            // Enhanced tube geometry for smooth appearance without artifacts
+            const insideGeometry = new THREE.TubeGeometry(insideCurve, steps, 0.1, 6, false);
+            const newInsideLineMesh = new THREE.Mesh(insideGeometry, new THREE.MeshLambertMaterial({ color: 0x10b981 }));
+            scene.add(newInsideLineMesh);
+            sceneRef.current.insideLineMesh = newInsideLineMesh;
+          } catch (error) {
+            console.error('Error creating inside line mesh:', error);
+            console.log('Valid inside points that caused error:', validInsidePoints);
+          }
+        }
+      }
     
-           // Add debugging information overlay (only when both debug mode and overlay are on)
-       if (debugMode && showOverlay) {
-         const debugInfo = createDebugInfoOverlay(parameters, safeManualRiseData, safeCalculatedRiseData);
+                   // Add debugging information overlay (only when both debug mode and overlay are on)
+        if (debugMode && showOverlay) {
+          const debugInfo = createDebugInfoOverlay(parameters, validatedManualRiseData, safeCalculatedRiseData);
          // Position the overlay in the top-right corner so it doesn't cover the main debug visuals
          debugInfo.position.set(20, 15, -20);
          scene.add(debugInfo);
