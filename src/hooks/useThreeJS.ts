@@ -632,270 +632,207 @@ export function useThreeJS(
       for (let i = 0; i <= steps; i++) {
         const t = i / steps;
         const arcDistance = t * parameters.totalArcDistance;
-       
-       // Calculate continuous angle based on arc distance
-       const angle = (arcDistance / parameters.totalArcDistance) * parameters.totalDegrees * Math.PI / 180;
-       
-                                                                                     // FIXED: Easement angle should NOT affect the main spiral calculation
-           // Only apply angle adjustments during easement transitions, not the main spiral
-           // This ensures the spiral maintains its proper mathematical shape
+        
+        // Calculate continuous angle based on arc distance
+        const angle = (arcDistance / parameters.totalArcDistance) * parameters.totalDegrees * Math.PI / 180;
+        
+        // FIXED: Easement angle should NOT affect the main spiral calculation
+        // Only apply angle adjustments during easement transitions, not the main spiral
+        // This ensures the spiral maintains its proper mathematical shape
+        
+        // Calculate base rise with manual data interpolation
+        let baseRise: number;
+        let rise: number;
+        
+        if (Object.keys(safeManualRiseData).length > 0) {
+          // Find the two closest manual rise points for interpolation
+          const manualDistances = Object.keys(safeManualRiseData).map(Number).sort((a, b) => a - b);
+          const currentArcDistance = t * parameters.totalArcDistance;
           
-          // Calculate base rise with manual data interpolation
-          let baseRise: number;
-          let rise: number;
+          // Find the two points to interpolate between
+          let lowerPoint = manualDistances[0];
+          let upperPoint = manualDistances[manualDistances.length - 1];
           
-          if (Object.keys(safeManualRiseData).length > 0) {
-            // Find the two closest manual rise points for interpolation
-            const manualDistances = Object.keys(safeManualRiseData).map(Number).sort((a, b) => a - b);
-            const currentArcDistance = t * parameters.totalArcDistance;
-            
-            // Find the two points to interpolate between
-            let lowerPoint = manualDistances[0];
-            let upperPoint = manualDistances[manualDistances.length - 1];
-            
-            for (let j = 0; j < manualDistances.length - 1; j++) {
-              if (currentArcDistance >= manualDistances[j] && currentArcDistance <= manualDistances[j + 1]) {
-                lowerPoint = manualDistances[j];
-                upperPoint = manualDistances[j + 1];
-                break;
-              }
+          for (let j = 0; j < manualDistances.length - 1; j++) {
+            if (currentArcDistance >= manualDistances[j] && currentArcDistance <= manualDistances[j + 1]) {
+              lowerPoint = manualDistances[j];
+              upperPoint = manualDistances[j + 1];
+              break;
             }
-            
-            // Interpolate between the two manual points
-            const lowerRise = safeManualRiseData[lowerPoint];
-            const upperRise = safeManualRiseData[upperPoint];
-            
-            if (lowerPoint === upperPoint) {
-              // Exact match - use the manual point directly
-              baseRise = safeManualRiseData[lowerPoint];
-            } else {
-              // Interpolate between the two points
-              const interpolationFactor = (currentArcDistance - lowerPoint) / (upperPoint - lowerPoint);
-              baseRise = lowerRise + (upperRise - lowerRise) * interpolationFactor;
-              
-              if (i % 500 === 0) {
-                console.log(`📍 Interpolating between manual points: ${lowerPoint}" → ${upperPoint}", factor: ${interpolationFactor.toFixed(3)}, base rise: ${baseRise.toFixed(3)}"`);
-              }
-            }
-          } else {
-            // Fallback: use simple linear rise if no manual data
-            baseRise = safePitchBlock + (t * safeTotalRise);
           }
           
-                     // FIXED: Easement angle should NOT affect the main spiral calculation
-           // Only apply angle adjustments during easement transitions, not the main spiral
-           // This ensures the spiral maintains its proper mathematical shape
-           
-           // Scale the rise proportionally with project parameters
-           const scaledRise = baseRise - safePitchBlock;
-           const scaleFactor = safeTotalRise / 7.375;
-           rise = safePitchBlock + (scaledRise * scaleFactor);
-         
-                              // Debug logging for spiral calculation
-           if (i % 1000 === 0) {
-             console.log(`🔧 Main spiral calculation (easement angle does not affect main spiral):`);
-             console.log(`📍 Arc distance: ${arcDistance.toFixed(3)}"`);
-             console.log(`📍 Base rise: ${baseRise.toFixed(3)}"`);
-             console.log(`📍 Final scaled rise: ${rise.toFixed(3)}"`);
-           }
+          // Interpolate between the two manual points
+          const lowerRise = safeManualRiseData[lowerPoint];
+          const upperRise = safeManualRiseData[upperPoint];
+          
+          if (lowerPoint === upperPoint) {
+            // Exact match - use the manual point directly
+            baseRise = safeManualRiseData[lowerPoint];
+          } else {
+            // Interpolate between the two points
+            const interpolationFactor = (currentArcDistance - lowerPoint) / (upperPoint - lowerPoint);
+            baseRise = lowerRise + (upperRise - lowerRise) * interpolationFactor;
+            
+            if (i % 500 === 0) {
+              console.log(`📍 Interpolating between manual points: ${lowerPoint}" → ${upperPoint}", factor: ${interpolationFactor.toFixed(3)}, base rise: ${baseRise.toFixed(3)}"`);
+            }
+          }
+        } else {
+          // Fallback: use simple linear rise if no manual data
+          baseRise = safePitchBlock + (t * safeTotalRise);
+        }
+        
+        // FIXED: Easement angle should NOT affect the main spiral calculation
+        // Only apply angle adjustments during easement transitions, not the main spiral
+        // This ensures the spiral maintains its proper mathematical shape
+        
+        // Scale the rise proportionally with project parameters
+        const scaledRise = baseRise - safePitchBlock;
+        const scaleFactor = safeTotalRise / 7.375;
+        rise = safePitchBlock + (scaledRise * scaleFactor);
+        
+        // Debug logging for spiral calculation
+        if (i % 1000 === 0) {
+          console.log(`🔧 Main spiral calculation (easement angle does not affect main spiral):`);
+          console.log(`📍 Arc distance: ${arcDistance.toFixed(3)}"`);
+          console.log(`📍 Base rise: ${baseRise.toFixed(3)}"`);
+          console.log(`📍 Final scaled rise: ${rise.toFixed(3)}"`);
+        }
         
         // Validate rise value
         if (isNaN(rise) || !isFinite(rise)) {
           console.warn(`Invalid rise value at step ${i}, using fallback`);
           rise = safePitchBlock + (t * safeTotalRise);
         }
-       
-       // Calculate continuous position using mathematical functions (no discrete steps)
-       let x: number, z: number, y: number = rise;
-       
-       // Calculate segment position for easement logic
-       const segmentPosition = (arcDistance / parameters.totalArcDistance) * parameters.totalSegments;
-       
-                               if (segmentPosition <= parameters.bottomLength) {
-           // Bottom easement: split in half - outer half is pure easement, inner half interpolates with spiral
-           if (parameters.bottomLength <= 0) {
-             console.warn('Invalid bottom length, skipping bottom easement');
-             x = outerRadius * Math.cos(angle);
-             z = outerRadius * Math.sin(angle);
-             y = rise;
-           } else {
-             // Split easement into two halves
-             const easementHalf = parameters.bottomLength / 2;
-             
-             if (segmentPosition <= easementHalf) {
-               // OUTER HALF: Pure easement from pitch block to spiral
-               const easeT = segmentPosition / easementHalf;
-               const smoothEaseT = easeT * easeT * (3 - 2 * easeT); // Smoothstep function
-               
-               // Start position (at 0°) - pitch block height
-               const startX = outerRadius * Math.cos(0);
-               const startZ = outerRadius * Math.sin(0);
-               const startRise = safePitchBlock;
-               
-               // Target position (where spiral would naturally be)
-               const targetX = outerRadius * Math.cos(angle);
-               const targetZ = outerRadius * Math.sin(angle);
-               const targetRise = rise;
-               
-               // Apply custom easement angle
-               const customEasementAngle = parameters.customEasementAngle || -35.08;
-               const easementAngleRad = customEasementAngle * Math.PI / 180;
-               const angleAdjustment = Math.tan(easementAngleRad) * (arcDistance * 0.05);
-               const adjustedTargetRise = targetRise + angleAdjustment;
-               
-               // Pure easement interpolation
-               x = startX + (targetX - startX) * smoothEaseT;
-               z = startZ + (targetZ - startZ) * smoothEaseT;
-               y = startRise + (adjustedTargetRise - startRise) * smoothEaseT;
-               
-               if (i === 0) {
-                 console.log(`🔧 Bottom easement OUTER HALF: Pure easement from pitch block to spiral`);
-               }
-             } else {
-               // INNER HALF: Interpolate between easement and spiral for seamless connection
-               const innerEaseT = (segmentPosition - easementHalf) / easementHalf;
-               const smoothInnerEaseT = innerEaseT * innerEaseT * (3 - 2 * innerEaseT);
-               
-               // Start: where outer easement ended (midpoint)
-               const midAngle = (easementHalf / parameters.bottomLength) * parameters.totalDegrees * Math.PI / 180;
-               const midX = outerRadius * Math.cos(midAngle);
-               const midZ = outerRadius * Math.sin(midAngle);
-               const midRise = safePitchBlock + (easementHalf / parameters.bottomLength) * (rise - safePitchBlock);
-               
-               // End: spiral position
-               const spiralX = outerRadius * Math.cos(angle);
-               const spiralZ = outerRadius * Math.sin(angle);
-               const spiralRise = rise;
-               
-               // Interpolate between easement midpoint and spiral for seamless connection
-               x = midX + (spiralX - midX) * smoothInnerEaseT;
-               z = midZ + (spiralZ - midZ) * smoothInnerEaseT;
-               y = midRise + (spiralRise - midRise) * smoothInnerEaseT;
-               
-               if (i === Math.floor(steps * 0.1)) {
-                 console.log(`🔧 Bottom easement INNER HALF: Interpolating from easement to spiral for seamless connection`);
-               }
-             }
-           }
-         
-         // Add interactive target point marker for bottom easement
-         if (i === 0 && debugMode && parameters.bottomLength > 0) {
-           const targetMarkerGeometry = new THREE.SphereGeometry(0.3, 16, 16);
-           const targetMarkerMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-           const targetMarker = new THREE.Mesh(targetMarkerGeometry, targetMarkerMaterial);
-           const markerX = outerRadius * Math.cos(0);
-           const markerZ = outerRadius * Math.sin(0);
-           targetMarker.position.set(markerX, safePitchBlock, markerZ);
-           targetMarker.userData = { type: 'bottomTarget' };
-           scene.add(targetMarker);
-           sceneRef.current.debugElements.push(targetMarker);
-           sceneRef.current.bottomTargetMarker = targetMarker;
-         }
-         
-               } else if (segmentPosition >= parameters.totalSegments - parameters.topLength) {
-          // Top easement: split in half - inner half interpolates with spiral, outer half is pure easement
+        
+        // Calculate continuous position using mathematical functions (no discrete steps)
+        let x: number, z: number, y: number = rise;
+        
+        // Calculate segment position for easement logic
+        const segmentPosition = (arcDistance / parameters.totalArcDistance) * parameters.totalSegments;
+        
+        if (segmentPosition <= parameters.bottomLength) {
+          // Bottom easement: simplified smooth transition without split-half complexity
+          if (parameters.bottomLength <= 0) {
+            console.warn('Invalid bottom length, skipping bottom easement');
+            x = outerRadius * Math.cos(angle);
+            z = outerRadius * Math.sin(angle);
+            y = rise;
+          } else {
+            // Simple, smooth easement from pitch block to spiral
+            const easeT = segmentPosition / parameters.bottomLength;
+            const smoothEaseT = easeT * easeT * (3 - 2 * easeT); // Smoothstep function
+            
+            // Start position (at 0°) - pitch block height
+            const startX = outerRadius * Math.cos(0);
+            const startZ = outerRadius * Math.sin(0);
+            const startRise = safePitchBlock;
+            
+            // Target position (where spiral would naturally be)
+            const targetX = outerRadius * Math.cos(angle);
+            const targetZ = outerRadius * Math.sin(angle);
+            const targetRise = rise;
+            
+            // Apply custom easement angle
+            const customEasementAngle = parameters.customEasementAngle || -35.08;
+            const easementAngleRad = customEasementAngle * Math.PI / 180;
+            const angleAdjustment = Math.tan(easementAngleRad) * (arcDistance * 0.05);
+            const adjustedTargetRise = targetRise + angleAdjustment;
+            
+            // Smooth interpolation from start to target
+            x = startX + (targetX - startX) * smoothEaseT;
+            z = startZ + (targetZ - startZ) * smoothEaseT;
+            y = startRise + (adjustedTargetRise - startRise) * smoothEaseT;
+            
+            if (i === 0) {
+              console.log(`🔧 Bottom easement: Smooth transition from pitch block to spiral`);
+            }
+          }
+          
+          // Add interactive target point marker for bottom easement
+          if (i === 0 && debugMode && parameters.bottomLength > 0) {
+            const targetMarkerGeometry = new THREE.SphereGeometry(0.3, 16, 16);
+            const targetMarkerMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+            const targetMarker = new THREE.Mesh(targetMarkerGeometry, targetMarkerMaterial);
+            const markerX = outerRadius * Math.cos(0);
+            const markerZ = outerRadius * Math.sin(0);
+            targetMarker.position.set(markerX, safePitchBlock, markerZ);
+            targetMarker.userData = { type: 'bottomTarget' };
+            scene.add(targetMarker);
+            sceneRef.current.debugElements.push(targetMarker);
+            sceneRef.current.bottomTargetMarker = targetMarker;
+          }
+          
+        } else if (segmentPosition >= parameters.totalSegments - parameters.topLength) {
+          // Top easement: simplified smooth transition without split-half complexity
           if (parameters.topLength <= 0) {
             console.warn('Invalid top length, skipping top easement');
             x = outerRadius * Math.cos(angle);
             z = outerRadius * Math.sin(angle);
             y = rise;
           } else {
-            // Calculate spiral end angle once for both halves
-            const spiralEndAngle = ((parameters.totalSegments - parameters.topLength) / parameters.totalSegments) * parameters.totalDegrees;
-            
-            // Split easement into two halves
-            const easementHalf = parameters.topLength / 2;
+            // Simple, smooth easement from spiral to final position
             const easementProgress = (segmentPosition - (parameters.totalSegments - parameters.topLength)) / parameters.topLength;
+            const smoothEaseT = easementProgress * easementProgress * (3 - 2 * easementProgress);
             
-            if (easementProgress <= 0.5) {
-              // INNER HALF: Interpolate between spiral and easement for seamless connection
-              const innerEaseT = easementProgress * 2; // 0 to 1 over first half
-              const smoothInnerEaseT = innerEaseT * innerEaseT * (3 - 2 * innerEaseT);
-              
-              // Start: spiral end position
-              const startAngle = spiralEndAngle * Math.PI / 180;
-              const startX = outerRadius * Math.cos(startAngle);
-              const startZ = outerRadius * Math.sin(startAngle);
-              const startRise = safePitchBlock + (spiralEndAngle / parameters.totalDegrees) * safeTotalRise;
-              
-              // End: easement midpoint
-              const midAngle = ((parameters.totalSegments - easementHalf) / parameters.totalSegments) * parameters.totalDegrees * Math.PI / 180;
-              const midX = outerRadius * Math.cos(midAngle);
-              const midZ = outerRadius * Math.sin(midAngle);
-              const midRise = startRise + (0.5 * (safePitchBlock + safeTotalRise - startRise));
-              
-              // Interpolate from spiral to easement midpoint for seamless connection
-              x = startX + (midX - startX) * smoothInnerEaseT;
-              z = startZ + (midZ - startZ) * smoothInnerEaseT;
-              y = startRise + (midRise - startRise) * smoothInnerEaseT;
-              
-              if (i === Math.floor(steps * 0.9)) {
-                console.log(`🔧 Top easement INNER HALF: Interpolating from spiral to easement for seamless connection`);
-              }
-            } else {
-              // OUTER HALF: Pure easement from midpoint to final position
-              const outerEaseT = (easementProgress - 0.5) * 2; // 0 to 1 over second half
-              const smoothOuterEaseT = outerEaseT * outerEaseT * (3 - 2 * outerEaseT);
-              
-              // Start: easement midpoint
-              const midAngle = ((parameters.totalSegments - easementHalf) / parameters.totalSegments) * parameters.totalDegrees * Math.PI / 180;
-              const midX = outerRadius * Math.cos(midAngle);
-              const midZ = outerRadius * Math.sin(midAngle);
-              const midRise = safePitchBlock + (spiralEndAngle / parameters.totalDegrees) * safeTotalRise + (0.5 * (safePitchBlock + safeTotalRise - (safePitchBlock + (spiralEndAngle / parameters.totalDegrees) * safeTotalRise)));
-              
-              // End: final position (at 220°)
-              const endAngle = 220 * Math.PI / 180;
-              const endX = outerRadius * Math.cos(endAngle);
-              const endZ = outerRadius * Math.sin(endAngle);
-              const endManualRise = safeManualRiseData[parameters.totalArcDistance];
-              const endRise = endManualRise ? 
-                safePitchBlock + ((endManualRise - safePitchBlock) * (safeTotalRise / 7.375)) : 
-                safePitchBlock + safeTotalRise;
-              
-              // Apply custom easement angle
-              const customEasementAngle = parameters.customEasementAngle || -35.08;
-              const easementAngleRad = customEasementAngle * Math.PI / 180;
-              const remainingArcDistance = parameters.totalArcDistance - arcDistance;
-              const angleAdjustment = Math.tan(easementAngleRad) * (remainingArcDistance * 0.05);
-              const adjustedEndRise = endRise + angleAdjustment;
-              
-              // Pure easement interpolation
-              x = midX + (endX - midX) * smoothOuterEaseT;
-              z = midZ + (endZ - midZ) * smoothOuterEaseT;
-              y = midRise + (adjustedEndRise - midRise) * smoothOuterEaseT;
-              
-              if (i === steps) {
-                console.log(`🔧 Top easement OUTER HALF: Pure easement from midpoint to final position`);
-              }
+            // Start: spiral position
+            const startAngle = ((parameters.totalSegments - parameters.topLength) / parameters.totalSegments) * parameters.totalDegrees * Math.PI / 180;
+            const startX = outerRadius * Math.cos(startAngle);
+            const startZ = outerRadius * Math.sin(startAngle);
+            const startRise = safePitchBlock + ((parameters.totalSegments - parameters.topLength) / parameters.totalSegments) * safeTotalRise;
+            
+            // End: final position (at 220°)
+            const endAngle = 220 * Math.PI / 180;
+            const endX = outerRadius * Math.cos(endAngle);
+            const endZ = outerRadius * Math.sin(endAngle);
+            const endManualRise = safeManualRiseData[parameters.totalArcDistance];
+            const endRise = endManualRise ? 
+              safePitchBlock + ((endManualRise - safePitchBlock) * (safeTotalRise / 7.375)) : 
+              safePitchBlock + safeTotalRise;
+            
+            // Apply custom easement angle
+            const customEasementAngle = parameters.customEasementAngle || -35.08;
+            const easementAngleRad = customEasementAngle * Math.PI / 180;
+            const remainingArcDistance = parameters.totalArcDistance - arcDistance;
+            const angleAdjustment = Math.tan(easementAngleRad) * (remainingArcDistance * 0.05);
+            const adjustedEndRise = endRise + angleAdjustment;
+            
+            // Smooth interpolation from spiral to final position
+            x = startX + (endX - startX) * smoothEaseT;
+            z = startZ + (endZ - startZ) * smoothEaseT;
+            y = startRise + (adjustedEndRise - startRise) * smoothEaseT;
+            
+            if (i === steps) {
+              console.log(`🔧 Top easement: Smooth transition from spiral to final position`);
             }
           }
-         
-         // Add interactive target point marker for top easement
-         if (i === steps && debugMode && parameters.topLength > 0) {
-           const targetMarkerGeometry = new THREE.SphereGeometry(0.3, 16, 16);
-           const targetMarkerMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-           const targetMarker = new THREE.Mesh(targetMarkerGeometry, targetMarkerMaterial);
-           const markerAngle = 220 * Math.PI / 180;
-           const markerX = outerRadius * Math.cos(markerAngle);
-           const markerZ = outerRadius * Math.sin(markerAngle);
-           const markerRise = safePitchBlock + safeTotalRise; // Scales with project parameters
-           targetMarker.position.set(markerX, markerRise, markerZ);
-           targetMarker.userData = { type: 'topTarget' };
-           scene.add(targetMarker);
-           sceneRef.current.debugElements.push(targetMarker);
-           sceneRef.current.topTargetMarker = targetMarker;
-         }
-         
-       } else {
-         // Main spiral: continuous mathematical function (no discrete steps)
-         x = outerRadius * Math.cos(angle);
-         z = outerRadius * Math.sin(angle);
-         y = rise;
-       }
-       
-       // Add point to create truly continuous curve
-       outerPoints.push(new THREE.Vector3(x, y, z));
-     }
+          
+          // Add interactive target point marker for top easement
+          if (i === steps && debugMode && parameters.topLength > 0) {
+            const targetMarkerGeometry = new THREE.SphereGeometry(0.3, 16, 16);
+            const targetMarkerMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+            const targetMarker = new THREE.Mesh(targetMarkerGeometry, targetMarkerMaterial);
+            const markerAngle = 220 * Math.PI / 180;
+            const markerX = outerRadius * Math.cos(markerAngle);
+            const markerZ = outerRadius * Math.sin(markerAngle);
+            const markerRise = safePitchBlock + safeTotalRise; // Scales with project parameters
+            targetMarker.position.set(markerX, markerRise, markerZ);
+            targetMarker.userData = { type: 'topTarget' };
+            scene.add(targetMarker);
+            sceneRef.current.debugElements.push(targetMarker);
+            sceneRef.current.topTargetMarker = targetMarker;
+          }
+          
+        } else {
+          // Main spiral: continuous mathematical function (no discrete steps)
+          x = outerRadius * Math.cos(angle);
+          z = outerRadius * Math.sin(angle);
+          y = rise;
+        }
+        
+        // Add point to create truly continuous curve
+        outerPoints.push(new THREE.Vector3(x, y, z));
+      }
     
          // CRASH PROTECTION: Validate points before creating curves
      if (outerPoints.length < 2) {
@@ -1005,82 +942,48 @@ export function useThreeJS(
          }
          
                } else if (segmentPosition >= parameters.totalSegments - parameters.topLength) {
-          // Top easement: split in half - inner half interpolates with spiral, outer half is pure easement
+          // Top easement: simplified smooth transition without split-half complexity
           if (parameters.topLength <= 0) {
             console.warn('Invalid top length for inside line, skipping top easement');
             x = innerRadius * Math.cos(angle);
             z = innerRadius * Math.sin(angle);
             y = rise;
           } else {
-            // Calculate spiral end angle once for both halves
-            const spiralEndAngle = ((parameters.totalSegments - parameters.topLength) / parameters.totalSegments) * parameters.totalDegrees;
-            
-            // Split easement into two halves
-            const easementHalf = parameters.topLength / 2;
+            // Simple, smooth easement from spiral to final position
             const easementProgress = (segmentPosition - (parameters.totalSegments - parameters.topLength)) / parameters.topLength;
+            const smoothEaseT = easementProgress * easementProgress * (3 - 2 * easementProgress);
             
-            if (easementProgress <= 0.5) {
-              // INNER HALF: Interpolate between spiral and easement for seamless connection
-              const innerEaseT = easementProgress * 2; // 0 to 1 over first half
-              const smoothInnerEaseT = innerEaseT * innerEaseT * (3 - 2 * innerEaseT);
-              
-              // Start: spiral end position
-              const startAngle = spiralEndAngle * Math.PI / 180;
-              const startX = innerRadius * Math.cos(startAngle);
-              const startZ = innerRadius * Math.sin(startAngle);
-              const startRise = insidePitchBlockOffset + (spiralEndAngle / parameters.totalDegrees) * safeTotalRise;
-              
-              // End: easement midpoint
-              const midAngle = ((parameters.totalSegments - easementHalf) / parameters.totalSegments) * parameters.totalDegrees * Math.PI / 180;
-              const midX = innerRadius * Math.cos(midAngle);
-              const midZ = innerRadius * Math.sin(midAngle);
-              const midRise = startRise + (0.5 * (insidePitchBlockOffset + safeTotalRise - startRise));
-              
-              // Interpolate from spiral to easement midpoint for seamless connection
-              x = startX + (midX - startX) * smoothInnerEaseT;
-              z = startZ + (midZ - startZ) * smoothInnerEaseT;
-              y = startRise + (midRise - startRise) * smoothInnerEaseT;
-              
-              if (i === Math.floor(steps * 0.9)) {
-                console.log(`🔧 Inner line top easement INNER HALF: Interpolating from spiral to easement for seamless connection`);
-              }
-            } else {
-              // OUTER HALF: Pure easement from midpoint to final position
-              const outerEaseT = (easementProgress - 0.5) * 2; // 0 to 1 over second half
-              const smoothOuterEaseT = outerEaseT * outerEaseT * (3 - 2 * outerEaseT);
-              
-              // Start: easement midpoint
-              const midAngle = ((parameters.totalSegments - easementHalf) / parameters.totalSegments) * parameters.totalDegrees * Math.PI / 180;
-              const midX = innerRadius * Math.cos(midAngle);
-              const midZ = innerRadius * Math.sin(midAngle);
-              const midRise = insidePitchBlockOffset + (spiralEndAngle / parameters.totalDegrees) * safeTotalRise + (0.5 * (insidePitchBlockOffset + safeTotalRise - (insidePitchBlockOffset + (spiralEndAngle / parameters.totalDegrees) * safeTotalRise)));
-              
-              // End: final position (at 220°)
-              const endAngle = 220 * Math.PI / 180;
-              const endX = innerRadius * Math.cos(endAngle);
-              const endZ = innerRadius * Math.sin(endAngle);
-              const endRise = insidePitchBlockOffset + safeTotalRise;
-              
-              // Pure easement interpolation
-              x = midX + (endX - midX) * smoothOuterEaseT;
-              z = midZ + (endZ - midZ) * smoothOuterEaseT;
-              y = midRise + (endRise - midRise) * smoothOuterEaseT;
-              
-              if (i === steps) {
-                console.log(`🔧 Inner line top easement OUTER HALF: Pure easement from midpoint to final position`);
-              }
+            // Start: spiral position
+            const startAngle = ((parameters.totalSegments - parameters.topLength) / parameters.totalSegments) * parameters.totalDegrees * Math.PI / 180;
+            const startX = innerRadius * Math.cos(startAngle);
+            const startZ = innerRadius * Math.sin(startAngle);
+            const startRise = insidePitchBlockOffset + ((parameters.totalSegments - parameters.topLength) / parameters.totalSegments) * safeTotalRise;
+            
+            // End: final position (at 220°)
+            const endAngle = 220 * Math.PI / 180;
+            const endX = innerRadius * Math.cos(endAngle);
+            const endZ = innerRadius * Math.sin(endAngle);
+            const endRise = insidePitchBlockOffset + safeTotalRise;
+            
+            // Smooth interpolation from spiral to final position
+            x = startX + (endX - startX) * smoothEaseT;
+            z = startZ + (endZ - startZ) * smoothEaseT;
+            y = startRise + (endRise - startRise) * smoothEaseT;
+            
+            if (i === steps) {
+              console.log(`🔧 Inner line top easement: Smooth transition from spiral to final position`);
             }
           }
-         
-       } else {
-         // Main spiral: use main center
-         x = innerRadius * Math.cos(angle);
-         z = innerRadius * Math.sin(angle);
-         y = rise;
-       }
-       
-       insidePoints.push(new THREE.Vector3(x, y, z));
-     }
+          
+        } else {
+          // Main spiral: use main center
+          x = innerRadius * Math.cos(angle);
+          z = innerRadius * Math.sin(angle);
+          y = rise;
+        }
+        
+        insidePoints.push(new THREE.Vector3(x, y, z));
+      }
     
          // CRASH PROTECTION: Validate inside points before creating curve
      if (insidePoints.length < 2) {
