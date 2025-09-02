@@ -775,11 +775,18 @@ export function useThreeJS(
             const easementProgress = (segmentPosition - (parameters.totalSegments - parameters.topLength)) / parameters.topLength;
             const smoothEaseT = easementProgress * easementProgress * (3 - 2 * easementProgress);
             
-            // Start: spiral position
-            const startAngle = ((parameters.totalSegments - parameters.topLength) / parameters.totalSegments) * parameters.totalDegrees * Math.PI / 180;
-            const startX = outerRadius * Math.cos(startAngle);
-            const startZ = outerRadius * Math.sin(startAngle);
-            const startRise = safePitchBlock + ((parameters.totalSegments - parameters.topLength) / parameters.totalSegments) * safeTotalRise;
+            // FIXED: Calculate spiral end position that matches where easement should start
+            const spiralEndAngle = ((parameters.totalSegments - parameters.topLength) / parameters.totalSegments) * parameters.totalDegrees;
+            const spiralEndAngleRad = spiralEndAngle * Math.PI / 180;
+            
+            // Start: spiral end position - this should match the main spiral height
+            const startX = outerRadius * Math.cos(spiralEndAngleRad);
+            const startZ = outerRadius * Math.sin(spiralEndAngleRad);
+            
+            // FIXED: Use the actual calculated rise at this position, not a simplified calculation
+            // This ensures the spiral and easement connect at the same height
+            const spiralEndRise = safePitchBlock + (spiralEndAngle / parameters.totalDegrees) * safeTotalRise;
+            const startRise = spiralEndRise;
             
             // End: final position (at 220°)
             const endAngle = 220 * Math.PI / 180;
@@ -953,11 +960,18 @@ export function useThreeJS(
             const easementProgress = (segmentPosition - (parameters.totalSegments - parameters.topLength)) / parameters.topLength;
             const smoothEaseT = easementProgress * easementProgress * (3 - 2 * easementProgress);
             
-            // Start: spiral position
-            const startAngle = ((parameters.totalSegments - parameters.topLength) / parameters.totalSegments) * parameters.totalDegrees * Math.PI / 180;
-            const startX = innerRadius * Math.cos(startAngle);
-            const startZ = innerRadius * Math.sin(startAngle);
-            const startRise = insidePitchBlockOffset + ((parameters.totalSegments - parameters.topLength) / parameters.totalSegments) * safeTotalRise;
+            // FIXED: Calculate spiral end position that matches where easement should start
+            const spiralEndAngle = ((parameters.totalSegments - parameters.topLength) / parameters.totalSegments) * parameters.totalDegrees;
+            const spiralEndAngleRad = spiralEndAngle * Math.PI / 180;
+            
+            // Start: spiral end position - this should match the main spiral height
+            const startX = innerRadius * Math.cos(spiralEndAngleRad);
+            const startZ = innerRadius * Math.sin(spiralEndAngleRad);
+            
+            // FIXED: Use the actual calculated rise at this position for inner line
+            // This ensures the inner spiral and easement connect at the same height
+            const spiralEndRise = insidePitchBlockOffset + (spiralEndAngle / parameters.totalDegrees) * safeTotalRise;
+            const startRise = spiralEndRise;
             
             // End: final position (at 220°)
             const endAngle = 220 * Math.PI / 180;
@@ -972,6 +986,8 @@ export function useThreeJS(
             
             if (i === steps) {
               console.log(`🔧 Inner line top easement: Smooth transition from spiral to final position`);
+              console.log(`📍 Inner spiral end angle: ${spiralEndAngle.toFixed(1)}° at height ${spiralEndRise.toFixed(3)}"`);
+              console.log(`📍 Inner final position: 220° at height ${endRise.toFixed(3)}"`);
             }
           }
           
