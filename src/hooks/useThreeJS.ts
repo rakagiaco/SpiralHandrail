@@ -686,10 +686,12 @@ export function useThreeJS(
         // Only apply angle adjustments during easement transitions, not the main spiral
         // This ensures the spiral maintains its proper mathematical shape
         
-        // Scale the rise proportionally with project parameters
-        const scaledRise = baseRise - safePitchBlock;
-        const scaleFactor = safeTotalRise / 7.375;
-        rise = safePitchBlock + (scaledRise * scaleFactor);
+                 // Scale the rise proportionally with project parameters
+         const scaledRise = baseRise - safePitchBlock;
+         const scaleFactor = safeTotalRise / 7.375;
+         // FIXED: Include pitch block offset in spiral rise calculation
+         // This ensures the spiral connects properly to the easements
+         rise = safePitchBlock + safeBottomOffset + (scaledRise * scaleFactor);
         
         // Debug logging for spiral calculation
         if (i % 1000 === 0) {
@@ -942,10 +944,12 @@ export function useThreeJS(
            rise = lowerRise + (upperRise - lowerRise) * interpolationFactor;
          }
          
-         // Scale the rise proportionally with project parameters for inside line
-         const baseRise = rise - insidePitchBlockOffset;
-         const scaleFactor = safeTotalRise / 7.375;
-         rise = insidePitchBlockOffset + (baseRise * scaleFactor);
+                   // Scale the rise proportionally with project parameters for inside line
+          const baseRise = rise - insidePitchBlockOffset;
+          const scaleFactor = safeTotalRise / 7.375;
+          // FIXED: Include pitch block offset in inner line spiral rise calculation
+          // This ensures the inner spiral connects properly to the easements
+          rise = insidePitchBlockOffset + safeTopOffset + (baseRise * scaleFactor);
        } else {
          // Fallback: use simple linear rise if no manual data
          rise = insidePitchBlockOffset + (t * safeTotalRise);
