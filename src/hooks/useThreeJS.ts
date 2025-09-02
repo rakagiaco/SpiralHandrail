@@ -388,12 +388,13 @@ export function useThreeJS(
      const safeBottomOffset = baseBottomOffset * scaleFactor;
      const safeTopOffset = baseTopOffset * scaleFactor;
      
-           // Create inside pitch block offset that's always 1 less than the actual pitch block
+           // Create inside pitch block offset that correlates with the actual pitch block
       // This ensures the inner line starts at a consistent offset from the main pitch block
-      const insidePitchBlockOffset = safePitchBlock - 1;
+      // But never below 0.5" to avoid going into the floor
+      const insidePitchBlockOffset = Math.max(0.5, safePitchBlock * 0.8);
       
       // Debug: Log inside pitch block offset information
-      console.log(`📏 Inside pitch block offset: ${insidePitchBlockOffset.toFixed(3)}" (${safePitchBlock.toFixed(3)}" - 1)`);
+      console.log(`📏 Inside pitch block offset: ${insidePitchBlockOffset.toFixed(3)}" (max of 0.5" or ${safePitchBlock.toFixed(3)}" × 0.8)`);
     
                                                                          // Calculate radii with protection - use custom parameters if provided
      const customOuterRadius = parameters.customOuterRadius || 4.625;
