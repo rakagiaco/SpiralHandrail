@@ -636,10 +636,9 @@ export function useThreeJS(
        // Calculate continuous angle based on arc distance
        const angle = (arcDistance / parameters.totalArcDistance) * parameters.totalDegrees * Math.PI / 180;
        
-                                          // FIXED: Apply easement angle to the ENTIRE calculation system
-          // The angle affects how steeply the entire handrail rises/falls
-          const customEasementAngle = parameters.customEasementAngle || -35.08;
-          const easementAngleRad = customEasementAngle * Math.PI / 180;
+                                                                                     // FIXED: Easement angle should NOT affect the main spiral calculation
+           // Only apply angle adjustments during easement transitions, not the main spiral
+           // This ensures the spiral maintains its proper mathematical shape
           
           // Calculate base rise with manual data interpolation
           let baseRise: number;
@@ -692,9 +691,9 @@ export function useThreeJS(
            const scaleFactor = safeTotalRise / 7.375;
            rise = safePitchBlock + (scaledRise * scaleFactor);
          
-                              // Debug logging for angle effect
+                              // Debug logging for spiral calculation
            if (i % 1000 === 0) {
-             console.log(`🔧 Easement angle ${customEasementAngle}° affecting easement transitions only:`);
+             console.log(`🔧 Main spiral calculation (easement angle does not affect main spiral):`);
              console.log(`📍 Arc distance: ${arcDistance.toFixed(3)}"`);
              console.log(`📍 Base rise: ${baseRise.toFixed(3)}"`);
              console.log(`📍 Final scaled rise: ${rise.toFixed(3)}"`);
