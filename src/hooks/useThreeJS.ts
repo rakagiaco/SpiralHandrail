@@ -782,36 +782,35 @@ export function useThreeJS(
             z = outerRadius * Math.sin(angle);
             y = rise;
           } else {
-            // Simple, smooth easement from spiral to final position
+            // Simple, straight easement from spiral to final position
             const easementProgress = (segmentPosition - (parameters.totalSegments - parameters.topLength)) / parameters.topLength;
-            const smoothEaseT = easementProgress * easementProgress * (3 - 2 * easementProgress);
             
-                                      // FIXED: Top easement draws PERFECTLY straight line to last manual reference position
-              // No arcing, no smoothstep - just a straight line that eases UP into the next rail
-              const spiralEndAngle = ((parameters.totalSegments - parameters.topLength) / parameters.totalSegments) * parameters.totalDegrees;
-              const spiralEndAngleRad = spiralEndAngle * Math.PI / 180;
-              
-              // Start: spiral end position - use the manual reference line height
-              const startX = outerRadius * Math.cos(spiralEndAngleRad);
-              const startZ = outerRadius * Math.sin(spiralEndAngleRad);
-              const startRise = rise; // This is the manual reference line height at spiral end
-              
-              // End: final position (at 220°) - scale the last manual reference point proportionally
-              const endAngle = 220 * Math.PI / 180;
-              const endX = outerRadius * Math.cos(endAngle);
-              const endZ = outerRadius * Math.sin(endAngle);
-              
-              // Get the last manual reference position (highest arc distance) - scale proportionally with project parameters
-              const manualDistances = Object.keys(validatedManualRiseData).map(Number).sort((a, b) => a - b);
-              const lastManualDistance = manualDistances[manualDistances.length - 1];
-              const baseEndRise = validatedManualRiseData[lastManualDistance]; // Your exact point
-              const scaleFactor = safeTotalRise / 7.375; // Scale based on your reference rise
-              const endRise = (baseEndRise * scaleFactor) + safePitchBlock; // Scaled point + pitch block
-              
-              // PERFECTLY STRAIGHT LINE: Simple linear interpolation - no arcing, no smoothstep
-              x = startX + (endX - startX) * easementProgress;
-              z = startZ + (endZ - startZ) * easementProgress;
-              y = startRise + (endRise - startRise) * easementProgress; // Straight line interpolation
+            // FIXED: Top easement draws PERFECTLY straight line to last manual reference position
+            // No arcing, no smoothstep - just a straight line that eases UP into the next rail
+            const spiralEndAngle = ((parameters.totalSegments - parameters.topLength) / parameters.totalSegments) * parameters.totalDegrees;
+            const spiralEndAngleRad = spiralEndAngle * Math.PI / 180;
+            
+            // Start: spiral end position - use the manual reference line height
+            const startX = outerRadius * Math.cos(spiralEndAngleRad);
+            const startZ = outerRadius * Math.sin(spiralEndAngleRad);
+            const startRise = rise; // This is the manual reference line height at spiral end
+            
+            // End: final position (at 220°) - scale the last manual reference point proportionally
+            const endAngle = 220 * Math.PI / 180;
+            const endX = outerRadius * Math.cos(endAngle);
+            const endZ = outerRadius * Math.sin(endAngle);
+            
+            // Get the last manual reference position (highest arc distance) - scale proportionally with project parameters
+            const manualDistances = Object.keys(validatedManualRiseData).map(Number).sort((a, b) => a - b);
+            const lastManualDistance = manualDistances[manualDistances.length - 1];
+            const baseEndRise = validatedManualRiseData[lastManualDistance]; // Your exact point
+            const scaleFactor = safeTotalRise / 7.375; // Scale based on your reference rise
+            const endRise = (baseEndRise * scaleFactor) + safePitchBlock; // Scaled point + pitch block
+            
+            // PERFECTLY STRAIGHT LINE: Simple linear interpolation - no arcing, no smoothstep
+            x = startX + (endX - startX) * easementProgress;
+            z = startZ + (endZ - startZ) * easementProgress;
+            y = startRise + (endRise - startRise) * easementProgress; // Straight line interpolation
             
             if (i === steps) {
               console.log(`🔧 Top easement: Smooth transition from spiral to final position`);
@@ -999,9 +998,8 @@ export function useThreeJS(
             z = innerRadius * Math.sin(angle);
             y = rise;
           } else {
-            // Simple, smooth easement from spiral to final position
+            // Simple, straight easement from spiral to final position
             const easementProgress = (segmentPosition - (parameters.totalSegments - parameters.topLength)) / parameters.topLength;
-            const smoothEaseT = easementProgress * easementProgress * (3 - 2 * easementProgress);
             
             // FIXED: Calculate spiral end position that matches where easement should start
             const spiralEndAngle = ((parameters.totalSegments - parameters.topLength) / parameters.totalSegments) * parameters.totalDegrees;
