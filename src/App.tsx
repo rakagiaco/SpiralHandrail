@@ -7,7 +7,7 @@ import { ThreeJSVisualization } from './components/ThreeJSVisualization';
 import { ParametersSection } from './components/ParametersSection';
 import { RiseAdjustmentSection } from './components/RiseAdjustmentSection';
 
-import { calculateRiseAtDistance, calculateInsideLineData } from './utils/calculations';
+import { calculateRiseAtDistance, calculateInsideLineData, calculateInnerRadiusFromRunDistance } from './utils/calculations';
 
 // Default parameters for a standard spiral handrail
 // These values represent a typical 220° spiral with 17.5" arc distance
@@ -16,6 +16,8 @@ const defaultParameters: HandrailParameters = {
   totalHelicalRise: 7.375,  // Total height gain in inches
   totalArcDistance: 17.5,   // Total arc length in inches
   totalSegments: 10,        // Number of segments to divide the spiral
+  insideArcDistance: 10.5,  // Total arc length for inside line in inches
+  insideRunDistance: 20.1,  // Total run distance for inside line in inches (calculated from 5.25" radius)
   pitchBlock: 1,            // Height of pitch block at bottom in inches
   bottomLength: 1.5,        // Length of bottom easement in segments
   topLength: 2,             // Length of top easement in segments
@@ -114,14 +116,23 @@ function App() {
   const calculateInsideLineDataCallback = useCallback(() => {
     const newInsideLineData = calculateInsideLineData(
       parameters.totalHelicalRise,
-      parameters.totalArcDistance,
+      parameters.insideArcDistance,
+      parameters.insideRunDistance,
       parameters.totalDegrees,
-      parameters.pitchBlock,
-      parameters.customInnerRadius
+      parameters.pitchBlock
     );
     
     setInsideLineData(newInsideLineData);
-  }, [parameters.totalHelicalRise, parameters.totalArcDistance, parameters.totalDegrees, parameters.pitchBlock, parameters.customInnerRadius]);
+    
+    // Calculate the inner radius from the user-provided run distance
+    const calculatedInnerRadius = calculateInnerRadiusFromRunDistance(
+      parameters.insideRunDistance,
+      parameters.totalDegrees
+    );
+    
+    // Update the custom inner radius parameter
+    setParameters(prev => ({ ...prev, customInnerRadius: calculatedInnerRadius }));
+  }, [parameters.totalHelicalRise, parameters.insideArcDistance, parameters.insideRunDistance, parameters.totalDegrees, parameters.pitchBlock]);
 
   // Calculate rise data whenever parameters change
   useEffect(() => {

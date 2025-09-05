@@ -35,6 +35,10 @@ export interface HandrailParameters {
   totalArcDistance: number;  // Total arc length in inches (typically 17.5")
   totalSegments: number;     // Number of segments to divide the spiral into
   
+  // Inside line specific parameters
+  insideArcDistance: number; // Total arc length for inside line in inches (typically 10.5")
+  insideRunDistance: number; // Total run distance for inside line in inches (calculated from inner radius)
+  
   // Height and offset parameters
   pitchBlock: number;        // Height of the pitch block at the bottom in inches
   bottomLength: number;      // Length of the bottom easement in segments

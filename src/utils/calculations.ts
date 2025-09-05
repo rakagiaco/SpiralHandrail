@@ -113,7 +113,7 @@ export function getCurrentRiseAtDistance(
 export function calculateInsideLineRiseAndRun(
   arcDistance: number,                 // Current arc distance in inches
   totalHelicalRise: number,            // Total height gain over the spiral
-  totalArcDistance: number,            // Total arc length of the spiral
+  insideArcDistance: number,           // Total arc length for inside line
   totalDegrees: number,                // Total angular span in degrees
   pitchBlock: number,                  // Height of the pitch block at bottom
   customInnerRadius?: number           // Custom inner radius override in inches
@@ -123,12 +123,12 @@ export function calculateInsideLineRiseAndRun(
     (customInnerRadius <= 2.5 ? customInnerRadius : customInnerRadius / 2) : 
     5.25; // Default 10.5" diameter = 5.25" radius
   
-  // Calculate the angle at this arc distance
-  const angle = (arcDistance / totalArcDistance) * totalDegrees;
+  // Calculate the angle at this arc distance (using inside arc distance for angle calculation)
+  const angle = (arcDistance / insideArcDistance) * totalDegrees;
   
-  // Calculate rise using the same profile as the outer line but with inner line characteristics
-  // The inside line follows the same rise pattern but may have different starting height
-  const baseRise = calculateRiseAtDistance(arcDistance, totalHelicalRise, totalArcDistance, pitchBlock);
+  // Calculate rise using the same profile as the outer line but scaled to inside arc distance
+  // The inside line follows the same rise pattern but scaled to its own arc distance
+  const baseRise = calculateRiseAtDistance(arcDistance, totalHelicalRise, insideArcDistance, pitchBlock);
   
   // Inside line typically starts at a slightly lower height than the outer line
   // This creates the proper handrail geometry
@@ -136,6 +136,7 @@ export function calculateInsideLineRiseAndRun(
   const rise = baseRise - (pitchBlock - insidePitchBlockOffset);
   
   // Calculate run (horizontal distance) based on the inner radius and angle
+  // This is the key difference - inside line has different run due to smaller radius
   const run = innerRadius * (angle * Math.PI / 180);
   
   return {
@@ -145,37 +146,69 @@ export function calculateInsideLineRiseAndRun(
   };
 }
 
+// Calculates the inner radius from the user-provided inside run distance
+export function calculateInnerRadiusFromRunDistance(
+  insideRunDistance: number,           // User-provided inside run distance in inches
+  totalDegrees: number                 // Total angular span in degrees
+): number {
+  // Calculate inner radius from run distance: radius = runDistance / (angleInRadians)
+  const angleInRadians = totalDegrees * Math.PI / 180;
+  const innerRadius = insideRunDistance / angleInRadians;
+  
+  return innerRadius;
+}
+
+// Calculates the total run distance for the inside line based on inner radius
+// This is now used for validation/display purposes only
+export function calculateInsideRunDistance(
+  totalDegrees: number,                // Total angular span in degrees
+  customInnerRadius?: number           // Custom inner radius override in inches
+): number {
+  // Calculate inner radius (convert from diameter if needed)
+  const innerRadius = customInnerRadius ? 
+    (customInnerRadius <= 2.5 ? customInnerRadius : customInnerRadius / 2) : 
+    5.25; // Default 10.5" diameter = 5.25" radius
+  
+  // Calculate total run distance: innerRadius * totalAngleInRadians
+  const totalRunDistance = innerRadius * (totalDegrees * Math.PI / 180);
+  
+  return totalRunDistance;
+}
+
 // Calculates inside line data for all arc distances (similar to outer line calculations)
 export function calculateInsideLineData(
   totalHelicalRise: number,
-  totalArcDistance: number,
+  insideArcDistance: number,
+  insideRunDistance: number,
   totalDegrees: number,
-  pitchBlock: number,
-  customInnerRadius?: number
+  pitchBlock: number
 ): Record<number, { rise: number; run: number; angle: number }> {
   const insideLineData: Record<number, { rise: number; run: number; angle: number }> = {};
   
+  // Calculate the inner radius from the user-provided run distance
+  const calculatedInnerRadius = calculateInnerRadiusFromRunDistance(insideRunDistance, totalDegrees);
+  
   // Calculate inside line data at every 0.5" increment
-  for (let arcDist = 0; arcDist <= totalArcDistance; arcDist += 0.5) {
+  for (let arcDist = 0; arcDist <= insideArcDistance; arcDist += 0.5) {
     insideLineData[arcDist] = calculateInsideLineRiseAndRun(
       arcDist,
       totalHelicalRise,
-      totalArcDistance,
+      insideArcDistance,
       totalDegrees,
       pitchBlock,
-      customInnerRadius
+      calculatedInnerRadius
     );
   }
   
   // Also calculate at exact inch marks
-  for (let inch = 0; inch <= Math.ceil(totalArcDistance); inch++) {
+  for (let inch = 0; inch <= Math.ceil(insideArcDistance); inch++) {
     insideLineData[inch] = calculateInsideLineRiseAndRun(
       inch,
       totalHelicalRise,
-      totalArcDistance,
+      insideArcDistance,
       totalDegrees,
       pitchBlock,
-      customInnerRadius
+      calculatedInnerRadius
     );
   }
   

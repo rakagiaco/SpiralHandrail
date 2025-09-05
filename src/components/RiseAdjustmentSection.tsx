@@ -310,7 +310,7 @@ export function RiseAdjustmentSection({
        <div className="mt-6 p-4 bg-green-50 rounded-lg border border-green-200">
          <h4 className="text-sm font-semibold text-green-700 mb-3 flex items-center">
            <span className="mr-2">📐</span>
-           Inside Line Rise & Run (3D Model Based)
+           Inside Line Rise & Run (3D Model Based) - {parameters.insideArcDistance}" Arc
          </h4>
          <p className="text-xs text-green-600 mb-3">
            Calculated from 3D model parameters - different rise and run than outer line due to inner radius
@@ -318,7 +318,7 @@ export function RiseAdjustmentSection({
          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
            {Object.entries(insideLineData).filter(([arcDist]) => {
              const arc = parseFloat(arcDist);
-             return arc <= totalArcDistance && arc % 1 === 0; // Only show whole inch marks
+             return arc <= parameters.insideArcDistance && arc % 1 === 0; // Only show whole inch marks up to inside arc distance
            }).map(([arcDist, data]) => {
              const arc = parseFloat(arcDist);
              

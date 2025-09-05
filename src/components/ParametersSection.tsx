@@ -39,9 +39,36 @@ export function ParametersSection({ parameters, onParameterChange }: ParametersS
             type="number"
             value={parameters.totalArcDistance}
             step="0.125"
-            onChange={(e) => onParameterChange('totalArcDistance', parseFloat(e.target.value))}
+            onChange={(e) => onParameterChange('totalArcDistance', parseFloat(e.target.value) || 0)}
             className="p-3 border-2 border-gray-200 rounded-lg text-base transition-all focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 bg-gray-50 focus:bg-white"
           />
+        </div>
+        <div className="flex flex-col">
+          <label className="font-semibold text-gray-700 mb-2 text-sm flex items-center">
+            Inside Arc Distance (inches)
+            <span className="ml-2 text-xs text-green-600">📐 3D Model</span>
+          </label>
+          <input
+            type="number"
+            value={parameters.insideArcDistance}
+            step="0.125"
+            onChange={(e) => onParameterChange('insideArcDistance', parseFloat(e.target.value) || 0)}
+            className="p-3 border-2 border-gray-200 rounded-lg text-base transition-all focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-100 bg-gray-50 focus:bg-white"
+          />
+        </div>
+        <div className="flex flex-col">
+          <label className="font-semibold text-gray-700 mb-2 text-sm flex items-center">
+            Inside Run Distance (inches)
+            <span className="ml-2 text-xs text-blue-600">📏 User Input</span>
+          </label>
+          <input
+            type="number"
+            value={parameters.insideRunDistance}
+            step="0.125"
+            onChange={(e) => onParameterChange('insideRunDistance', parseFloat(e.target.value) || 0)}
+            className="p-3 border-2 border-gray-200 rounded-lg text-base transition-all focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 bg-gray-50 focus:bg-white"
+          />
+          <p className="text-xs text-gray-500 mt-1">Sets the inner radius automatically based on total degrees</p>
         </div>
         <div className="flex flex-col">
           <label className="font-semibold text-gray-700 mb-2 text-sm">Total Segments</label>
