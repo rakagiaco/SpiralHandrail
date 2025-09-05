@@ -108,6 +108,80 @@ export function getCurrentRiseAtDistance(
   return clampedRise;
 }
 
+// Calculates rise and run for the inside line based on 3D model parameters
+// The inside line uses a different radius and has its own rise profile
+export function calculateInsideLineRiseAndRun(
+  arcDistance: number,                 // Current arc distance in inches
+  totalHelicalRise: number,            // Total height gain over the spiral
+  totalArcDistance: number,            // Total arc length of the spiral
+  totalDegrees: number,                // Total angular span in degrees
+  pitchBlock: number,                  // Height of the pitch block at bottom
+  customInnerRadius?: number           // Custom inner radius override in inches
+): { rise: number; run: number; angle: number } {
+  // Calculate inner radius (convert from diameter if needed)
+  const innerRadius = customInnerRadius ? 
+    (customInnerRadius <= 2.5 ? customInnerRadius : customInnerRadius / 2) : 
+    5.25; // Default 10.5" diameter = 5.25" radius
+  
+  // Calculate the angle at this arc distance
+  const angle = (arcDistance / totalArcDistance) * totalDegrees;
+  
+  // Calculate rise using the same profile as the outer line but with inner line characteristics
+  // The inside line follows the same rise pattern but may have different starting height
+  const baseRise = calculateRiseAtDistance(arcDistance, totalHelicalRise, totalArcDistance, pitchBlock);
+  
+  // Inside line typically starts at a slightly lower height than the outer line
+  // This creates the proper handrail geometry
+  const insidePitchBlockOffset = Math.max(0.5, pitchBlock * 0.8);
+  const rise = baseRise - (pitchBlock - insidePitchBlockOffset);
+  
+  // Calculate run (horizontal distance) based on the inner radius and angle
+  const run = innerRadius * (angle * Math.PI / 180);
+  
+  return {
+    rise: Math.max(0, rise),
+    run: Math.max(0, run),
+    angle: angle
+  };
+}
+
+// Calculates inside line data for all arc distances (similar to outer line calculations)
+export function calculateInsideLineData(
+  totalHelicalRise: number,
+  totalArcDistance: number,
+  totalDegrees: number,
+  pitchBlock: number,
+  customInnerRadius?: number
+): Record<number, { rise: number; run: number; angle: number }> {
+  const insideLineData: Record<number, { rise: number; run: number; angle: number }> = {};
+  
+  // Calculate inside line data at every 0.5" increment
+  for (let arcDist = 0; arcDist <= totalArcDistance; arcDist += 0.5) {
+    insideLineData[arcDist] = calculateInsideLineRiseAndRun(
+      arcDist,
+      totalHelicalRise,
+      totalArcDistance,
+      totalDegrees,
+      pitchBlock,
+      customInnerRadius
+    );
+  }
+  
+  // Also calculate at exact inch marks
+  for (let inch = 0; inch <= Math.ceil(totalArcDistance); inch++) {
+    insideLineData[inch] = calculateInsideLineRiseAndRun(
+      inch,
+      totalHelicalRise,
+      totalArcDistance,
+      totalDegrees,
+      pitchBlock,
+      customInnerRadius
+    );
+  }
+  
+  return insideLineData;
+}
+
 // Test function to verify rise calculations are working correctly
 // This function outputs test results to the console for debugging
 export function testCalculations() {
@@ -137,6 +211,18 @@ export function testCalculations() {
   const innerArc = 10.5;
   const innerResult = calculateRiseAtDistance(innerArc, testHelicalRise, testArcDistance, testPitchBlock);
   console.log(`Inner Reference - Arc: ${innerArc}", Expected Rise: 5.425", Actual Rise: ${innerResult}"`);
+  
+  // Test inside line calculations
+  console.log('=== Testing Inside Line Calculations ===');
+  const insideLineResult = calculateInsideLineRiseAndRun(
+    testArc, 
+    testHelicalRise, 
+    testArcDistance, 
+    220, // 220 degrees
+    testPitchBlock,
+    10.5 // 10.5" diameter
+  );
+  console.log(`Inside Line - Arc: ${testArc}", Rise: ${insideLineResult.rise.toFixed(3)}", Run: ${insideLineResult.run.toFixed(3)}", Angle: ${insideLineResult.angle.toFixed(1)}°`);
   
   console.log('=== End Test ===');
 }

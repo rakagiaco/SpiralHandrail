@@ -1,18 +1,23 @@
 import React from 'react';
+import { HandrailParameters } from '../types/handrail';
 
 interface RiseAdjustmentSectionProps {
+  parameters: HandrailParameters;
   totalArcDistance: number;
   manualRiseData: Record<number, number>;
   calculatedRiseData: Record<number, number>;
+  insideLineData: Record<number, { rise: number; run: number; angle: number }>;
   onRiseChange: (arcDistance: number, value: number) => void;
   onReset: () => void;
   onRecalculate: () => void;
 }
 
 export function RiseAdjustmentSection({ 
+  parameters,
   totalArcDistance, 
   manualRiseData, 
-  calculatedRiseData, 
+  calculatedRiseData,
+  insideLineData,
   onRiseChange, 
   onReset,
   onRecalculate
@@ -231,12 +236,12 @@ export function RiseAdjustmentSection({
        <div className="mt-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
          <h4 className="text-sm font-semibold text-yellow-700 mb-3 flex items-center">
            <span className="mr-2">📐</span>
-           Degree-Based Rise Chart (0° to 220°)
+           Degree-Based Rise Chart (0° to {parameters.totalDegrees}°)
          </h4>
          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-           {Array.from({ length: 23 }, (_, i) => {
-             const degree = i * 10; // 0°, 10°, 20°, ..., 220°
-             const arcDistance = (degree / 220) * totalArcDistance;
+           {Array.from({ length: Math.ceil(parameters.totalDegrees / 10) + 1 }, (_, i) => {
+             const degree = i * 10; // 0°, 10°, 20°, ..., totalDegrees°
+             const arcDistance = (degree / parameters.totalDegrees) * totalArcDistance;
              const calculatedRise = calculatedRiseData[Math.round(arcDistance * 2) / 2] || 0;
              const manualRise = manualRiseData[Math.round(arcDistance * 2) / 2];
              const isManual = manualRise !== undefined;
@@ -295,6 +300,37 @@ export function RiseAdjustmentSection({
                      </div>
                    </div>
                  )}
+               </div>
+             );
+           })}
+         </div>
+       </div>
+       
+       {/* Inside Line Rise and Run Chart */}
+       <div className="mt-6 p-4 bg-green-50 rounded-lg border border-green-200">
+         <h4 className="text-sm font-semibold text-green-700 mb-3 flex items-center">
+           <span className="mr-2">📐</span>
+           Inside Line Rise & Run (3D Model Based)
+         </h4>
+         <p className="text-xs text-green-600 mb-3">
+           Calculated from 3D model parameters - different rise and run than outer line due to inner radius
+         </p>
+         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+           {Object.entries(insideLineData).filter(([arcDist]) => {
+             const arc = parseFloat(arcDist);
+             return arc <= totalArcDistance && arc % 1 === 0; // Only show whole inch marks
+           }).map(([arcDist, data]) => {
+             const arc = parseFloat(arcDist);
+             
+             return (
+               <div key={arcDist} className="text-center p-3 rounded-lg border-2 bg-green-100 border-green-300 text-green-800">
+                 <div className="text-sm font-semibold">{arc}" arc</div>
+                 <div className="text-lg font-bold">{data.rise.toFixed(3)}"</div>
+                 <div className="text-sm text-green-600">Rise</div>
+                 <div className="text-xs mt-1">
+                   <div>Run: {data.run.toFixed(3)}"</div>
+                   <div>Angle: {data.angle.toFixed(1)}°</div>
+                 </div>
                </div>
              );
            })}

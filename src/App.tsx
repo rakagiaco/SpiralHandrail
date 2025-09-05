@@ -1,13 +1,13 @@
 // Main App component for the Spiral Handrail 3D Visualizer
 // This component manages the global state and renders all sub-components
-import React, { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import './App.css';
 import { HandrailParameters } from './types/handrail';
 import { ThreeJSVisualization } from './components/ThreeJSVisualization';
 import { ParametersSection } from './components/ParametersSection';
 import { RiseAdjustmentSection } from './components/RiseAdjustmentSection';
 
-import { calculateRiseAtDistance } from './utils/calculations';
+import { calculateRiseAtDistance, calculateInsideLineData } from './utils/calculations';
 
 // Default parameters for a standard spiral handrail
 // These values represent a typical 220° spiral with 17.5" arc distance
@@ -39,6 +39,9 @@ function App() {
   
   // Calculated rise data based on mathematical formulas
   const [calculatedRiseData, setCalculatedRiseData] = useState<Record<number, number>>({});
+  
+  // Inside line data based on 3D model parameters
+  const [insideLineData, setInsideLineData] = useState<Record<number, { rise: number; run: number; angle: number }>>({});
   
   // Debug mode toggle - controls visibility of debugging information
   const [debugMode, setDebugMode] = useState<boolean>(false);
@@ -106,10 +109,29 @@ function App() {
     setCalculatedRiseData(newCalculatedData);
   }, [parameters.totalHelicalRise, parameters.totalArcDistance, parameters.pitchBlock]);
 
+  // Function to calculate inside line data based on 3D model parameters
+  // This populates the insideLineData with rise, run, and angle values
+  const calculateInsideLineDataCallback = useCallback(() => {
+    const newInsideLineData = calculateInsideLineData(
+      parameters.totalHelicalRise,
+      parameters.totalArcDistance,
+      parameters.totalDegrees,
+      parameters.pitchBlock,
+      parameters.customInnerRadius
+    );
+    
+    setInsideLineData(newInsideLineData);
+  }, [parameters.totalHelicalRise, parameters.totalArcDistance, parameters.totalDegrees, parameters.pitchBlock, parameters.customInnerRadius]);
+
   // Calculate rise data whenever parameters change
   useEffect(() => {
     calculateRiseData();
   }, [calculateRiseData]);
+
+  // Calculate inside line data whenever parameters change
+  useEffect(() => {
+    calculateInsideLineDataCallback();
+  }, [calculateInsideLineDataCallback]);
 
   return (
     <div className="App">
@@ -227,9 +249,11 @@ function App() {
         <div className="bottom-section">
           {/* Section for entering manual rise data points */}
           <RiseAdjustmentSection
+            parameters={parameters}
             totalArcDistance={parameters.totalArcDistance}
             manualRiseData={manualRiseData}
             calculatedRiseData={calculatedRiseData}
+            insideLineData={insideLineData}
             onRiseChange={handleRiseChange}
             onReset={handleResetRise}
             onRecalculate={calculateRiseData}

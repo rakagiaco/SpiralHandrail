@@ -697,16 +697,28 @@ export function useThreeJS(
                }
              }
              
-             // SCALE the baseline proportionally with project parameters
-             // This ensures the shape scales when you change rise or other parameters
-             const scaleFactor = safeTotalRise / 7.375; // Scale based on your reference rise
-             rise = rise * scaleFactor;
+            // COMPLETELY NEW APPROACH: Manual points are relative adjustments, not primary rise values
+            // Calculate the reference rise at this point (what it should be without manual input)
+            const referenceRise = (currentArcDistance / parameters.totalArcDistance) * 7.375;
+            
+            // Calculate the adjustment as a percentage of the reference rise
+            const adjustmentFactor = (rise - referenceRise) / referenceRise;
+            
+            // Apply a limited adjustment to prevent flattening (max 20% adjustment)
+            const maxAdjustment = 0.2;
+            const clampedAdjustment = Math.max(-maxAdjustment, Math.min(maxAdjustment, adjustmentFactor));
+            
+            // Final rise is base rise plus limited adjustment
+            const baseRise = t * safeTotalRise;
+            rise = baseRise * (1 + clampedAdjustment);
            } else {
              // Fallback: use simple linear rise if no manual data
              rise = t * safeTotalRise;
            }
            
-           // Move the entire piece up/down with pitch block height (after calculating baseline)
+           // FIXED: Apply pitch block offset normally (not scaled)
+           // The manual points are already scaled proportionally above
+           // Now just add the pitch block height to move the entire piece up/down
            rise = rise + safePitchBlock;
         
                  // Debug logging for spiral calculation
@@ -804,6 +816,8 @@ export function useThreeJS(
             const manualDistances = Object.keys(validatedManualRiseData).map(Number).sort((a, b) => a - b);
             const lastManualDistance = manualDistances[manualDistances.length - 1];
             const baseEndRise = validatedManualRiseData[lastManualDistance]; // Your exact point
+            
+            // RESTORE: Simple proportional scaling that was working before
             const scaleFactor = safeTotalRise / 7.375; // Scale based on your reference rise
             const endRise = (baseEndRise * scaleFactor) + safePitchBlock; // Scaled point + pitch block
             
@@ -826,8 +840,9 @@ export function useThreeJS(
             const markerX = outerRadius * Math.cos(markerAngle);
             const markerZ = outerRadius * Math.sin(markerAngle);
             // Scale the marker proportionally with project parameters
-            const scaleFactor = safeTotalRise / 7.375; // Scale based on your reference rise
-            const markerRise = safePitchBlock + (7.375 * scaleFactor); // Scales proportionally
+            const referenceRise = 7.375; // Reference rise for proportional scaling
+            const proportionalScale = safeTotalRise / referenceRise;
+            const markerRise = safePitchBlock + (7.375 * proportionalScale); // Scales proportionally
             targetMarker.position.set(markerX, markerRise, markerZ);
             targetMarker.userData = { type: 'topTarget' };
             scene.add(targetMarker);
@@ -942,15 +957,28 @@ export function useThreeJS(
               rise = lowerRise + (upperRise - lowerRise) * interpolationFactor; // Your baseline line
             }
             
-            // SCALE the baseline proportionally with project parameters (same as outer line)
-            const scaleFactor = safeTotalRise / 7.375; // Scale based on your reference rise
-            rise = rise * scaleFactor;
+            // COMPLETELY NEW APPROACH: Manual points are relative adjustments, not primary rise values (same as outer line)
+            // Calculate the reference rise at this point (what it should be without manual input)
+            const referenceRise = (currentArcDistance / parameters.totalArcDistance) * 7.375;
+            
+            // Calculate the adjustment as a percentage of the reference rise
+            const adjustmentFactor = (rise - referenceRise) / referenceRise;
+            
+            // Apply a limited adjustment to prevent flattening (max 20% adjustment)
+            const maxAdjustment = 0.2;
+            const clampedAdjustment = Math.max(-maxAdjustment, Math.min(maxAdjustment, adjustmentFactor));
+            
+            // Final rise is base rise plus limited adjustment
+            const baseRise = t * safeTotalRise;
+            rise = baseRise * (1 + clampedAdjustment);
           } else {
             // Fallback: use simple linear rise if no manual data
             rise = t * safeTotalRise;
           }
           
-          // Move the entire piece up/down with pitch block height (after calculating baseline)
+          // FIXED: Apply pitch block offset normally (same as outer line)
+          // The manual points are already scaled proportionally above
+          // Now just add the pitch block height to move the entire piece up/down
           rise = rise + safePitchBlock;
        
        // Validate rise value
@@ -1020,6 +1048,8 @@ export function useThreeJS(
               const manualDistances = Object.keys(validatedManualRiseData).map(Number).sort((a, b) => a - b);
               const lastManualDistance = manualDistances[manualDistances.length - 1];
               const baseEndRise = validatedManualRiseData[lastManualDistance]; // Your exact point
+              
+              // RESTORE: Simple proportional scaling that was working before (same as outer line)
               const scaleFactor = safeTotalRise / 7.375; // Scale based on your reference rise
               const endRise = (baseEndRise * scaleFactor) + safePitchBlock; // Scaled point + pitch block
               
